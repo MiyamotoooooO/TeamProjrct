@@ -49,6 +49,9 @@ public class WakeUpController : MonoBehaviour
         {
             playerMovementScript.enabled = false;
         }
+
+        Cursor.lockState = CursorLockMode.Locked;
+        Cursor.visible = false;
     }
 
     void Update()
