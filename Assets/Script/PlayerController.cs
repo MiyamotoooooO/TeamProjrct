@@ -1,27 +1,212 @@
-using System.Collections;
+ï»¿using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+// ç‰©ç†æŒ™å‹•ï¼ˆRigidbodyï¼‰ã‚’å¿…é ˆã«ã™ã‚‹
+[RequireComponent(typeof(Rigidbody))]
+public class PlayerController : MonoBehaviour
+{
+    [Header("ç§»å‹•è¨­å®š")]
+    public float walkSpeed = 5.0f; // é€šå¸¸æ™‚ã®é€Ÿåº¦
+    public float dashSpeed = 10.0f; // ãƒ€ãƒƒã‚·ãƒ¥æ™‚ã®é€Ÿåº¦
+
+    // å…ƒã® speed ã¯ walkSpeed ã«ç½®ãæ›ãˆã¾ã—ãŸ
+
+    [Header("ãƒ¡ã‚¤ãƒ³ã‚«ãƒ¡ãƒ©ã‚’å‚ç…§")]
+    public GameObject cam;
+
+    [Header("ã‚¤ãƒ³ãƒ™ãƒ³ãƒˆãƒªç®¡ç†")]
+    public InventoryManager inventoryManager;
+
+    [Header("ã‚¢ã‚¤ãƒ†ãƒ ã‚’æ‹¾ãˆã‚‹è·é›¢")]
+    public float pickUpDistance = 3f;
+
+    [Header("ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ãŒæ“ä½œå¯èƒ½ã‹ã©ã†ã‹")]
+    public bool canControl = true;
+
+    [Header("æ„Ÿåº¦è¨­å®š")]
+    public float Xsensityvity = 3f;
+    public float Ysensityvity = 3f;
+
+    [Header("ã‚¢ã‚¤ãƒ†ãƒ ãƒ¬ã‚¤ãƒ¤ãƒ¼")]
+    public LayerMask itemLayer;
+
+    // å†…éƒ¨å¤‰æ•°
+    Quaternion cameraRot, characterRot;
+    bool cursorLock = true;
+    float minX = -90f, maxX = 90f;
+    Rigidbody rb;
+
+    private void Start()
+    {
+        cameraRot = cam.transform.localRotation;
+        characterRot = transform.localRotation;
+
+        // Rigidbodyã‚’å–å¾—
+        rb = GetComponent<Rigidbody>();
+        // ç‰©ç†æ¼”ç®—ã§è»¢ã°ãªã„ã‚ˆã†ã«å›è»¢ã‚’å›ºå®š
+        rb.freezeRotation = true;
+
+        if (inventoryManager == null)
+        {
+            inventoryManager = Object.FindAnyObjectByType<InventoryManager>();
+        }
+    }
+
+    private void Update()
+    {
+        // æ“ä½œä¸å¯ãªã‚‰å‡¦ç†ã‚’ä¸­æ–­
+        if (!canControl) return;
+
+        RotateCamera();
+        UpdateCursorLock();
+        CheckPickUp();
+    }
+
+    private void FixedUpdate()
+    {
+        MoveCharacter();
+    }
+
+    // ç§»å‹•å‡¦ç†ï¼ˆã“ã“ã‚’ãƒ€ãƒƒã‚·ãƒ¥å¯¾å¿œã«å¤‰æ›´ï¼‰
+    void MoveCharacter()
+    {
+        // æ“ä½œä¸å¯ãªã‚‰åœæ­¢ã•ã›ã‚‹
+        if (!canControl)
+        {
+            rb.velocity = new Vector3(0, rb.velocity.y, 0);
+            return;
+        }
+
+        // å…¥åŠ›ã‚’å–å¾— (-1.0 ã€œ 1.0)
+        float h = Input.GetAxisRaw("Horizontal");
+        float v = Input.GetAxisRaw("Vertical");
+
+        // ã‚«ãƒ¡ãƒ©ã®å‘ãã‹ã‚‰æ°´å¹³æˆåˆ†ã ã‘å–ã‚Šå‡ºã™ï¼ˆç©ºã‚’é£›ã°ãªã„ã‚ˆã†ã«ï¼‰
+        Vector3 forward = transform.forward;
+        forward.y = 0;
+        forward.Normalize();
+
+        Vector3 right = transform.right;
+        right.y = 0;
+        right.Normalize();
+
+        // é€²ã¿ãŸã„æ–¹å‘ã‚’è¨ˆç®—
+        Vector3 moveDir = (forward * v + right * h).normalized;
+
+        // ãƒ€ãƒƒã‚·ãƒ¥åˆ¤å®š
+        // Spaceã‚­ãƒ¼ã‚’æŠ¼ã—ã¦ã„ã‚‹é–“ã¯ dashSpeedã€é›¢ã—ã¦ã„ã‚Œã° walkSpeed ã‚’ä½¿ã†
+        float currentSpeed = Input.GetKey(KeyCode.R) ? dashSpeed : walkSpeed;
+
+        // Rigidbodyã®é€Ÿåº¦ã‚’æ›´æ–°
+        rb.velocity = new Vector3(moveDir.x * currentSpeed, rb.velocity.y, moveDir.z * currentSpeed);
+    }
+
+    // è¦–ç‚¹ç§»å‹•
+    void RotateCamera()
+    {
+        float xRot = Input.GetAxis("Mouse X") * Ysensityvity;
+        float yRot = Input.GetAxis("Mouse Y") * Xsensityvity;
+
+        cameraRot *= Quaternion.Euler(-yRot, 0, 0);
+        characterRot *= Quaternion.Euler(0, xRot, 0);
+
+        cameraRot = ClampRotation(cameraRot);
+
+        cam.transform.localRotation = cameraRot;
+        transform.localRotation = characterRot;
+    }
+
+    public void UpdateCursorLock()
+    {
+        if (Input.GetKeyDown(KeyCode.Escape))
+        {
+            cursorLock = false;
+        }
+        else if (Input.GetMouseButton(0))
+        {
+            cursorLock = true;
+        }
+
+        if (cursorLock)
+        {
+            Cursor.lockState = CursorLockMode.Locked;
+            Cursor.visible = false; // ã‚«ãƒ¼ã‚½ãƒ«ã‚‚è¦‹ãˆãªãã™ã‚‹
+        }
+        else
+        {
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
+        }
+    }
+
+    public Quaternion ClampRotation(Quaternion q)
+    {
+        q.x /= q.w;
+        q.y /= q.w;
+        q.z /= q.w;
+        q.w = 1f;
+
+        float angleX = Mathf.Atan(q.x) * Mathf.Rad2Deg * 2f;
+        angleX = Mathf.Clamp(angleX, minX, maxX);
+        q.x = Mathf.Tan(angleX * Mathf.Deg2Rad * 0.5f);
+
+        return q;
+    }
+
+    void CheckPickUp()
+    {
+        Ray ray = new Ray(cam.transform.position, cam.transform.forward);
+        RaycastHit hit;
+
+        if (Physics.Raycast(ray, out hit, pickUpDistance, itemLayer))
+        {
+            if (Input.GetKeyDown(KeyCode.E))
+            {
+                Debug.Log("ã‚¢ã‚¤ãƒ†ãƒ ã‚’æ‹¾ã£ãŸï¼š" + hit.collider.name);
+
+                if (inventoryManager != null)
+                {
+                    inventoryManager.PickUpItem(hit.collider.gameObject);
+                }
+            }
+        }
+    }
+
+    public void SyncRotationToCurrent()
+    {
+        cameraRot = cam.transform.localRotation;
+        characterRot = transform.localRotation;
+    }
+}
+
+
+
+/*using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using static UnityEditor.Progress;
 
-// •¨—‹““®iRigidbodyj‚ğ•K{‚É‚·‚é
+// ç‰©ç†æŒ™å‹•ï¼ˆRigidbodyï¼‰ã‚’å¿…é ˆã«ã™ã‚‹
 [RequireComponent(typeof(Rigidbody))]
 public class PlayerController : MonoBehaviour
 {
     float x, z;
 
-    [Header("ƒƒCƒ“ƒJƒƒ‰‚ğQÆ")]
+    [Header("ç§»å‹•é€Ÿåº¦")]
     public float speed = 0.1f;
+    public float dashSpeed = 10.0f; // ãƒ€ãƒƒã‚·ãƒ¥æ™‚ã®é€Ÿåº¦
 
-    [Header("ƒƒCƒ“ƒJƒƒ‰‚ğQÆ")]
+    [Header("ãƒ¡ã‚¤ãƒ³ã‚«ãƒ¡ãƒ©ã‚’å‚ç…§")]
     public GameObject cam;
 
-    [Header("ƒCƒ“ƒxƒ“ƒgƒŠŠÇ—")]
+    [Header("ã‚¤ãƒ³ãƒ™ãƒ³ãƒˆãƒªç®¡ç†")]
     public InventoryManager inventoryManager;
 
-    [Header("ƒAƒCƒeƒ€‚ğE‚¦‚é‹——£")]
+    [Header("ã‚¢ã‚¤ãƒ†ãƒ ã‚’æ‹¾ãˆã‚‹è·é›¢")]
     public float pickUpDistance = 3f;
 
-    [Header("ƒvƒŒƒCƒ„[‚ª‘€ì‰Â”\‚©‚Ç‚¤‚©")]
+    [Header("ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ãŒæ“ä½œå¯èƒ½ã‹ã©ã†ã‹")]
     public bool canControl = true;
 
     Quaternion cameraRot, characterRot;
@@ -39,9 +224,9 @@ public class PlayerController : MonoBehaviour
         cameraRot = cam.transform.localRotation;
         characterRot = transform.localRotation;
 
-        // Rigidbody‚ğæ“¾
+        // Rigidbodyã‚’å–å¾—
         rb = GetComponent<Rigidbody>();
-        // •¨—‰‰Z‚Å“]‚Î‚È‚¢‚æ‚¤‚É‰ñ“]‚ğŒÅ’è
+        // ç‰©ç†æ¼”ç®—ã§è»¢ã°ãªã„ã‚ˆã†ã«å›è»¢ã‚’å›ºå®š
         rb.freezeRotation = true;
 
         if (inventoryManager == null)
@@ -52,7 +237,7 @@ public class PlayerController : MonoBehaviour
 
     private void Update()
     {
-        // ‘€ì•s‰Â‚È‚çˆ—‚ğ’†’f
+        // æ“ä½œä¸å¯ãªã‚‰å‡¦ç†ã‚’ä¸­æ–­
         if (!canControl) return;
 
         float xRot = Input.GetAxis("Mouse X") * Ysensityvity;
@@ -73,7 +258,7 @@ public class PlayerController : MonoBehaviour
 
     private void FixedUpdate()
     {
-        // ‘€ì•s‰Â‚È‚ç’â~‚³‚¹‚é
+        // æ“ä½œä¸å¯ãªã‚‰åœæ­¢ã•ã›ã‚‹
         if (!canControl)
         {
             rb.velocity = new Vector3(0, rb.velocity.y, 0);
@@ -83,7 +268,7 @@ public class PlayerController : MonoBehaviour
         x = Input.GetAxisRaw("Horizontal") * speed;
         z = Input.GetAxisRaw("Vertical") * speed;
 
-        // ƒJƒƒ‰‚ÌŒü‚«‚©‚ç…•½¬•ª‚¾‚¯æ‚èo‚·
+        // ã‚«ãƒ¡ãƒ©ã®å‘ãã‹ã‚‰æ°´å¹³æˆåˆ†ã ã‘å–ã‚Šå‡ºã™
         Vector3 forward = transform.forward;
         forward.y = 0;
         forward.Normalize();
@@ -92,24 +277,16 @@ public class PlayerController : MonoBehaviour
         right.y = 0;
         right.Normalize();
 
-        // …•½ˆÚ“®‚Ì‚İ“K‰
+        // æ°´å¹³ç§»å‹•ã®ã¿é©å¿œ
         transform.position += forward * z + right * x;
 
-        // Î‚ßˆÚ“®‚ª‘¬‚­‚È‚ç‚È‚¢‚æ‚¤‚É³‹K‰»
+        // æ–œã‚ç§»å‹•ãŒé€Ÿããªã‚‰ãªã„ã‚ˆã†ã«æ­£è¦åŒ–
         Vector3 moveDir = transform.forward * z + transform.right * x;
 
-        // ƒL[“ü—Í‚ª‚ ‚éê‡
-        if (moveDir.magnitude > 0)
-        {
-            // “ü—Í•ûŒü ~ ƒXƒs[ƒh ‚Å‘¬“x‚ğŒˆ’è
-            rb.velocity = new Vector3(moveDir.x * speed, rb.velocity.y, moveDir.z * speed);
-        }
-        else
-        {
-            // ƒL[“ü—Í‚ª‚È‚¢ê‡
-            // …•½•ûŒüix, zj‚Ì‘¬“x‚ğ 0 ‚É‚·‚é
-            rb.velocity = new Vector3(0, rb.velocity.y, 0);
-        }
+        float currentSpeed = Input.GetKey(KeyCode.R) ? dashSpeed : speed;
+
+        // Rigidbodyã®é€Ÿåº¦ã‚’æ›´æ–°
+        rb.velocity = new Vector3(moveDir.x * currentSpeed, rb.velocity.y, moveDir.z * currentSpeed);
     }
 
     public void UpdateCursorLock()
@@ -158,7 +335,7 @@ public class PlayerController : MonoBehaviour
         {
             if (Input.GetKeyDown(KeyCode.E))
             {
-                Debug.Log("ƒAƒCƒeƒ€‚ğE‚Á‚½F" + hit.collider.name);
+                Debug.Log("ã‚¢ã‚¤ãƒ†ãƒ ã‚’æ‹¾ã£ãŸï¼š" + hit.collider.name);
 
                 if (inventoryManager != null)
                 {
@@ -168,11 +345,11 @@ public class PlayerController : MonoBehaviour
         }
     }
 
-    // ŠO•”‚©‚ç–³—‚â‚è‹“_‚ğ“¯Šú‚³‚¹‚éŠÖ”
+    // å¤–éƒ¨ã‹ã‚‰ç„¡ç†ã‚„ã‚Šè¦–ç‚¹ã‚’åŒæœŸã•ã›ã‚‹é–¢æ•°
     public void SyncRotationToCurrent()
     {
         cameraRot = cam.transform.localRotation;
         characterRot = transform.localRotation;
     }
-}
+}*/
 

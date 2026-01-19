@@ -1,4 +1,47 @@
 using UnityEngine;
+
+public class FlashlightSystem : MonoBehaviour
+{
+    [Header("ライトの設定")]
+    [Tooltip("カメラの下に作ったSpot Lightを入れる")]
+    public Light flashlightSpot;
+
+    [Tooltip("現在のライトの状態")]
+    public bool isFlashlightOn = false;
+
+    // 設定画面のキーを使う場合はここを書き換えてください
+    private KeyCode toggleKey = KeyCode.F;
+
+    void Start()
+    {
+        isFlashlightOn = false;
+
+        // ゲーム開始時の状態を反映
+        ApplyState();
+    }
+
+    void Update()
+    {
+        // Fキーで懐中電灯のスイッチ切り替え
+        if (Input.GetKeyDown(toggleKey))
+        {
+            isFlashlightOn = !isFlashlightOn;
+            ApplyState();
+        }
+    }
+
+    // 状態を反映させる
+    void ApplyState()
+    {
+        if (flashlightSpot != null)
+        {
+            flashlightSpot.enabled = isFlashlightOn;
+        }
+    }
+}
+
+
+/*using UnityEngine;
 using UnityEngine.Rendering.PostProcessing;
 public class FlashlightSystem : MonoBehaviour
 {
@@ -30,7 +73,6 @@ public class FlashlightSystem : MonoBehaviour
 
     [Tooltip("停電モード")]
     public bool isBlackout = false;
-
     public bool isFlashlightOn = true;
 
     // private
@@ -108,31 +150,38 @@ public class FlashlightSystem : MonoBehaviour
             flashlightSpot.enabled = isOn;
         }
 
-        // 環境光の切り替え
-        RenderSettings.ambientLight = isOn ? blackoutColor : normalAmbientColor;
-
-        // Vignetteの濃さ調整
-        if (vignette != null)
+        if (isBlackout)
         {
-            vignette.intensity.value = isOn ? onIntensity : 0f;
-        }
+            // 環境光の切り替え
+            RenderSettings.ambientLight = blackoutColor;
 
-        // 通常Volume：停電じゃない時(true) ／ 停電の時(false)
-        if (normalVolume != null)
-        {
-            normalVolume.isGlobal = !isBlackout;
-        }
-
-        // 停電Volume：停電の時(true) ／ 停電じゃない時(false)
-        if (darkVolume != null)
-        {
-            darkVolume.isGlobal = isBlackout;
-
-            // （おまけ）Vignetteの濃さをスクリプトで指定値にするなら
-            if (isBlackout && darkVignette != null)
+            // 通常Volume：停電じゃない時(true) ／ 停電の時(false)
+            if (normalVolume != null)
             {
-                darkVignette.intensity.value = darkVignetteIntensity;
+                normalVolume.isGlobal = false; //!isBlackout;
+            }
+
+            // 停電Volume：停電の時(true) ／ 停電じゃない時(false)
+            if (darkVolume != null)
+            {
+                darkVolume.isGlobal = true; //isBlackout;
+
+                if (darkVignette != null)
+                {
+                    darkVignette.intensity.value = darkVignetteIntensity;
+                }
             }
         }
+        else
+        {
+            // 通常時の設定
+            RenderSettings.ambientLight = normalAmbientColor;
+
+            // 停電VolumeをOFF
+            if (darkVolume != null) darkVolume.isGlobal = false;
+
+            // 通常VolumeをON
+            if (normalVolume != null) normalVolume.isGlobal = true;
+        }
     }
-}
+}*/
