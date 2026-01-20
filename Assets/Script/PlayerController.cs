@@ -1,5 +1,4 @@
-﻿using System.Collections;
-using System.Collections.Generic;
+﻿using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -7,6 +6,8 @@ using UnityEngine.SceneManagement;
 [RequireComponent(typeof(Rigidbody))]
 public class PlayerController : MonoBehaviour
 {
+    float x, z;
+
     [Header("移動設定")]
     public float walkSpeed = 5.0f; // 通常時の速度
     public float dashSpeed = 10.0f; // ダッシュ時の速度
@@ -18,9 +19,6 @@ public class PlayerController : MonoBehaviour
 
     [Header("インベントリ管理")]
     public InventoryManager inventoryManager;
-
-    [Header("アイテムを拾える距離")]
-    public float pickUpDistance = 3f;
 
     [Header("プレイヤーが操作可能かどうか")]
     public bool canControl = true;
@@ -37,15 +35,50 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private GameObject option;
     private bool save;
 
+    [Header("拾うUI")]
+    public TMP_Text pickUpText;
+
+    [Header("アイテムを拾える距離")]
+    public float pickUpDistance = 3f;
+
+    [Header("カメラの子にある鍵モデル")]
+    public GameObject KeyModel;
+
+    [Header("カメラの子にあるアイテムモデル")]
+    public GameObject ItemModel;
+
+    [Header("手持ちアイテム揺れ設定")]
+    public float bobSpeed = 6f;     // 揺れの速さ
+    public float bobAmount = 0.05f; // 揺れの大きさ
+
+    [Header("鍵使用モーション設定")]
+    public float swingAmount = 0.1f;
+    public float swingSpeed = 1f;
+
+    [Header("アイテム使用モーション設定")]
+    public float SwingUpAmount = 0.1f;      // 振り上げ量
+    public float SwingDownAmount = -0.25f;  // 振り下ろし量
+    public float SwingSpeed = 6f;           // スピード
+
     [Header("デコイ")]
     [SerializeField] private GameObject decoy;
 
     [Header("デコイ生成位置までの距離")]
     [SerializeField] private float decoySpawnDistance;
 
+    private float bobTimer = 0f;
+    private bool isSwinging = false;
+    private float swingTimer = 0f;
+    private bool isItemSwing = false;
+    private float itemSwingTimer = 0f;
+    private Vector3 KeyModelDefaultPos;
+    private Vector3 itemModelDefaultPos;
+
     // 内部変数
     Quaternion cameraRot, characterRot;
     bool cursorLock = true;
+    public bool canLock = true;
+    public bool isInventoryOpen = false;
     float minX = -90f, maxX = 90f;
     Rigidbody rb;
 
@@ -63,6 +96,9 @@ public class PlayerController : MonoBehaviour
         {
             inventoryManager = Object.FindAnyObjectByType<InventoryManager>();
         }
+
+        KeyModelDefaultPos = KeyModel.transform.localPosition;
+        itemModelDefaultPos = ItemModel.transform.localPosition;
     }
 
     private void Update()
@@ -70,17 +106,40 @@ public class PlayerController : MonoBehaviour
         // 操作不可なら処理を中断
         if (!canControl) return;
 
+        if (canLock)
+        {
+            float xRot = Input.GetAxis("Mouse X") * Ysensityvity;
+            float yRot = Input.GetAxis("Mouse Y") * Xsensityvity;
+
+            cameraRot *= Quaternion.Euler(-yRot, 0, 0);
+            characterRot *= Quaternion.Euler(0, xRot, 0);
+
+            cameraRot = ClampRotation(cameraRot);
+
+            cam.transform.localRotation = cameraRot;
+            transform.localRotation = characterRot;
+        }
+
         RotateCamera();
         UpdateCursorLock();
         CheckPickUp();
 
-        //Escapeキーが押された
-        if (Input.GetKey(KeyCode.Escape))
+        if (!isInventoryOpen)
         {
-            //Playerの動きを停止&ポーズメニューを表示
-            canControl = false;
-            pauseMenu.SetActive(true);
+            CheckPickUp();
+
+            // Qキーでドロップ
+            if (Input.GetKeyDown(KeyCode.Q))
+            {
+                DropCurrentItem();
+            }
         }
+
+        UpdateItemBob();
+
+        UpdateKeySwing();
+
+        UpdateItemSwing();
 
         if (Input.GetKeyDown(KeyCode.G))
         {
@@ -93,6 +152,23 @@ public class PlayerController : MonoBehaviour
     private void FixedUpdate()
     {
         MoveCharacter();
+
+        //Escapeキーが押された
+        if (Input.GetKey(KeyCode.Escape))
+        {
+            //Playerの動きを停止&ポーズメニューを表示
+            canControl = false;
+            pauseMenu.SetActive(true);
+        }
+
+        if (isInventoryOpen)
+        {
+            // インベントリー中移動停止
+            rb.velocity = new Vector3(0, rb.velocity.y, 0);
+            return;
+        }
+        x = Input.GetAxisRaw("Horizontal") * walkSpeed;
+        z = Input.GetAxisRaw("Vertical") * walkSpeed;
     }
 
     // 移動処理（ここをダッシュ対応に変更）
@@ -181,25 +257,6 @@ public class PlayerController : MonoBehaviour
         return q;
     }
 
-    void CheckPickUp()
-    {
-        Ray ray = new Ray(cam.transform.position, cam.transform.forward);
-        RaycastHit hit;
-
-        if (Physics.Raycast(ray, out hit, pickUpDistance, itemLayer))
-        {
-            if (Input.GetKeyDown(KeyCode.E))
-            {
-                Debug.Log("アイテムを拾った：" + hit.collider.name);
-
-                if (inventoryManager != null)
-                {
-                    inventoryManager.PickUpItem(hit.collider.gameObject);
-                }
-            }
-        }
-    }
-
     public void SyncRotationToCurrent()
     {
         cameraRot = cam.transform.localRotation;
@@ -236,6 +293,187 @@ public class PlayerController : MonoBehaviour
                 pauseMenu.SetActive(true);
                 break;
         }
+    }
+
+    void CheckPickUp()
+    {
+        if (isInventoryOpen) return;
+
+        Ray ray = new Ray(cam.transform.position, cam.transform.forward);
+        RaycastHit hit;
+
+        // UIを毎フレーム非表示にしておく
+        pickUpText.enabled = false;
+
+        if (Physics.Raycast(ray, out hit, pickUpDistance, itemLayer))
+        {
+            // アイテムを見ているのでUIを表示
+            pickUpText.enabled = true;
+
+            // Eキーで拾う
+            if (Input.GetKeyDown(KeyCode.E))
+            {
+                Debug.Log("アイテムを拾った：" + hit.collider.name);
+
+                if (inventoryManager != null)
+                {
+                    inventoryManager.PickUpItem(hit.collider.gameObject);
+
+                    // モデル更新
+                    UpdateItemModel();
+
+                }
+            }
+        }
+    }
+
+    void DropCurrentItem()
+    {
+        if (inventoryManager.currentItems.Count == 0)
+            return;
+
+        // 一番最初のアイテムをドロップさせる
+        string itemName = inventoryManager.currentItems[0];
+
+        // プレイヤーの前に落とす位置
+        Vector3 dropPos = transform.position + transform.forward * 1f;
+
+        // ドロップ
+        GameObject dropped = inventoryManager.DropItem(itemName, dropPos);
+
+        Debug.Log(itemName + "をドロップしました");
+
+        // モデル更新
+        UpdateItemModel();
+    }
+
+    public void UpdateItemModel()
+    {
+        // 全部非表示
+        KeyModel.SetActive(false);
+        ItemModel.SetActive(false);
+
+        if (inventoryManager.currentItems.Count == 0)
+            return;
+
+        string firstItem = inventoryManager.currentItems[0];
+
+        int layer = inventoryManager.GetItemLayer(firstItem);
+
+        if (layer == LayerMask.NameToLayer("Key"))
+        {
+            KeyModel.SetActive(true);
+        }
+        else if (layer == LayerMask.NameToLayer("Item"))
+        {
+            ItemModel.SetActive(true);
+        }
+    }
+
+    void UpdateItemBob()
+    {
+        bool isMoving = (Input.GetAxisRaw("Horizontal") != 0 || Input.GetAxisRaw("Vertical") != 0);
+
+        if (isMoving)
+        {
+            bobTimer += Time.deltaTime * bobSpeed;
+
+            float bobOffsetY = Mathf.Sin(bobTimer) * bobAmount;
+            float bobOffsetX = Mathf.Cos(bobTimer * 0.5f) * bobAmount;
+
+            if (KeyModel.activeSelf)
+            {
+                KeyModel.transform.localPosition = KeyModelDefaultPos + new Vector3(bobOffsetX, bobOffsetY, 0);
+            }
+
+            if (ItemModel.activeSelf)
+            {
+                ItemModel.transform.localPosition = itemModelDefaultPos + new Vector3(bobOffsetX, bobOffsetY, 0);
+            }
+        }
+        else
+        {
+            // 止まったら元の位置に戻す
+            if (KeyModel.activeSelf)
+                KeyModel.transform.localPosition = Vector3.Lerp(KeyModel.transform.localPosition, KeyModelDefaultPos, Time.deltaTime * 10f);
+
+            if (ItemModel.activeSelf)
+                ItemModel.transform.localPosition = Vector3.Lerp(ItemModel.transform.localPosition, itemModelDefaultPos, Time.deltaTime * 10f);
+
+            bobTimer = 0f;
+        }
+    }
+
+    void UpdateKeySwing()
+    {
+        if (!isSwinging)
+            return;
+
+        swingTimer += Time.deltaTime * swingSpeed;
+
+        float swingOffset = Mathf.Sin(swingTimer) * swingAmount;
+
+        // 前方向に振る
+        if (KeyModel.activeSelf)
+            KeyModel.transform.localPosition = KeyModelDefaultPos + new Vector3(0, 0, swingOffset);
+
+        if (ItemModel.activeSelf)
+            ItemModel.transform.localPosition = itemModelDefaultPos + new Vector3(0, 0, swingOffset);
+
+        // 1回振ったら終了
+        if (swingTimer >= Mathf.PI)
+        {
+            isSwinging = false;
+
+            // 元の位置に戻す
+            if (KeyModel.activeSelf)
+                KeyModel.transform.localPosition = KeyModelDefaultPos;
+
+            if (ItemModel.activeSelf)
+                ItemModel.transform.localPosition = itemModelDefaultPos;
+        }
+    }
+
+    void UpdateItemSwing()
+    {
+        if (!isItemSwing)
+            return;
+
+        itemSwingTimer += Time.deltaTime * SwingSpeed;
+
+        // 振り上げ
+        if (itemSwingTimer < 0.3f)
+        {
+            float t = itemSwingTimer / 0.3f;
+            ItemModel.transform.localPosition = Vector3.Lerp(itemModelDefaultPos, itemModelDefaultPos +
+                new Vector3(0, SwingUpAmount, 0), t);
+        }
+        // 振り下ろし
+        else if (itemSwingTimer < 1f)
+        {
+            float t = (itemSwingTimer - 0.3f) / 0.7f;
+            ItemModel.transform.localPosition = Vector3.Lerp(itemModelDefaultPos + new Vector3(0, SwingUpAmount, 0),
+                itemModelDefaultPos + new Vector3(0, SwingDownAmount, 0), t);
+        }
+        // 元の位置
+        else
+        {
+            ItemModel.transform.localPosition = itemModelDefaultPos;
+            isItemSwing = false;
+            itemSwingTimer = 0f;
+        }
+    }
+
+    public void PlayKeySwing()
+    {
+        isSwinging = true;
+        swingTimer = 0f;
+    }
+
+    public void PlayItemSwing()
+    {
+        isItemSwing = true;
+        itemSwingTimer = 0f;
     }
 }
 

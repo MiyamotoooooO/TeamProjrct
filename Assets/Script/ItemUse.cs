@@ -1,3 +1,4 @@
+using TMPro;
 using UnityEngine;
 
 public class ItemUse : MonoBehaviour
@@ -18,6 +19,7 @@ public class ItemUse : MonoBehaviour
     [Tooltip("ここに正解となる鍵のプレハブ（またはオブジェクト）をセットしてください")]
     public GameObject keyObject;
 
+    public TMP_Text ClickText;
     private void Update()
     {
         // 左クリックで判定開始

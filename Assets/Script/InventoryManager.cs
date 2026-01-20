@@ -9,6 +9,36 @@ public class InventoryManager : MonoBehaviour
     [Header("参照")]
     public SaveManager saveManager; // セーブマネージャーへの参照
 
+    [HeaderAttribute("アイテム名とプレハブの対応表")]
+    public List<ItemPrefabPair> itemPrefabs = new List<ItemPrefabPair>();
+
+    [System.Serializable]
+    public class ItemData
+    {
+        public string itemName;
+        public Sprite icon;
+    }
+
+    [Header("アイテムデータ一覧")]
+    public List<ItemData> itemDataList = new List<ItemData>();
+
+    public Sprite GetItemIcon(string itemName)
+    {
+        foreach (var data in itemDataList)
+        {
+            if (data.itemName == itemName)
+                return data.icon;
+        }
+        return null;
+    }
+
+    [System.Serializable]
+    public class ItemPrefabPair
+    {
+        public string itemName;
+        public GameObject prefab;
+    }
+
     // アイテムを拾う処理
     public void PickUpItem(GameObject itemObj)
     {
@@ -59,5 +89,54 @@ public class InventoryManager : MonoBehaviour
                 obj.SetActive(false);
             }
         }
+    }
+
+    // アイテムを削除する処理
+    public void RemoveItem(string itemName)
+    {
+        if (currentItems.Contains(itemName))
+        {
+            currentItems.Remove(itemName);
+            Debug.Log(itemName + "をインベントリから削除しました");
+        }
+    }
+
+    // アイテムのドロップ処理
+    public GameObject DropItem(string itemName, Vector3 position)
+    {
+        // インベントリに無ければ何もしない
+        if (!currentItems.Contains(itemName))
+            return null;
+
+        // インベントリから削除
+        currentItems.Remove(itemName);
+
+        // 対応するプレハブを探す
+        foreach (var pair in itemPrefabs)
+        {
+            if (pair.itemName == itemName)
+            {
+                // プレハブを生成して返す
+                return Instantiate(pair.prefab, position, Quaternion.identity);
+            }
+        }
+
+        Debug.LogWarning("対応するプレハブが見つかりません：" + itemName);
+        return null;
+    }
+
+    // アイテム名からプレハブのレイヤーを取得する
+    public int GetItemLayer(string itemName)
+    {
+        foreach (var pair in itemPrefabs)
+        {
+            if (pair.itemName == itemName)
+            {
+                return pair.prefab.layer;
+            }
+        }
+
+        Debug.LogWarning("レイヤーが取得できませんでした：" + itemName);
+        return -1;
     }
 }
