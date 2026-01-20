@@ -38,7 +38,7 @@ RenderSettings:
   m_ReflectionIntensity: 1
   m_CustomReflection: {fileID: 0}
   m_Sun: {fileID: 705507994}
-  m_IndirectSpecularColor: {r: 0.13868774, g: 0.17362422, b: 0.23609173, a: 1}
+  m_IndirectSpecularColor: {r: 0.027737066, g: 0.03472399, b: 0.047217086, a: 1}
   m_UseRadianceAmbientProbe: 0
 --- !u!157 &3
 LightmapSettings:
@@ -45220,7 +45220,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 460334, guid: fac85779e5fda1c4493c6d5276271dde, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 0.25
+      value: 0.245
       objectReference: {fileID: 0}
     - target: {fileID: 460334, guid: fac85779e5fda1c4493c6d5276271dde, type: 3}
       propertyPath: m_LocalPosition.z
@@ -46863,6 +46863,8 @@ MonoBehaviour:
     m_Bits: 64
   pauseMenu: {fileID: 1243193210}
   option: {fileID: 1748183824}
+  decoy: {fileID: 1282259750335603831, guid: aa3600e94983e6d47a64b09ea573e64f, type: 3}
+  decoySpawnDistance: 2
 --- !u!114 &1443479528
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -74112,6 +74114,67 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 423596, guid: 0a252d80add0348439615bc02e74781d, type: 3}
   m_PrefabInstance: {fileID: 1035917529}
   m_PrefabAsset: {fileID: 0}
+--- !u!1001 &6368342828200861902
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 1282259750335603831, guid: aa3600e94983e6d47a64b09ea573e64f, type: 3}
+      propertyPath: m_Name
+      value: Decoy
+      objectReference: {fileID: 0}
+    - target: {fileID: 1282259750335603831, guid: aa3600e94983e6d47a64b09ea573e64f, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6883517797422278169, guid: aa3600e94983e6d47a64b09ea573e64f, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 142.6
+      objectReference: {fileID: 0}
+    - target: {fileID: 6883517797422278169, guid: aa3600e94983e6d47a64b09ea573e64f, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 46.6
+      objectReference: {fileID: 0}
+    - target: {fileID: 6883517797422278169, guid: aa3600e94983e6d47a64b09ea573e64f, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: -121.94
+      objectReference: {fileID: 0}
+    - target: {fileID: 6883517797422278169, guid: aa3600e94983e6d47a64b09ea573e64f, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 6883517797422278169, guid: aa3600e94983e6d47a64b09ea573e64f, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6883517797422278169, guid: aa3600e94983e6d47a64b09ea573e64f, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6883517797422278169, guid: aa3600e94983e6d47a64b09ea573e64f, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6883517797422278169, guid: aa3600e94983e6d47a64b09ea573e64f, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6883517797422278169, guid: aa3600e94983e6d47a64b09ea573e64f, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6883517797422278169, guid: aa3600e94983e6d47a64b09ea573e64f, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: aa3600e94983e6d47a64b09ea573e64f, type: 3}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
@@ -74141,3 +74204,4 @@ SceneRoots:
   - {fileID: 1665083128}
   - {fileID: 375335592}
   - {fileID: 811994521}
+  - {fileID: 6368342828200861902}

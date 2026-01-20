@@ -37,6 +37,12 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private GameObject option;
     private bool save;
 
+    [Header("デコイ")]
+    [SerializeField] private GameObject decoy;
+
+    [Header("デコイ生成位置までの距離")]
+    [SerializeField] private float decoySpawnDistance;
+
     // 内部変数
     Quaternion cameraRot, characterRot;
     bool cursorLock = true;
@@ -67,11 +73,6 @@ public class PlayerController : MonoBehaviour
         RotateCamera();
         UpdateCursorLock();
         CheckPickUp();
-    }
-
-    private void FixedUpdate()
-    {
-        MoveCharacter();
 
         //Escapeキーが押された
         if (Input.GetKey(KeyCode.Escape))
@@ -80,6 +81,18 @@ public class PlayerController : MonoBehaviour
             canControl = false;
             pauseMenu.SetActive(true);
         }
+
+        if (Input.GetKeyDown(KeyCode.G))
+        {
+            //デコイを召喚
+            Vector3 spawnPos = transform.position + transform.forward * decoySpawnDistance;
+            GameObject copyDecoy = Instantiate(decoy, spawnPos, Quaternion.identity);
+        }
+    }
+
+    private void FixedUpdate()
+    {
+        MoveCharacter();
     }
 
     // 移動処理（ここをダッシュ対応に変更）
