@@ -1,6 +1,7 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 // 物理挙動（Rigidbody）を必須にする
 [RequireComponent(typeof(Rigidbody))]
@@ -30,6 +31,11 @@ public class PlayerController : MonoBehaviour
 
     [Header("アイテムレイヤー")]
     public LayerMask itemLayer;
+
+    [Header("ポーズ画面関連")]
+    [SerializeField] private GameObject pauseMenu;
+    [SerializeField] private GameObject option;
+    private bool save;
 
     // 内部変数
     Quaternion cameraRot, characterRot;
@@ -66,6 +72,14 @@ public class PlayerController : MonoBehaviour
     private void FixedUpdate()
     {
         MoveCharacter();
+
+        //Escapeキーが押された
+        if (Input.GetKey(KeyCode.Escape))
+        {
+            //Playerの動きを停止&ポーズメニューを表示
+            canControl = false;
+            pauseMenu.SetActive(true);
+        }
     }
 
     // 移動処理（ここをダッシュ対応に変更）
@@ -177,6 +191,38 @@ public class PlayerController : MonoBehaviour
     {
         cameraRot = cam.transform.localRotation;
         characterRot = transform.localRotation;
+    }
+
+    //ポーズ画面でボタンから各動作を呼び出す関数
+    public void pause(string command)
+    {
+        switch (command)
+        {
+            case "Title"://タイトルに戻る
+                if (save)
+                    SceneManager.LoadScene("TitleScene");
+                else
+                    Debug.Log("NoSave");
+                break;
+            case "Option"://オブション変更画面へ
+                option.SetActive(true);
+                pauseMenu.SetActive(false);
+                break;
+            case "Save"://セーブ
+                save = true;
+                Debug.Log("SaveGame");
+                break;
+            case "Return"://ゲームに戻る
+                save = false;
+                //Debug.Log("PlayerStart");
+                canControl = true;
+                pauseMenu.SetActive(false);
+                break;
+            case "Pause"://オプション画面からポーズ画面へ
+                option.SetActive(false);
+                pauseMenu.SetActive(true);
+                break;
+        }
     }
 }
 
