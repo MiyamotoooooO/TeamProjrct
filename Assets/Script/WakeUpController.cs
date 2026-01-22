@@ -24,6 +24,9 @@ public class WakeUpController : MonoBehaviour
     [Tooltip("移動を止めるためのプレイヤースクリプト（FPSControllerなど）")]
     public MonoBehaviour playerMovementScript;
 
+    public LighterSystem lighterSystem;
+    public FlashlightSystem flashlightSystem;
+
     // private
     private bool isSleeping = true;
     private bool isWakingUp = false;
@@ -96,6 +99,16 @@ public class WakeUpController : MonoBehaviour
         if (playerMovementScript != null)
         {
             playerMovementScript.enabled = true;
+        }
+
+        if (lighterSystem != null)
+        {
+            lighterSystem.canUseLighter = true;
+        }
+
+        if (flashlightSystem != null)
+        {
+            flashlightSystem.canUseFlashlight = true;
         }
 
         isSleeping = false;

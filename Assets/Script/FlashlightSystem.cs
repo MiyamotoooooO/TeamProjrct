@@ -2,6 +2,10 @@ using UnityEngine;
 
 public class FlashlightSystem : MonoBehaviour
 {
+    [Header("--- 制御設定 ---")]
+    [Tooltip("最初は懐中電灯を使えないようにするか？（起床イベント用なら false に）")]
+    public bool canUseFlashlight = false;
+
     [Header("ライトの設定")]
     [Tooltip("カメラの下に作ったSpot Lightを入れる")]
     public Light flashlightSpot;
@@ -22,6 +26,18 @@ public class FlashlightSystem : MonoBehaviour
 
     void Update()
     {
+        // ロックされていたら、ここから下の入力処理は一切させない
+        if (!canUseFlashlight)
+        {
+            // もしライトがついた状態でロックされた場合、強制的に消す安全策
+            if (isFlashlightOn)
+            {
+                isFlashlightOn = false;
+                ApplyState();
+            }
+            return;
+        }
+
         // Fキーで懐中電灯のスイッチ切り替え
         if (Input.GetKeyDown(toggleKey))
         {
@@ -31,7 +47,7 @@ public class FlashlightSystem : MonoBehaviour
     }
 
     // 状態を反映させる
-    void ApplyState()
+    public void ApplyState()
     {
         if (flashlightSpot != null)
         {
