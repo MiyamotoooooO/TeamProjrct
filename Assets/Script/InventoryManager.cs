@@ -42,7 +42,7 @@ public class InventoryManager : MonoBehaviour
     // アイテムを拾う処理
     public void PickUpItem(GameObject itemObj)
     {
-        string itemName = itemObj.name;
+        string itemName = itemObj.name.Replace("(Clone)", " ").Trim();
 
         // まだ持っていなければリストに追加
         if (!currentItems.Contains(itemName))
@@ -52,7 +52,7 @@ public class InventoryManager : MonoBehaviour
         }
 
         // 見た目を消す
-        itemObj.SetActive(false);
+        Destroy(itemObj);
     }
 
     // アイテムを持っているか確認する処理（鍵などで使う）
@@ -140,3 +140,4 @@ public class InventoryManager : MonoBehaviour
         return -1;
     }
 }
+
