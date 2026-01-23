@@ -21360,6 +21360,45 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 50, y: -30, z: 0}
+--- !u!1 &773804814 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 8103067124237306251, guid: 6dc4cf4496348884d8ee27743ae38562, type: 3}
+  m_PrefabInstance: {fileID: 1117230722}
+  m_PrefabAsset: {fileID: 0}
+--- !u!65 &773804817
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 773804814}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 1
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 0.1697743, y: 0.15254588, z: 0.23270595}
+  m_Center: {x: 0.64097345, y: -0.04294925, z: 1.1065754}
+--- !u!114 &773804818
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 773804814}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e9b4d8540b5ba6b489b11f2a8324eb04, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  zombieAnimator: {fileID: 1366624520}
 --- !u!4 &774206927 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 489916, guid: 0763e8f6d4dbc2a4a8ad9b0f340e81fb, type: 3}
@@ -41051,6 +41090,18 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 4493914613880827488, guid: 6dc4cf4496348884d8ee27743ae38562, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1366624517}
+    - targetCorrespondingSourceObject: {fileID: 7919196358131396253, guid: 6dc4cf4496348884d8ee27743ae38562, type: 3}
+      insertIndex: 1
+      addedObject: {fileID: 1359889636}
+    - targetCorrespondingSourceObject: {fileID: 7919196358131396253, guid: 6dc4cf4496348884d8ee27743ae38562, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1359889635}
+    - targetCorrespondingSourceObject: {fileID: 8103067124237306251, guid: 6dc4cf4496348884d8ee27743ae38562, type: 3}
+      insertIndex: 1
+      addedObject: {fileID: 773804818}
+    - targetCorrespondingSourceObject: {fileID: 8103067124237306251, guid: 6dc4cf4496348884d8ee27743ae38562, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 773804817}
   m_SourcePrefab: {fileID: 100100000, guid: 6dc4cf4496348884d8ee27743ae38562, type: 3}
 --- !u!4 &1118210004 stripped
 Transform:
@@ -44458,6 +44509,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e9b4d8540b5ba6b489b11f2a8324eb04, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  zombieAnimator: {fileID: 0}
 --- !u!65 &1262937185
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -46931,6 +46983,45 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: cf4f5e6cd5a9c7549aa7c76b3d4e742f, type: 3}
+--- !u!1 &1359889632 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 7919196358131396253, guid: 6dc4cf4496348884d8ee27743ae38562, type: 3}
+  m_PrefabInstance: {fileID: 1117230722}
+  m_PrefabAsset: {fileID: 0}
+--- !u!65 &1359889635
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1359889632}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 1
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 0.18108623, y: 0.16283791, z: 0.25252908}
+  m_Center: {x: -0.6375809, y: -0.061248347, z: 1.1000055}
+--- !u!114 &1359889636
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1359889632}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e9b4d8540b5ba6b489b11f2a8324eb04, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  zombieAnimator: {fileID: 1366624520}
 --- !u!1001 &1360374421
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -47275,6 +47366,11 @@ NavMeshAgent:
   m_BaseOffset: 0
   m_WalkableMask: 4294967295
   m_ObstacleAvoidanceType: 1
+--- !u!95 &1366624520 stripped
+Animator:
+  m_CorrespondingSourceObject: {fileID: 7389507112651452681, guid: 6dc4cf4496348884d8ee27743ae38562, type: 3}
+  m_PrefabInstance: {fileID: 1117230722}
+  m_PrefabAsset: {fileID: 0}
 --- !u!4 &1366633096 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 415016, guid: 4743926f06b7fdc4c93033724c776cdc, type: 3}

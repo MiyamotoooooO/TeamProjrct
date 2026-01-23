@@ -1,6 +1,7 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.AI;
 
 public class PlayerHealth : MonoBehaviour
 {
@@ -54,7 +55,56 @@ public class PlayerHealth : MonoBehaviour
             flashlightSystem.canUseFlashlight = false;
         }
 
+        StopAllEnemies();
+
         StartCoroutine(DeathSequence());
+    }
+
+    void StopAllEnemies()
+    {
+        // シーン上のすべての「NavMeshAgent（移動AI）」がついているものを探す
+        NavMeshAgent[] allAgents = FindObjectsOfType<NavMeshAgent>();
+
+        foreach (NavMeshAgent agent in allAgents)
+        {
+            // プレイヤー自身にNavMeshAgentがついている場合は除外
+            if (agent.gameObject == this.gameObject) continue;
+
+            // ① 移動を完全に止める
+            if (agent.isOnNavMesh)
+            {
+                agent.isStopped = true;
+                agent.velocity = Vector3.zero;
+            }
+
+            // ② アニメーションを止める（その場で凍り付く）
+            Animator anim = agent.GetComponent<Animator>();
+            if (anim != null)
+            {
+                anim.speed = 0;
+            }
+
+            // ③ 物理演算を止める（死体に押されたりしないように）
+            Rigidbody enemyRb = agent.GetComponent<Rigidbody>();
+            if (enemyRb != null)
+            {
+                enemyRb.isKinematic = true;
+            }
+
+            // ④ 攻撃スクリプトなどの思考回路をオフにする
+            // （EnemyAI, StatueEnemy, AttackPoint などを無効化）
+            MonoBehaviour[] scripts = agent.GetComponents<MonoBehaviour>();
+            foreach (var script in scripts)
+            {
+                // もしスクリプト名が敵AI関連ならオフにする
+                // ※あなたのプロジェクトにある敵スクリプトの名前をここに追加すると確実です
+                string name = script.GetType().Name;
+                if (name == "EnemyAI" || name == "StatueEnemy" || name == "EnemyAttack")
+                {
+                    script.enabled = false;
+                }
+            }
+        }
     }
 
     IEnumerator DeathSequence()
