@@ -1,5 +1,6 @@
 using UnityEngine;
-using System.Collections.Generic; // ★リストを使うために追加
+using System.Collections; // ★コルーチン(待機処理)のために必要
+using System.Collections.Generic;
 
 public class LighterSystem : MonoBehaviour
 {
@@ -11,6 +12,12 @@ public class LighterSystem : MonoBehaviour
     public ParticleSystem fireParticle;
     public Light fireLight;
     public AudioSource lighterSound;
+
+    [Header("--- 音声設定(追加) ---")]
+    [Tooltip("カチッという点火音")]
+    public AudioClip ignitionClip;
+    [Tooltip("燃えている間のループ音")]
+    public AudioClip burningClip;
 
     [Header("--- 描画設定 ---")]
     public GameObject scorchPrefab;
@@ -34,12 +41,17 @@ public class LighterSystem : MonoBehaviour
     private Quaternion initialLocalRot;
     private Transform targetTransform;
     private List<GameObject> drawnMarks = new List<GameObject>();
+    private bool isIgniting = false; // 点火モーション中かどうかのフラグ
 
     void Start()
     {
         targetTransform = this.transform;
         initialLocalPos = targetTransform.localPosition;
         initialLocalRot = targetTransform.localRotation;
+
+        // AudioSourceのループ設定を初期化（燃焼音はループさせるため）
+        if (lighterSound != null) lighterSound.loop = false;
+
         isLighterOn = false;
         TurnOff();
     }
@@ -48,26 +60,25 @@ public class LighterSystem : MonoBehaviour
     {
         if (!canUseLighter)
         {
-            // もし火がついていたら強制的に消す安全策
             if (isLighterOn)
             {
-                isLighterOn = false;
                 TurnOff();
             }
             return;
         }
 
-        // Tキーで点火
-        if (Input.GetKeyDown(KeyCode.T))
+        // Tキーで点火・消火
+        // ※ isIgniting(点火動作中)なら操作を受け付けないようにする
+        if (Input.GetKeyDown(KeyCode.T) && !isIgniting)
         {
-            isLighterOn = !isLighterOn;
-            if (isLighterOn)
+            if (!isLighterOn)
             {
-                TurnOn();
-                if (lighterSound != null) lighterSound.Play();
+                // まだ付いてないなら、点火プロセス開始
+                StartCoroutine(IgniteProcess());
             }
             else
             {
+                // もう付いてるなら消す
                 TurnOff();
             }
         }
@@ -79,6 +90,43 @@ public class LighterSystem : MonoBehaviour
         }
 
         HandleDrawingAndAnimation();
+    }
+
+    // ★追加：時間差で火をつけるコルーチン
+    IEnumerator IgniteProcess()
+    {
+        isIgniting = true; // 操作ロック開始
+
+        // 1. カチッという音を鳴らす
+        if (lighterSound != null && ignitionClip != null)
+        {
+            lighterSound.loop = false;
+            lighterSound.clip = ignitionClip;
+            lighterSound.Play();
+
+            // 音の長さ分だけ待機する
+            yield return new WaitForSeconds(ignitionClip.length);
+        }
+        else
+        {
+            // 音がない場合は一瞬だけ待つ（即時着火だと違和感がある場合）
+            yield return new WaitForSeconds(0.1f);
+        }
+
+        // 2. 待機が終わったら火をつける
+        isLighterOn = true;
+        if (fireParticle != null) fireParticle.Play();
+        if (fireLight != null) fireLight.enabled = true;
+
+        // 3. 燃焼音に切り替えてループ再生する
+        if (lighterSound != null && burningClip != null)
+        {
+            lighterSound.clip = burningClip;
+            lighterSound.loop = true; // ループ有効化
+            lighterSound.Play();
+        }
+
+        isIgniting = false; // 操作ロック解除
     }
 
     void HandleDrawingAndAnimation()
@@ -112,15 +160,11 @@ public class LighterSystem : MonoBehaviour
 
         RaycastHit hit;
 
-        // デバッグ線
         Debug.DrawRay(startPoint, direction * drawDistance, Color.red, 0.1f);
 
         if (Physics.Raycast(startPoint, direction, out hit, drawDistance, drawingLayer))
         {
-            // 生成した焦げ跡を変数に入れる
             GameObject newMark = Instantiate(scorchPrefab, hit.point + (hit.normal * 0.05f), Quaternion.LookRotation(hit.normal));
-
-            // リストに追加して覚えておく
             drawnMarks.Add(newMark);
         }
     }
@@ -130,15 +174,10 @@ public class LighterSystem : MonoBehaviour
         Vector3 startPoint = (firePoint != null) ? firePoint.position : transform.position;
         Vector3 direction = (firePoint != null) ? firePoint.forward : transform.forward;
         RaycastHit hit;
+        float beamRadius = 0.3f;
 
-        // ビームの太さ（半径）
-        float beamRadius = 0.3f; // 30cmくらいの太さにする
-
-        // シーンビューで線だけでなく、当たった場所がわかるようにする
         Debug.DrawRay(startPoint, direction * drawDistance, Color.red, 0.1f);
 
-        // Raycast ではなく SphereCast を使う
-        // これで「細い線」ではなく「太い円柱」が飛んでいくので、多少ズレてても当たります
         if (Physics.SphereCast(startPoint, beamRadius, direction, out hit, drawDistance, hiddenTextLayer))
         {
             HiddenTextReveal targetText = hit.collider.GetComponent<HiddenTextReveal>();
@@ -149,29 +188,40 @@ public class LighterSystem : MonoBehaviour
         }
     }
 
-    // 全部消す機能
     void ClearAllMarks()
     {
-        // リストにあるものをひとつずつ破壊する
         foreach (GameObject mark in drawnMarks)
         {
             if (mark != null) Destroy(mark);
         }
-
-        // リストを空にする
         drawnMarks.Clear();
         Debug.Log("焦げ跡をリセットしました");
     }
 
+    // publicだが、内部処理ではIgniteProcessを使うため、これは主にTurnOff用や外部強制ON用
     public void TurnOn()
     {
+        // 外部から強制的に呼ばれた場合、音の待機なしでつける
+        isLighterOn = true;
         if (fireParticle != null) fireParticle.Play();
         if (fireLight != null) fireLight.enabled = true;
     }
 
     public void TurnOff()
     {
+        // もし点火待ちの最中に消されたら、待機処理を強制停止する
+        StopAllCoroutines();
+        isIgniting = false;
+        isLighterOn = false;
+
         if (fireParticle != null) fireParticle.Stop();
         if (fireLight != null) fireLight.enabled = false;
+
+        // 音を止める（ループしている燃焼音を止める）
+        if (lighterSound != null)
+        {
+            lighterSound.Stop();
+            lighterSound.loop = false;
+        }
     }
 }
