@@ -1,160 +1,69 @@
 using UnityEngine;
 using TMPro;
 using UnityEngine.UI;
+using UnityEngine.EventSystems;
 using System.Collections;
 
 public class PasswordDoor : MonoBehaviour
 {
-    [Header("設定")]
-    [Tooltip("正解のパスワード（4文字の数字など）")]
+    // ★追加：どこからでも「今パスワード画面が開いてるか」を知れるようにする変数
+    public static bool IsAnyWindowOpen = false;
+
+    [Header("パスワード設定")]
     public string correctPassword = "1234";
+    public LockDoorController targetDoor;
 
-    [Header("揺れ演出の設定")]
-    [Tooltip("揺れる時間（秒）")]
-    public float shakeDuration = 0.5f;
+    [Header("プレイヤー操作スクリプト（自動で止めるので空欄でもOK）")]
+    public MonoBehaviour playerMovementScript;
+    public MonoBehaviour playerCameraScript;
 
-    [Tooltip("揺れる強さ（範囲）")]
-    public float shakeMagnitude = 10f;
-
-    [Header("割り当て")]
-    [Tooltip("消えるドア本体（自分自身なら空欄でOK）")]
-    public GameObject doorObject;
-
-    [Tooltip("プレイヤーのオブジェクト（距離測定用）")]
-    public Transform playerTransform;
-
-    [Tooltip("「スペースで入力」と表示するテキスト")]
-    public GameObject promptText;
-
-    [Tooltip("パスワード入力画面のパネル")]
+    [Header("UI設定")]
     public GameObject passwordPanel;
-
-    [Tooltip("文字を入力するInputField")]
     public TMP_InputField inputField;
-
-    [Header("閉じるボタンを登録する場所")]
+    public GameObject promptText;
     public Button closeButton;
 
     [Header("音の設定")]
-    [Tooltip("正解したときの音")]
     public AudioClip successSound;
-
-    [Tooltip("間違えたときの音")]
     public AudioClip errorSound;
+
+    [Header("演出設定")]
+    public float shakeDuration = 0.5f;
+    public float shakeMagnitude = 10f;
 
     // private
     private bool isPlayerInside = false;
     private bool isUiActive = false;
-    private MonoBehaviour playerScript; // プレイヤーの動きを止める用
     private bool isShaking = false;
-    private AudioSource audioSource; // スピーカー
+    private bool isCleared = false;
+    private AudioSource audioSource;
 
     void Start()
     {
-        // ドア本体が設定されてなければ自分自身をセット
-        if (doorObject == null) doorObject = this.gameObject;
+        // 念のため初期化時はFalseに
+        IsAnyWindowOpen = false;
 
-        // パネルとテキストを初期状態で非表示に
         if (passwordPanel != null) passwordPanel.SetActive(false);
         if (promptText != null) promptText.SetActive(false);
 
-        // Closeボタンが押されたら閉じる機能を自動でつける
-        if (closeButton != null)
-        {
-            closeButton.onClick.AddListener(ClosePasswordUI);
-        }
-
-        // プレイヤーを自動検索（タグがPlayerの場合）
-        if (playerTransform == null)
-        {
-            GameObject p = GameObject.FindWithTag("Player");
-            if (p != null)
-            {
-                playerTransform = p.transform;
-                Debug.Log("プレイヤーを見つけました!: " + p.name);
-            }
-            else
-            {
-                Debug.LogError("プレイヤーが見つかりません!");
-            }
-        }
+        if (closeButton != null) closeButton.onClick.AddListener(ClosePasswordUI);
+        if (inputField != null) inputField.onSubmit.AddListener(CheckPassword);
 
         audioSource = GetComponent<AudioSource>();
-        if (audioSource == null)
-        {
-            // もしついてなかったら自動でつける（親切設計）
-            audioSource = gameObject.AddComponent<AudioSource>();
-        }
-
-        // 入力完了時（Enterキーなど）に CheckPassword を呼ぶ設定
-        inputField.onSubmit.AddListener(CheckPassword);
+        if (audioSource == null) audioSource = gameObject.AddComponent<AudioSource>();
     }
 
-    void OnCollisionEnter(Collision collision)
+    void OnDestroy()
     {
-        // ぶつかってきたのが「Player」タグのついた相手なら
-        if (collision.gameObject.CompareTag("Player"))
-        {
-            isPlayerInside = true;
-
-            // UIが開いていないならヒントを表示
-            if (!isUiActive && promptText != null)
-            {
-                promptText.SetActive(true);
-                Debug.Log("エリアに入りました");
-            }
-        }
-    }
-
-    void OnCollisionExit(Collision collision)
-    {
-        // Playerが出ていったら
-        if (collision.gameObject.CompareTag("Player"))
-        {
-            isPlayerInside = false;
-
-            // ヒントを消す
-            if (promptText != null) promptText.SetActive(false);
-
-            // もし入力画面を開いたまま離れたら、閉じる
-            if (isUiActive) ClosePasswordUI();
-
-            Debug.Log("エリアから出ました");
-        }
-    }
-
-    public void OnNumberPressed(string number)
-    {
-        // 揺れている間は入力を受け付けない
-        if (isShaking || inputField == null) return;
-        inputField.text += number;
-    }
-
-    // クリア(C)ボタンが押されたら呼ばれる
-    public void OnClearPressed()
-    {
-        if (inputField != null)
-        {
-            inputField.text = "";
-        }
-    }
-
-    // Enterキーが押されたら呼ばれる
-    public void OnEnterPressed()
-    {
-        if (inputField != null)
-        {
-            CheckPassword(inputField.text);
-        }
-
-        // 揺れている間は入力を受け付けない
-        if (isShaking || inputField == null) return;
-        CheckPassword(inputField.text);
+        // オブジェクトが消えるときはフラグを下ろす（バグ防止）
+        if (isUiActive) IsAnyWindowOpen = false;
     }
 
     void Update()
     {
-        if (isPlayerInside && !isShaking) // 揺れている間は操作不可
+        if (isCleared) return;
+
+        if (isPlayerInside && !isShaking)
         {
             if (!isUiActive)
             {
@@ -165,129 +74,147 @@ public class PasswordDoor : MonoBehaviour
                 if (Input.GetKeyDown(KeyCode.Escape)) ClosePasswordUI();
             }
         }
-
-        if (playerTransform == null)
-        {
-            return;
-        }
-
-        if (isPlayerInside && !isShaking)
-        {
-            if (!isUiActive)
-            {
-                // エリア内にいてUIが開いていない時、スペースキーで開く
-                if (Input.GetKeyDown(KeyCode.Space))
-                {
-                    OpenPasswordUI();
-                }
-            }
-            else
-            {
-                // UIが開いている時、ESCキーで閉じる
-                if (Input.GetKeyDown(KeyCode.Escape))
-                {
-                    ClosePasswordUI();
-                }
-            }
-        }
     }
 
-    // パスワード入力画面を開く
-    void OpenPasswordUI()
-    {
-        isUiActive = true;
-        // UIが開いている時はヒントを消す
-        if (promptText != null) promptText.SetActive(false);
-        passwordPanel.SetActive(true);
-
-        // 入力欄をクリアしてフォーカスする（すぐに打てるように）
-        inputField.text = "";
-        inputField.ActivateInputField();
-
-        // カーソルを表示してロック解除
-        Cursor.lockState = CursorLockMode.None;
-        Cursor.visible = true;
-
-        // プレイヤーが動かないようにスクリプトを止める
-        playerScript = playerTransform.GetComponent<MonoBehaviour>();
-        if (playerScript != null) playerScript.enabled = false;
-    }
-
-    // パスワード入力画面を閉じる
-    public void ClosePasswordUI()
-    {
-        if (isShaking) return;
-
-        isUiActive = false;
-        if (promptText != null) promptText.SetActive(true);
-        passwordPanel.SetActive(false);
-
-        // カーソルを消してロック
-        Cursor.lockState = CursorLockMode.Locked;
-        Cursor.visible = false;
-
-        playerScript = playerTransform.GetComponent<MonoBehaviour>();
-        // プレイヤーの動きを再開
-        if (playerScript != null) playerScript.enabled = true;
-    }
-
-    // パスワードの判定（Enterを押したときに呼ばれる）
     public void CheckPassword(string input)
     {
         if (input == correctPassword)
         {
             Debug.Log("正解！");
-            ClosePasswordUI();
-            if (promptText != null) promptText.SetActive(false);
-
-            // 正解音を鳴らす
             if (successSound != null) audioSource.PlayOneShot(successSound);
+            if (targetDoor != null) targetDoor.UnlockDoor();
 
-            Destroy(doorObject); // ドアを消す
+            ClosePasswordUI();
+
+            if (EventSystem.current != null) EventSystem.current.SetSelectedGameObject(null);
+
+            isCleared = true;
+            if (promptText != null) promptText.SetActive(false);
         }
         else
         {
-            if (!isShaking && passwordPanel != null)
-            {
-                StartCoroutine(ShakePanel());
-            }
-
-            Debug.Log("不正解...");
-
-            // 間違い音を鳴らす
+            if (!isShaking && passwordPanel != null) StartCoroutine(ShakePanel());
             if (errorSound != null) audioSource.PlayOneShot(errorSound);
 
-            inputField.text = ""; // 文字を消してやり直し
-            inputField.ActivateInputField(); // フォーカスを戻す
+            if (inputField != null)
+            {
+                inputField.text = "";
+                inputField.ActivateInputField();
+            }
         }
+    }
+
+    void OpenPasswordUI()
+    {
+        isUiActive = true;
+        // ★フラグをオンにする
+        IsAnyWindowOpen = true;
+
+        if (promptText != null) promptText.SetActive(false);
+        passwordPanel.SetActive(true);
+
+        if (inputField != null)
+        {
+            inputField.text = "";
+            inputField.ActivateInputField();
+        }
+
+        // ※ここでのカーソル表示処理は削除し、GameManagerに任せます
+        // Cursor.visible = true; ... (削除)
+
+        // プレイヤー停止
+        SetPlayerControl(false);
+    }
+
+    public void ClosePasswordUI()
+    {
+        if (isShaking) return;
+
+        isUiActive = false;
+        // ★フラグをオフにする
+        IsAnyWindowOpen = false;
+
+        if (promptText != null && !isCleared) promptText.SetActive(true);
+        passwordPanel.SetActive(false);
+
+        // ※ここでのカーソル非表示処理も削除し、GameManagerに任せます
+        // Cursor.visible = false; ... (削除)
+
+        // プレイヤー再開
+        SetPlayerControl(true);
+    }
+
+    // プレイヤーの操作をON/OFFする関数
+    void SetPlayerControl(bool enable)
+    {
+        if (playerMovementScript != null) playerMovementScript.enabled = enable;
+        if (playerCameraScript != null) playerCameraScript.enabled = enable;
+
+        // もしInspectorで指定されていなくても、タグから自動で探して止める
+        if (playerMovementScript == null)
+        {
+            GameObject p = GameObject.FindWithTag("Player");
+            if (p != null)
+            {
+                // 一般的なFPSコントローラーの名前を探して止める
+                var inputs = p.GetComponent("StarterAssetsInputs") as MonoBehaviour;
+                if (inputs != null) inputs.enabled = enable;
+
+                var controller = p.GetComponent("FirstPersonController") as MonoBehaviour;
+                if (controller != null) controller.enabled = enable;
+            }
+        }
+    }
+
+    // --- ボタン操作用 ---
+    public void OnNumberPressed(string number)
+    {
+        if (isShaking || inputField == null) return;
+        inputField.text += number;
+    }
+    public void OnClearPressed()
+    {
+        if (inputField != null) inputField.text = "";
+    }
+    public void OnEnterPressed()
+    {
+        if (inputField != null) CheckPassword(inputField.text);
     }
 
     IEnumerator ShakePanel()
     {
         isShaking = true;
         RectTransform panelRect = passwordPanel.GetComponent<RectTransform>();
-        Vector3 originalPos = panelRect.localPosition; // 元の位置を記憶
-
+        Vector3 originalPos = panelRect.localPosition;
         float elapsed = 0.0f;
-
         while (elapsed < shakeDuration)
         {
-            // ランダムな位置に少しずらす
             float x = Random.Range(-1f, 1f) * shakeMagnitude;
             float y = Random.Range(-1f, 1f) * shakeMagnitude;
-
             panelRect.localPosition = new Vector3(originalPos.x + x, originalPos.y + y, originalPos.z);
-
             elapsed += Time.deltaTime;
-            yield return null; // 1フレーム待つ
+            yield return null;
         }
-
-        // 元の位置に戻す
         panelRect.localPosition = originalPos;
-
-        // テキストをクリア
-        if (inputField != null) inputField.text = "";
-
         isShaking = false;
+    }
+
+    void OnTriggerEnter(Collider other)
+    {
+        if (isCleared) return;
+        if (other.CompareTag("Player"))
+        {
+            isPlayerInside = true;
+            if (!isUiActive && promptText != null) promptText.SetActive(true);
+        }
+    }
+    void OnTriggerExit(Collider other)
+    {
+        if (other.CompareTag("Player"))
+        {
+            isPlayerInside = false;
+            if (promptText != null) promptText.SetActive(false);
+            if (isUiActive) ClosePasswordUI();
+        }
     }
 }

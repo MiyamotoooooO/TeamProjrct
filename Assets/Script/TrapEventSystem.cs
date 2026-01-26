@@ -5,6 +5,10 @@ using UnityEngine.AI;
 
 public class TrapEventSystem : MonoBehaviour
 {
+    [Header("セーブ設定")]
+    [Tooltip("このイベント固有のID（例: Trap_Cage01）。他のイベントと被らない名前にしてください")]
+    public string eventID = "UniqueTrapEvent"; // ★追加：セーブ用ID
+
     [Header("--- 必要なパーツ ---")]
     [Tooltip("檻のスクリプト（CageTrap）")]
     public CageTrap cageScript;
@@ -50,9 +54,27 @@ public class TrapEventSystem : MonoBehaviour
 
     void Start()
     {
+        // ★セーブデータ確認
+        // もし「この罠イベントはもう終わったよ」という記録があれば、
+        // 演出は再生せず、最初から「落ちた状態」にする
+        if (!string.IsNullOrEmpty(eventID) && SaveManager.Instance != null && SaveManager.Instance.IsEventCompleted(eventID))
+        {
+            if (cageScript != null)
+            {
+                // 檻を表示する
+                cageScript.gameObject.SetActive(true);
+                // すぐに落とす（演出なしで、物理的にそこに存在させる）
+                cageScript.ActivateTrap();
+            }
+            // ここで return することで、下の「非表示にする処理」や「トリガー待ち」を行わない
+            // （トリガー自体を消したい場合は Destroy(GetComponent<Collider>()); などを追加してもOK）
+            return;
+        }
+
+        // --- 以下、まだイベントが起きていない場合の初期化 ---
         if (cageScript != null)
         {
-            // 檻のゲームオブジェクトごと非表示にする
+            // 檻のゲームオブジェクトごと非表示にする（演出待ち）
             cageScript.gameObject.SetActive(false);
         }
     }
@@ -60,6 +82,9 @@ public class TrapEventSystem : MonoBehaviour
     // トリガーから呼ばれる関数
     public void StartTrapEvent()
     {
+        // 念のため、既に終わっている場合は再生しない
+        if (SaveManager.Instance != null && SaveManager.Instance.IsEventCompleted(eventID)) return;
+
         StartCoroutine(EventSequence());
     }
 
@@ -68,21 +93,20 @@ public class TrapEventSystem : MonoBehaviour
         if (lighterSystem != null)
         {
             wasLighterOn = lighterSystem.isLighterOn;
-            lighterSystem.canUseLighter = false; // ロック
-            lighterSystem.TurnOff(); // ★ここ重要：フラグだけでなく直接消す！
-            lighterSystem.isLighterOn = false; // 内部状態もオフにしておく
+            lighterSystem.canUseLighter = false;
+            lighterSystem.TurnOff();
+            lighterSystem.isLighterOn = false;
         }
 
         if (flashlightSystem != null)
         {
             wasFlashlightOn = flashlightSystem.isFlashlightOn;
-            flashlightSystem.canUseFlashlight = false; // ロック
-            // FlashlightSystemにはTurnOff関数がないので、手動で消す処理を書くか、ApplyStateを使う
+            flashlightSystem.canUseFlashlight = false;
             flashlightSystem.isFlashlightOn = false;
-            flashlightSystem.ApplyState(); // ★直接反映させる
+            flashlightSystem.ApplyState();
         }
 
-        // 1. プレイヤーの操作を禁止（動けなくする）
+        // 1. プレイヤーの操作を禁止
         if (playerMoveScript != null) playerMoveScript.enabled = false;
 
         if (playerObj != null)
@@ -90,9 +114,8 @@ public class TrapEventSystem : MonoBehaviour
             Rigidbody rb = playerObj.GetComponent<Rigidbody>();
             if (rb != null)
             {
-                rb.velocity = Vector3.zero;        // 移動速度をゼロに
-                rb.angularVelocity = Vector3.zero; // 回転速度をゼロに
-                // 念のため一時的に物理演算を止める（スリープさせる）
+                rb.velocity = Vector3.zero;
+                rb.angularVelocity = Vector3.zero;
                 rb.Sleep();
             }
         }
@@ -103,37 +126,30 @@ public class TrapEventSystem : MonoBehaviour
         if (mainCamera != null) mainCamera.SetActive(false);
         if (trapCamera != null) trapCamera.SetActive(true);
 
-        // 3. プレイヤーを振り向かせる（後ろを向く）
+        // 3. プレイヤーを振り向かせる
         if (playerObj != null)
         {
-            // 今の向きを保存
             originalRotation = playerObj.transform.rotation;
-            // くるっと180度回転
             playerObj.transform.Rotate(0, 180, 0);
         }
 
-        // 4. 「あっ！」と思わせるタメを作る
+        // 4. タメを作る
         yield return new WaitForSeconds(delayBeforeDrop);
 
         if (cageScript != null)
         {
-            // まず表示する
             cageScript.gameObject.SetActive(true);
-            // その後、落とす
             cageScript.ActivateTrap();
         }
 
-        // 5. 檻を落とす！
-        if (cageScript != null) cageScript.ActivateTrap();
-
-        // 6. 檻が落ちきるまで（演出が終わるまで）待つ
+        // 6. 演出が終わるまで待つ
         yield return new WaitForSeconds(eventDuration);
 
         // 7. カメラを元に戻す
         if (trapCamera != null) trapCamera.SetActive(false);
         if (mainCamera != null) mainCamera.SetActive(true);
 
-        // 8. プレイヤーの向きを元に戻す（前を向く）
+        // 8. プレイヤーの向きを元に戻す
         if (playerObj != null)
         {
             playerObj.transform.rotation = originalRotation;
@@ -141,17 +157,14 @@ public class TrapEventSystem : MonoBehaviour
 
         if (lighterSystem != null)
         {
-            lighterSystem.canUseLighter = true; // ロック解除
-
+            lighterSystem.canUseLighter = true;
             if (wasLighterOn)
             {
-                // 元々ついていたならつける
                 lighterSystem.isLighterOn = true;
                 lighterSystem.TurnOn();
             }
             else
             {
-                // ★元々消えていたなら、念には念を入れて「消す！」と命令する
                 lighterSystem.isLighterOn = false;
                 lighterSystem.TurnOff();
             }
@@ -159,8 +172,7 @@ public class TrapEventSystem : MonoBehaviour
 
         if (flashlightSystem != null)
         {
-            flashlightSystem.canUseFlashlight = true; // ロック解除
-
+            flashlightSystem.canUseFlashlight = true;
             if (wasFlashlightOn)
             {
                 flashlightSystem.isFlashlightOn = true;
@@ -168,7 +180,6 @@ public class TrapEventSystem : MonoBehaviour
             }
             else
             {
-                // ★こちらも念入りに消す
                 flashlightSystem.isFlashlightOn = false;
                 flashlightSystem.ApplyState();
             }
@@ -176,21 +187,26 @@ public class TrapEventSystem : MonoBehaviour
 
         ResumeAllZombies();
 
-        // 9. 操作を許可（動けるようにする）
+        // 9. 操作を許可
         if (playerMoveScript != null) playerMoveScript.enabled = true;
+
+        // ★最後に「このイベントは終わったよ」とセーブデータに記録する
+        if (!string.IsNullOrEmpty(eventID) && SaveManager.Instance != null)
+        {
+            SaveManager.Instance.MarkEventAsCompleted(eventID);
+            Debug.Log("罠イベント完了を記録しました: " + eventID);
+        }
     }
 
     void StopAllZombies()
     {
         frozenZombies.Clear();
-        int zombieLayer = LayerMask.NameToLayer("Zombie"); // "Zombie"レイヤーの番号を取得
+        int zombieLayer = LayerMask.NameToLayer("Zombie");
 
-        // シーン上のすべてのオブジェクトを検索（少し重いが確実）
-        GameObject[] allObjects = FindObjectsOfType<GameObject>();
+        GameObject[] allObjects = FindObjectsByType<GameObject>(FindObjectsSortMode.None); // Unity2023以降対応の書き方
 
         foreach (var obj in allObjects)
         {
-            // Zombieレイヤーのものだけ処理する
             if (obj.layer == zombieLayer)
             {
                 ZombieState state = new ZombieState();
@@ -199,28 +215,24 @@ public class TrapEventSystem : MonoBehaviour
                 state.agent = obj.GetComponent<NavMeshAgent>();
                 state.rb = obj.GetComponent<Rigidbody>();
 
-                // アニメーションを止める（速度0にする）
                 if (state.anim != null)
                 {
                     state.originalAnimSpeed = state.anim.speed;
                     state.anim.speed = 0;
                 }
 
-                // 移動（NavMeshAgent）を止める
                 if (state.agent != null && state.agent.isOnNavMesh)
                 {
                     state.agent.isStopped = true;
                     state.agent.velocity = Vector3.zero;
                 }
 
-                // 物理演算を止める
                 if (state.rb != null)
                 {
                     state.wasKinematic = state.rb.isKinematic;
-                    state.rb.isKinematic = true; // 完全に固定
+                    state.rb.isKinematic = true;
                 }
 
-                // リストに追加して覚えておく
                 frozenZombies.Add(state);
             }
         }
@@ -230,15 +242,11 @@ public class TrapEventSystem : MonoBehaviour
     {
         foreach (var state in frozenZombies)
         {
-            if (state.obj == null) continue; // もし消滅していたら無視
+            if (state.obj == null) continue;
 
-            // アニメーション速度を戻す
             if (state.anim != null) state.anim.speed = state.originalAnimSpeed;
-
-            // 移動を再開
             if (state.agent != null && state.agent.isOnNavMesh) state.agent.isStopped = false;
 
-            // 物理演算を戻す
             if (state.rb != null)
             {
                 state.rb.isKinematic = state.wasKinematic;

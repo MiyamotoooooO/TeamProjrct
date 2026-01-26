@@ -64,10 +64,10 @@ public class TimeManager : MonoBehaviour
         UpdateMoonPhase();
 
         // セーブデータには「今は夜だ」という情報を送り続ける
-        if (SaveManager.Instance != null && SaveManager.Instance.currentData != null)
+        /*if (SaveManager.Instance != null && SaveManager.Instance.currentData != null)
         {
             SaveManager.Instance.currentData.currentHour = currentHour;
-        }
+        }*/
     }
 
     void UpdateLighting()
