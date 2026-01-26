@@ -26,6 +26,7 @@ public class EnemyAI : MonoBehaviour
 
     void Update()
     {
+        if (!agent.isOnNavMesh) return;
         float distance = Vector3.Distance(transform.position, player.position);
 
         //攻撃フェーズ

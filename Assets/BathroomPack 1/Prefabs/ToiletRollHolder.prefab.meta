@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: 6d590e1a9e0f3564fa331ca53311e621
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 100100000
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 120069
+  packageName: Mini Bathroom Pack
+  packageVersion: 1.0
+  assetPath: Assets/BathroomPack/Prefabs/ToiletRollHolder.prefab
+  uploadId: 249527

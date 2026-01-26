@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: 68a84fb8defeb89458e27888f4ca9f74
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 100100000
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 120069
+  packageName: Mini Bathroom Pack
+  packageVersion: 1.0
+  assetPath: Assets/BathroomPack/Prefabs/ToiletBrush.prefab
+  uploadId: 249527
