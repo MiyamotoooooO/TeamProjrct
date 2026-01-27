@@ -47,7 +47,6 @@ public class PlayerController : MonoBehaviour
     public float swingSpeed = 1f;
     public float SwingUpAmount = 0.1f;
     public float SwingDownAmount = -0.25f;
-    public float SwingSpeed = 6f;
     public float SwingUpRotation = -20f; // 振り上げ量
     public float SwingDownRotation = 60f; // 振り下ろし量
     private Quaternion defaultRot;
@@ -152,6 +151,8 @@ public class PlayerController : MonoBehaviour
 
         KeyModelDefaultPos = KeyModel.transform.localPosition;
         itemModelDefaultPos = ItemModel.transform.localPosition;
+        defaultRot = ItemModel.transform.localRotation;
+        cameraDefaultRot = cam.transform.localRotation;
 
         // ★カメラの初期位置を保存
         defaultCamPos = cam.transform.localPosition;
@@ -194,7 +195,7 @@ public class PlayerController : MonoBehaviour
         UpdateItemBob();
         UpdateKeySwing();
         UpdateItemSwing();
-
+        UpdateCameraSwing();
         HandleFootstepsAudio();
         HandleBreathingAudio();
 
@@ -205,6 +206,18 @@ public class PlayerController : MonoBehaviour
         {
             Vector3 spawnPos = transform.position + transform.forward * decoySpawnDistance;
             Instantiate(decoy, spawnPos, Quaternion.identity);
+        }
+
+        if (Input.GetMouseButtonDown(0))
+        {
+            if (KeyModel.activeSelf)
+            {
+                PlayKeySwing();
+            }
+            else if (ItemModel.activeSelf)
+            {
+                PlayItemSwing();
+            }
         }
     }
 
@@ -474,33 +487,58 @@ public class PlayerController : MonoBehaviour
         if (!isSwinging) return;
         swingTimer += Time.deltaTime * swingSpeed;
         float swingOffset = Mathf.Sin(swingTimer) * swingAmount;
+
+        // 揺れ動きの適用
         if (KeyModel.activeSelf) KeyModel.transform.localPosition = KeyModelDefaultPos + new Vector3(0, 0, swingOffset);
         if (ItemModel.activeSelf) ItemModel.transform.localPosition = itemModelDefaultPos + new Vector3(0, 0, swingOffset);
+
+        // --- 動作終了時の処理 ---
         if (swingTimer >= Mathf.PI)
         {
             isSwinging = false;
+
+            // 位置を初期位置に戻す
             if (KeyModel.activeSelf) KeyModel.transform.localPosition = KeyModelDefaultPos;
             if (ItemModel.activeSelf) ItemModel.transform.localPosition = itemModelDefaultPos;
+
+            // 鍵が表示されていた場合（鍵を使った場合）
+            if (KeyModel.activeSelf)
+            {
+                KeyModel.SetActive(false); // まず見た目を消す
+
+                // ★追加：インベントリデータから削除する処理
+                if (inventoryManager != null && inventoryManager.currentItems.Count > 0)
+                {
+                    // 現在持っているアイテム（リストの先頭）を削除
+                    inventoryManager.currentItems.RemoveAt(0);
+
+                    // インベントリの状態が変わったので、モデルの表示更新処理を呼ぶ
+                    UpdateItemModel();
+                }
+            }
         }
     }
 
     void UpdateItemSwing()
     {
         if (!isItemSwing) return;
-        itemSwingTimer += Time.deltaTime * SwingSpeed;
+        itemSwingTimer += Time.deltaTime * swingSpeed;
         if (itemSwingTimer < 0.3f)
         {
             float t = itemSwingTimer / 0.3f;
             ItemModel.transform.localPosition = Vector3.Lerp(itemModelDefaultPos, itemModelDefaultPos + new Vector3(0, SwingUpAmount, 0), t);
+            ItemModel.transform.localRotation = Quaternion.Lerp(defaultRot, Quaternion.Euler(SwingUpRotation, 0, 0), t);
         }
         else if (itemSwingTimer < 1f)
         {
             float t = (itemSwingTimer - 0.3f) / 0.7f;
             ItemModel.transform.localPosition = Vector3.Lerp(itemModelDefaultPos + new Vector3(0, SwingUpAmount, 0), itemModelDefaultPos + new Vector3(0, SwingDownAmount, 0), t);
+            ItemModel.transform.localRotation = Quaternion.Lerp(Quaternion.Euler(SwingUpRotation, 0, 0), Quaternion.Euler(SwingDownRotation, 0, 0), t);
         }
         else
         {
             ItemModel.transform.localPosition = itemModelDefaultPos;
+            ItemModel.transform.localRotation = defaultRot;
             isItemSwing = false;
             itemSwingTimer = 0f;
         }
