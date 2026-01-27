@@ -48,6 +48,11 @@ public class PlayerController : MonoBehaviour
     public float SwingUpAmount = 0.1f;
     public float SwingDownAmount = -0.25f;
     public float SwingSpeed = 6f;
+    public float SwingUpRotation = -20f; // 振り上げ量
+    public float SwingDownRotation = 60f; // 振り下ろし量
+    private Quaternion defaultRot;
+    Quaternion cameraSwingStartRot;
+
 
     [Header("デコイ")]
     [SerializeField] private GameObject decoy;
@@ -59,12 +64,38 @@ public class PlayerController : MonoBehaviour
     public AudioClip walkSoundLoop;
     [Tooltip("走っている時のループ音源")]
     public AudioClip runSoundLoop;
+
+    [Header("--- 吐息（ブレス）設定 ---")]
+    [Tooltip("吐息用のAudioSource")]
+    public AudioSource breathingAudioSource;
+    [Tooltip("吐息のループ音源")]
+    public AudioClip breathingSoundLoop;
+    [Tooltip("歩き時の吐息音量")]
+    [Range(0f, 1f)]
+    public float breathingWalkVolume = 0.3f;
+    [Tooltip("走り時の吐息音量")]
+    [Range(0f, 1f)]
+    public float breathingRunVolume = 0.5f;
+
+    [Header("--- 視点の揺れ（Head Bob） ---")]
+    [Tooltip("歩いている時の揺れる速さ")]
+    public float walkBobFrequency = 10.0f;
+    [Tooltip("歩いている時の揺れ幅（X, Y）")]
+    public Vector2 walkBobAmount = new Vector2(0.05f, 0.05f);
+
+    [Tooltip("走っている時の揺れる速さ")]
+    public float runBobFrequency = 15.0f;
+    [Tooltip("走っている時の揺れ幅（X, Y）... 強くするならここを大きく")]
+    public Vector2 runBobAmount = new Vector2(0.1f, 0.15f);
+
+    [Tooltip("揺れの滑らかさ")]
+    public float bobSmoothing = 10.0f;
+
+    [Header("共通オーディオ設定")]
     [Tooltip("地面判定の距離")]
     public float groundCheckDistance = 0.5f;
-
-    // ★追加：フェードの速さ（大きいほど早く音が消える）
-    [Tooltip("音のフェード速度（プツン音防止）")]
-    public float audioFadeSpeed = 10.0f;
+    [Tooltip("音のフェード速度")]
+    public float audioFadeSpeed = 5.0f;
 
     // 内部変数
     private Vector3 KeyModelDefaultPos;
@@ -74,6 +105,19 @@ public class PlayerController : MonoBehaviour
     private float swingTimer = 0f;
     private bool isItemSwing = false;
     private float itemSwingTimer = 0f;
+
+    private bool isCameraSwing = false;
+    private float cameraSwingTimer = -2f;
+    public float cameraSwingSpeed = 0.01f; // 速さ
+    public float cameraSwingUpAngle = -6f; // 上に傾ける角度
+    public float cameraSwingDownAngle = 2f; // 下に傾ける角度
+    public float swingUpAngle = 4f; // 振りかぶりの角度
+    public float swingDownAngle = -12f; // 振り下ろしの角度
+    private Quaternion cameraDefaultRot;
+
+    // ★カメラ揺れ用変数
+    private Vector3 defaultCamPos;
+    private float camBobTimer = 0f;
 
     Quaternion cameraRot, characterRot;
     bool cursorLock = true;
@@ -92,28 +136,35 @@ public class PlayerController : MonoBehaviour
 
         if (footstepAudioSource == null)
             footstepAudioSource = GetComponent<AudioSource>();
-
         footstepAudioSource.loop = true;
-        footstepAudioSource.volume = 0; // 最初は音量0にしておく
+        footstepAudioSource.volume = 0;
+
+        if (breathingAudioSource != null && breathingSoundLoop != null)
+        {
+            breathingAudioSource.clip = breathingSoundLoop;
+            breathingAudioSource.loop = true;
+            breathingAudioSource.volume = 0;
+            breathingAudioSource.Play();
+        }
 
         if (inventoryManager == null)
             inventoryManager = Object.FindAnyObjectByType<InventoryManager>();
 
         KeyModelDefaultPos = KeyModel.transform.localPosition;
         itemModelDefaultPos = ItemModel.transform.localPosition;
+
+        // ★カメラの初期位置を保存
+        defaultCamPos = cam.transform.localPosition;
     }
 
     private void OnDisable()
     {
-        if (footstepAudioSource != null && footstepAudioSource.isPlaying)
-        {
-            footstepAudioSource.Stop();
-        }
+        if (footstepAudioSource != null) footstepAudioSource.Stop();
+        if (breathingAudioSource != null) breathingAudioSource.Stop();
     }
 
     private void Update()
     {
-        // 操作不可ならフェードアウトさせて一時停止
         if (!canControl)
         {
             FadeOutAndPause();
@@ -145,6 +196,10 @@ public class PlayerController : MonoBehaviour
         UpdateItemSwing();
 
         HandleFootstepsAudio();
+        HandleBreathingAudio();
+
+        // ★追加：カメラの揺れ処理
+        HandleCameraShake();
 
         if (Input.GetKeyDown(KeyCode.G))
         {
@@ -158,7 +213,7 @@ public class PlayerController : MonoBehaviour
         if (Input.GetKey(KeyCode.Escape))
         {
             canControl = false;
-            FadeOutAndPause(); // ポーズ時もフェードアウト
+            FadeOutAndPause();
             pauseMenu.SetActive(true);
         }
 
@@ -197,7 +252,46 @@ public class PlayerController : MonoBehaviour
         rb.velocity = new Vector3(moveDir.x * currentSpeed, rb.velocity.y, moveDir.z * currentSpeed);
     }
 
-    // ★★★ 足音管理（フェード機能付き） ★★★
+    // --- ★追加：カメラの揺れ（Head Bob）処理 ---
+    void HandleCameraShake()
+    {
+        // 接地していて、かつ移動キー入力があるか
+        bool isGrounded = Physics.Raycast(transform.position + Vector3.up * 0.1f, Vector3.down, groundCheckDistance);
+        bool hasInput = (Input.GetAxisRaw("Horizontal") != 0 || Input.GetAxisRaw("Vertical") != 0);
+
+        if (isGrounded && hasInput)
+        {
+            // 走っているか判定
+            bool isRunning = Input.GetKey(KeyCode.R);
+
+            // パラメータの切り替え
+            float currentFrequency = isRunning ? runBobFrequency : walkBobFrequency;
+            Vector2 currentAmount = isRunning ? runBobAmount : walkBobAmount;
+
+            // タイマーを進める（サインカーブ用）
+            camBobTimer += Time.deltaTime * currentFrequency;
+
+            // 位置のオフセット計算
+            // Y軸：上下の揺れ（sin波）
+            float yOffset = Mathf.Sin(camBobTimer) * currentAmount.y;
+            // X軸：左右の揺れ（cos波で少しゆっくりにすると8の字を描くような揺れになる）
+            float xOffset = Mathf.Cos(camBobTimer * 0.5f) * currentAmount.x;
+
+            // 目標位置を計算
+            Vector3 targetPos = defaultCamPos + new Vector3(xOffset, yOffset, 0);
+
+            // 滑らかに移動させる
+            cam.transform.localPosition = Vector3.Lerp(cam.transform.localPosition, targetPos, Time.deltaTime * bobSmoothing);
+        }
+        else
+        {
+            // 止まっている時は初期位置に戻す
+            camBobTimer = 0;
+            cam.transform.localPosition = Vector3.Lerp(cam.transform.localPosition, defaultCamPos, Time.deltaTime * bobSmoothing);
+        }
+    }
+
+    // --- 音声関連 ---
     void HandleFootstepsAudio()
     {
         bool isGrounded = Physics.Raycast(transform.position + Vector3.up * 0.1f, Vector3.down, groundCheckDistance);
@@ -206,54 +300,74 @@ public class PlayerController : MonoBehaviour
 
         if (isMoving)
         {
-            // 動いている場合
             bool isRunning = Input.GetKey(KeyCode.R);
             AudioClip targetClip = isRunning ? runSoundLoop : walkSoundLoop;
 
-            // クリップの切り替え（歩き⇔走り）
             if (footstepAudioSource.clip != targetClip)
             {
                 footstepAudioSource.clip = targetClip;
-                footstepAudioSource.time = 0; // 切り替え時はリセット
+                footstepAudioSource.time = 0;
                 footstepAudioSource.Play();
             }
             else
             {
-                // 同じクリップで停止中なら再開
-                if (!footstepAudioSource.isPlaying)
-                {
-                    footstepAudioSource.Play();
-                }
+                if (!footstepAudioSource.isPlaying) footstepAudioSource.Play();
             }
-
-            // ★フェードイン：音量を徐々に 1 に近づける
             footstepAudioSource.volume = Mathf.Lerp(footstepAudioSource.volume, 1.0f, Time.deltaTime * audioFadeSpeed);
         }
         else
         {
-            // 止まっている場合：フェードアウトしてからPause
-            FadeOutAndPause();
-        }
-    }
-
-    // ★フェードアウト処理用の関数
-    void FadeOutAndPause()
-    {
-        if (footstepAudioSource.isPlaying)
-        {
-            // 音量を徐々に 0 に近づける
-            footstepAudioSource.volume = Mathf.Lerp(footstepAudioSource.volume, 0.0f, Time.deltaTime * audioFadeSpeed);
-
-            // 音量がほぼゼロ（0.01以下）になったら完全に一時停止する
-            if (footstepAudioSource.volume < 0.01f)
+            if (footstepAudioSource.isPlaying)
             {
-                footstepAudioSource.Pause();
-                footstepAudioSource.volume = 0; // 念のため0にする
+                footstepAudioSource.volume = Mathf.Lerp(footstepAudioSource.volume, 0.0f, Time.deltaTime * audioFadeSpeed);
+                if (footstepAudioSource.volume < 0.01f)
+                {
+                    footstepAudioSource.Pause();
+                    footstepAudioSource.volume = 0;
+                }
             }
         }
     }
 
-    // --- 以下、既存の関数群 ---
+    void HandleBreathingAudio()
+    {
+        if (breathingAudioSource == null) return;
+
+        bool isGrounded = Physics.Raycast(transform.position + Vector3.up * 0.1f, Vector3.down, groundCheckDistance);
+        bool hasInput = (Input.GetAxisRaw("Horizontal") != 0 || Input.GetAxisRaw("Vertical") != 0);
+        bool isMoving = isGrounded && hasInput;
+
+        if (isMoving)
+        {
+            if (!breathingAudioSource.isPlaying) breathingAudioSource.Play();
+            bool isRunning = Input.GetKey(KeyCode.R);
+            float targetVolume = isRunning ? breathingRunVolume : breathingWalkVolume;
+            breathingAudioSource.volume = Mathf.Lerp(breathingAudioSource.volume, targetVolume, Time.deltaTime * audioFadeSpeed);
+        }
+        else
+        {
+            breathingAudioSource.volume = Mathf.Lerp(breathingAudioSource.volume, 0.0f, Time.deltaTime * audioFadeSpeed);
+        }
+    }
+
+    void FadeOutAndPause()
+    {
+        if (footstepAudioSource != null && footstepAudioSource.isPlaying)
+        {
+            footstepAudioSource.volume = Mathf.Lerp(footstepAudioSource.volume, 0.0f, Time.deltaTime * audioFadeSpeed);
+            if (footstepAudioSource.volume < 0.01f)
+            {
+                footstepAudioSource.Pause();
+                footstepAudioSource.volume = 0;
+            }
+        }
+        if (breathingAudioSource != null && breathingAudioSource.isPlaying)
+        {
+            breathingAudioSource.volume = Mathf.Lerp(breathingAudioSource.volume, 0.0f, Time.deltaTime * audioFadeSpeed);
+        }
+    }
+
+    // --- 既存関数 ---
     void RotateCamera()
     {
         float xRot = Input.GetAxis("Mouse X") * Ysensityvity;
@@ -269,17 +383,8 @@ public class PlayerController : MonoBehaviour
     {
         if (Input.GetKeyDown(KeyCode.Escape)) cursorLock = false;
         else if (Input.GetMouseButton(0)) cursorLock = true;
-
-        if (cursorLock)
-        {
-            Cursor.lockState = CursorLockMode.Locked;
-            Cursor.visible = false;
-        }
-        else
-        {
-            Cursor.lockState = CursorLockMode.None;
-            Cursor.visible = true;
-        }
+        if (cursorLock) { Cursor.lockState = CursorLockMode.Locked; Cursor.visible = false; }
+        else { Cursor.lockState = CursorLockMode.None; Cursor.visible = true; }
     }
 
     public Quaternion ClampRotation(Quaternion q)
@@ -401,6 +506,58 @@ public class PlayerController : MonoBehaviour
         }
     }
 
-    public void PlayKeySwing() { isSwinging = true; swingTimer = 0f; }
-    public void PlayItemSwing() { isItemSwing = true; itemSwingTimer = 0f; }
+    public void PlayKeySwing() { isSwinging = true; swingTimer = 0f; isCameraSwing = false; cameraSwingTimer = 0f; }
+    public void PlayItemSwing() { isItemSwing = true; itemSwingTimer = 0f; isCameraSwing = true; cameraSwingTimer = 0f; cameraSwingStartRot = cam.transform.localRotation; }
+
+    void UpdateCameraSwing()
+    {
+        if (!isCameraSwing) return;
+
+        cameraSwingTimer += Time.deltaTime * swingSpeed;
+
+        float currentX = cam.transform.localEulerAngles.x;
+        if (currentX > 180f) currentX -= 360f;
+
+        float downLimit = -85f;
+        float allowedDownAngle = cameraSwingDownAngle;
+
+        if (currentX <= downLimit)
+        {
+            allowedDownAngle = 0f;
+        }
+        else
+        {
+            float margin = Mathf.InverseLerp(-90f, downLimit, currentX);
+            allowedDownAngle *= margin;
+        }
+
+        float angle = 0f;
+
+        if (cameraSwingTimer < 0.5f)
+        {
+            float t = cameraSwingTimer / 0.3f;
+            t = Mathf.SmoothStep(0f, 1f, t);
+            angle = Mathf.Lerp(0, cameraSwingUpAngle, t);
+        }
+        else if (cameraSwingTimer < 0.9f)
+        {
+            float t = (cameraSwingTimer - 0.3f) / 0.6f;
+            t = Mathf.SmoothStep(0f, 1f, t);
+            angle = Mathf.Lerp(cameraSwingUpAngle, allowedDownAngle, t);
+        }
+        else if (cameraSwingTimer < 1.5f)
+        {
+            float t = (cameraSwingTimer - 1f) / 0.6f;
+            t = Mathf.SmoothStep(0f, 1f, t);
+            angle = Mathf.Lerp(allowedDownAngle, 0, t);
+        }
+        else
+        {
+            cam.transform.localRotation = cameraSwingStartRot;
+            isCameraSwing = false;
+            cameraSwingTimer = 0f;
+            return;
+        }
+        cam.transform.localRotation = cameraSwingStartRot * Quaternion.Euler(angle, 0, 0);
+    }
 }

@@ -7,11 +7,14 @@ public class TrapEventSystem : MonoBehaviour
 {
     [Header("セーブ設定")]
     [Tooltip("このイベント固有のID（例: Trap_Cage01）。他のイベントと被らない名前にしてください")]
-    public string eventID = "UniqueTrapEvent"; // ★追加：セーブ用ID
+    public string eventID = "UniqueTrapEvent";
 
     [Header("--- 必要なパーツ ---")]
     [Tooltip("檻のスクリプト（CageTrap）")]
     public CageTrap cageScript;
+
+    [Tooltip("★追加：檻が落ちきった後の位置（空のオブジェクトを置いて指定）")]
+    public Transform fallenPoint;
 
     [Tooltip("普段使っているメインカメラ")]
     public GameObject mainCamera;
@@ -19,17 +22,14 @@ public class TrapEventSystem : MonoBehaviour
     [Tooltip("今回作った演出用カメラ")]
     public GameObject trapCamera;
 
-    [Tooltip("プレイヤー本体（回転させるため）")]
+    [Tooltip("プレイヤー本体")]
     public GameObject playerObj;
 
-    [Tooltip("プレイヤーの移動スクリプト（止めるため）")]
+    [Tooltip("プレイヤーの移動スクリプト")]
     public MonoBehaviour playerMoveScript;
 
     [Header("--- 時間設定 ---")]
-    [Tooltip("カメラが切り替わってから、檻が落ち始めるまでの待ち時間")]
     public float delayBeforeDrop = 0.5f;
-
-    [Tooltip("檻が落ちてから、元の視点に戻るまでの時間")]
     public float eventDuration = 2.5f;
 
     [Header("--- アイテム連携 ---")]
@@ -55,26 +55,44 @@ public class TrapEventSystem : MonoBehaviour
     void Start()
     {
         // ★セーブデータ確認
-        // もし「この罠イベントはもう終わったよ」という記録があれば、
-        // 演出は再生せず、最初から「落ちた状態」にする
+        // もし「この罠イベントはもう終わったよ」という記録があれば
         if (!string.IsNullOrEmpty(eventID) && SaveManager.Instance != null && SaveManager.Instance.IsEventCompleted(eventID))
         {
             if (cageScript != null)
             {
-                // 檻を表示する
+                // 1. 檻を表示する
                 cageScript.gameObject.SetActive(true);
-                // すぐに落とす（演出なしで、物理的にそこに存在させる）
-                cageScript.ActivateTrap();
+
+                // 2. ★修正：物理的に落とすのではなく、落ちた後の場所にワープさせる
+                if (fallenPoint != null)
+                {
+                    cageScript.transform.position = fallenPoint.position;
+                    cageScript.transform.rotation = fallenPoint.rotation;
+                    Debug.Log("ロード時：檻を落下後の位置に配置しました");
+                }
+                else
+                {
+                    // 落下地点が設定されてない場合は、仕方ないので通常通り落とす
+                    cageScript.ActivateTrap();
+                }
+
+                // 3. 檻の物理演算（Rigidbody）が暴れないように固定してしまう（任意）
+                Rigidbody cageRb = cageScript.GetComponent<Rigidbody>();
+                if (cageRb != null)
+                {
+                    cageRb.isKinematic = false; // 重力を有効にするか、
+                    // もしくは完全に固定したいなら true にする
+                    // cageRb.isKinematic = true; 
+                }
             }
-            // ここで return することで、下の「非表示にする処理」や「トリガー待ち」を行わない
-            // （トリガー自体を消したい場合は Destroy(GetComponent<Collider>()); などを追加してもOK）
+            // 演出は再生せず終了
             return;
         }
 
-        // --- 以下、まだイベントが起きていない場合の初期化 ---
+        // --- まだイベントが起きていない場合 ---
         if (cageScript != null)
         {
-            // 檻のゲームオブジェクトごと非表示にする（演出待ち）
+            // 演出待ちのため非表示
             cageScript.gameObject.SetActive(false);
         }
     }
@@ -82,7 +100,7 @@ public class TrapEventSystem : MonoBehaviour
     // トリガーから呼ばれる関数
     public void StartTrapEvent()
     {
-        // 念のため、既に終わっている場合は再生しない
+        // 既に終わっている場合は再生しない
         if (SaveManager.Instance != null && SaveManager.Instance.IsEventCompleted(eventID)) return;
 
         StartCoroutine(EventSequence());
@@ -90,6 +108,7 @@ public class TrapEventSystem : MonoBehaviour
 
     IEnumerator EventSequence()
     {
+        // アイテム使用停止
         if (lighterSystem != null)
         {
             wasLighterOn = lighterSystem.isLighterOn;
@@ -97,7 +116,6 @@ public class TrapEventSystem : MonoBehaviour
             lighterSystem.TurnOff();
             lighterSystem.isLighterOn = false;
         }
-
         if (flashlightSystem != null)
         {
             wasFlashlightOn = flashlightSystem.isFlashlightOn;
@@ -106,95 +124,72 @@ public class TrapEventSystem : MonoBehaviour
             flashlightSystem.ApplyState();
         }
 
-        // 1. プレイヤーの操作を禁止
+        // 1. プレイヤー操作禁止
         if (playerMoveScript != null) playerMoveScript.enabled = false;
-
         if (playerObj != null)
         {
             Rigidbody rb = playerObj.GetComponent<Rigidbody>();
-            if (rb != null)
-            {
-                rb.velocity = Vector3.zero;
-                rb.angularVelocity = Vector3.zero;
-                rb.Sleep();
-            }
+            if (rb != null) { rb.velocity = Vector3.zero; rb.Sleep(); }
         }
 
         StopAllZombies();
 
-        // 2. カメラを切り替え
+        // 2. カメラ切り替え
         if (mainCamera != null) mainCamera.SetActive(false);
         if (trapCamera != null) trapCamera.SetActive(true);
 
-        // 3. プレイヤーを振り向かせる
+        // 3. 振り向き
         if (playerObj != null)
         {
             originalRotation = playerObj.transform.rotation;
             playerObj.transform.Rotate(0, 180, 0);
         }
 
-        // 4. タメを作る
+        // 4. タメ
         yield return new WaitForSeconds(delayBeforeDrop);
 
+        // 5. 檻を落とす
         if (cageScript != null)
         {
             cageScript.gameObject.SetActive(true);
             cageScript.ActivateTrap();
         }
 
-        // 6. 演出が終わるまで待つ
+        // 6. 演出待ち
         yield return new WaitForSeconds(eventDuration);
 
-        // 7. カメラを元に戻す
+        // 7. カメラ戻す
         if (trapCamera != null) trapCamera.SetActive(false);
         if (mainCamera != null) mainCamera.SetActive(true);
 
-        // 8. プレイヤーの向きを元に戻す
+        // 8. 向きを戻す
         if (playerObj != null)
         {
             playerObj.transform.rotation = originalRotation;
         }
 
+        // アイテム復帰
         if (lighterSystem != null)
         {
             lighterSystem.canUseLighter = true;
-            if (wasLighterOn)
-            {
-                lighterSystem.isLighterOn = true;
-                lighterSystem.TurnOn();
-            }
-            else
-            {
-                lighterSystem.isLighterOn = false;
-                lighterSystem.TurnOff();
-            }
+            if (wasLighterOn) { lighterSystem.isLighterOn = true; lighterSystem.TurnOn(); }
         }
-
         if (flashlightSystem != null)
         {
             flashlightSystem.canUseFlashlight = true;
-            if (wasFlashlightOn)
-            {
-                flashlightSystem.isFlashlightOn = true;
-                flashlightSystem.ApplyState();
-            }
-            else
-            {
-                flashlightSystem.isFlashlightOn = false;
-                flashlightSystem.ApplyState();
-            }
+            if (wasFlashlightOn) { flashlightSystem.isFlashlightOn = true; flashlightSystem.ApplyState(); }
         }
 
         ResumeAllZombies();
 
-        // 9. 操作を許可
+        // 9. 操作許可
         if (playerMoveScript != null) playerMoveScript.enabled = true;
 
-        // ★最後に「このイベントは終わったよ」とセーブデータに記録する
+        // ★セーブ記録
         if (!string.IsNullOrEmpty(eventID) && SaveManager.Instance != null)
         {
             SaveManager.Instance.MarkEventAsCompleted(eventID);
-            Debug.Log("罠イベント完了を記録しました: " + eventID);
+            // オートセーブするならここで SaveManager.Instance.SaveGame();
         }
     }
 
@@ -202,8 +197,7 @@ public class TrapEventSystem : MonoBehaviour
     {
         frozenZombies.Clear();
         int zombieLayer = LayerMask.NameToLayer("Zombie");
-
-        GameObject[] allObjects = FindObjectsByType<GameObject>(FindObjectsSortMode.None); // Unity2023以降対応の書き方
+        GameObject[] allObjects = FindObjectsByType<GameObject>(FindObjectsSortMode.None);
 
         foreach (var obj in allObjects)
         {
@@ -215,24 +209,9 @@ public class TrapEventSystem : MonoBehaviour
                 state.agent = obj.GetComponent<NavMeshAgent>();
                 state.rb = obj.GetComponent<Rigidbody>();
 
-                if (state.anim != null)
-                {
-                    state.originalAnimSpeed = state.anim.speed;
-                    state.anim.speed = 0;
-                }
-
-                if (state.agent != null && state.agent.isOnNavMesh)
-                {
-                    state.agent.isStopped = true;
-                    state.agent.velocity = Vector3.zero;
-                }
-
-                if (state.rb != null)
-                {
-                    state.wasKinematic = state.rb.isKinematic;
-                    state.rb.isKinematic = true;
-                }
-
+                if (state.anim != null) { state.originalAnimSpeed = state.anim.speed; state.anim.speed = 0; }
+                if (state.agent != null && state.agent.isOnNavMesh) { state.agent.isStopped = true; state.agent.velocity = Vector3.zero; }
+                if (state.rb != null) { state.wasKinematic = state.rb.isKinematic; state.rb.isKinematic = true; }
                 frozenZombies.Add(state);
             }
         }
@@ -243,15 +222,9 @@ public class TrapEventSystem : MonoBehaviour
         foreach (var state in frozenZombies)
         {
             if (state.obj == null) continue;
-
             if (state.anim != null) state.anim.speed = state.originalAnimSpeed;
             if (state.agent != null && state.agent.isOnNavMesh) state.agent.isStopped = false;
-
-            if (state.rb != null)
-            {
-                state.rb.isKinematic = state.wasKinematic;
-                state.rb.WakeUp();
-            }
+            if (state.rb != null) { state.rb.isKinematic = state.wasKinematic; state.rb.WakeUp(); }
         }
         frozenZombies.Clear();
     }

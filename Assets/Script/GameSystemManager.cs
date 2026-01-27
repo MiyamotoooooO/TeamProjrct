@@ -1,4 +1,5 @@
-using UnityEngine;
+/*using UnityEngine;
+using UnityEngine.EventSystems; // ★追加：UIのフォーカス解除に必要
 
 public class GameSystemManager : MonoBehaviour
 {
@@ -6,17 +7,20 @@ public class GameSystemManager : MonoBehaviour
     [Tooltip("PauseMenuなどのUIパネルをここにセットしてください")]
     public GameObject pauseMenuPanel;
 
+    [Header("停止させるプレイヤー操作スクリプト")]
+    [Tooltip("FPSControllerやPlayerMovementなど、移動を担当するスクリプト")]
+    public MonoBehaviour playerMovementScript;
+
+    [Tooltip("カメラ回転を担当するスクリプト（移動と別の場合のみセット。同じなら空欄でOK）")]
+    public MonoBehaviour playerCameraScript;
+
     // 内部変数
     private bool isPaused = false;
-
-    // カーソル状態を管理するための変数
     private bool shouldShowCursor = false;
 
     void Start()
     {
-        // 最初はメニューを隠す
         if (pauseMenuPanel != null) pauseMenuPanel.SetActive(false);
-
         // ゲーム開始時はカーソルを消す
         UpdateCursorState(false);
     }
@@ -24,21 +28,20 @@ public class GameSystemManager : MonoBehaviour
     void Update()
     {
         // 1. ESCキーの処理
-        // ただし、パスワード画面が開いているときはESCは「パスワード画面を閉じる」に使われるので、
-        // ここでは反応しないようにする
         if (Input.GetKeyDown(KeyCode.Escape))
         {
+            // パスワード画面などが開いていない時だけ反応
             if (!PasswordDoor.IsAnyWindowOpen)
             {
                 TogglePauseMenu();
             }
         }
 
-        // 2. カーソルを表示すべきか判定する
-        // 条件：ポーズメニューが開いている OR パスワード画面が開いている
+        // 2. カーソルを表示すべきか判定
+        // ポーズ中 または パスワード画面が開いている時はカーソルを出す
         shouldShowCursor = isPaused || PasswordDoor.IsAnyWindowOpen;
 
-        // 3. カーソルの状態を強制的に適用する
+        // 3. カーソルの状態を適用
         UpdateCursorState(shouldShowCursor);
     }
 
@@ -47,38 +50,57 @@ public class GameSystemManager : MonoBehaviour
     {
         isPaused = !isPaused;
 
+        // パネルの表示切り替え
         if (pauseMenuPanel != null)
         {
             pauseMenuPanel.SetActive(isPaused);
         }
 
-        // 時間を止める・動かす
         if (isPaused)
         {
-            Time.timeScale = 0f; // 時間停止
-            Debug.Log("ゲームポーズ：メニューを開きました");
+            // --- ポーズする時 ---
+            Time.timeScale = 0f; // 時間を止める
+            SetPlayerControl(false); // プレイヤーを止める
+            Debug.Log("ポーズ開始");
         }
         else
         {
-            Time.timeScale = 1f; // 時間再開
-            Debug.Log("ゲーム再開：メニューを閉じました");
+            // --- ゲームに戻る時 ---
+            Time.timeScale = 1f; // 時間を動かす
+
+            // ★重要：UIのボタン等が選択されたままだとカーソルが消えないことがあるので解除する
+            if (EventSystem.current != null) EventSystem.current.SetSelectedGameObject(null);
+
+            SetPlayerControl(true); // プレイヤーを動かす
+
+            // ★念押し：強制的にカーソルをロックする
+            Cursor.visible = false;
+            Cursor.lockState = CursorLockMode.Locked;
+
+            Debug.Log("ポーズ解除：ゲームに戻ります");
         }
     }
 
-    // カーソルの表示・非表示を適用する関数
+    // プレイヤーのスクリプトを有効/無効化する関数
+    void SetPlayerControl(bool isEnabled)
+    {
+        if (playerMovementScript != null) playerMovementScript.enabled = isEnabled;
+        if (playerCameraScript != null) playerCameraScript.enabled = isEnabled;
+    }
+
+    // カーソルの表示・非表示を一括管理
     void UpdateCursorState(bool show)
     {
         if (show)
         {
-            // カーソルを出す
             Cursor.visible = true;
             Cursor.lockState = CursorLockMode.None;
         }
         else
         {
-            // カーソルを消して中央に固定する
+            // ゲーム中は常にロックし続ける（他のスクリプトが外そうとするのを防ぐ）
             Cursor.visible = false;
             Cursor.lockState = CursorLockMode.Locked;
         }
     }
-}
+}*/

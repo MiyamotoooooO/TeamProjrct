@@ -38,7 +38,7 @@ RenderSettings:
   m_ReflectionIntensity: 1
   m_CustomReflection: {fileID: 0}
   m_Sun: {fileID: 705507994}
-  m_IndirectSpecularColor: {r: 0.18028378, g: 0.22571412, b: 0.30692285, a: 1}
+  m_IndirectSpecularColor: {r: 0.027737066, g: 0.03472399, b: 0.047217086, a: 1}
   m_UseRadianceAmbientProbe: 0
 --- !u!157 &3
 LightmapSettings:
@@ -419,7 +419,8 @@ Transform:
   m_LocalPosition: {x: 142.81644, y: 51.029053, z: -106.05691}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
-  m_Children: []
+  m_Children:
+  - {fileID: 1063458832}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &8636457
@@ -436,6 +437,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   eventID: Event2
   cageScript: {fileID: 1063458833}
+  fallenPoint: {fileID: 1417498929}
   mainCamera: {fileID: 329624367}
   trapCamera: {fileID: 1754405435}
   playerObj: {fileID: 1443479520}
@@ -26341,6 +26343,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   pauseMenuPanel: {fileID: 1243193210}
+  playerMovementScript: {fileID: 1443479527}
+  playerCameraScript: {fileID: 329624371}
 --- !u!1001 &813662306
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -44397,12 +44401,13 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1063458827}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 142.32, y: 55, z: -112}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: -0.49642944, y: 3.9709473, z: -5.9430923}
   m_LocalScale: {x: 3.5, y: 5, z: 0.3}
   m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
+  m_Children:
+  - {fileID: 1417498929}
+  m_Father: {fileID: 8636456}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &1063458833
 MonoBehaviour:
@@ -56229,6 +56234,37 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 0a252d80add0348439615bc02e74781d, type: 3}
+--- !u!1 &1417498928
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1417498929}
+  m_Layer: 0
+  m_Name: CageFallenPoint
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1417498929
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1417498928}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0, y: -1.6, z: 0}
+  m_LocalScale: {x: 0.28571427, y: 0.2, z: 3.333333}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1063458832}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1417539501
 GameObject:
   m_ObjectHideFlags: 0
@@ -57318,6 +57354,7 @@ GameObject:
   - component: {fileID: 1443479528}
   - component: {fileID: 1443479529}
   - component: {fileID: 1443479530}
+  - component: {fileID: 1443479531}
   m_Layer: 15
   m_Name: Player
   m_TagString: Player
@@ -57495,6 +57532,10 @@ MonoBehaviour:
   footstepAudioSource: {fileID: 1443479530}
   walkSoundLoop: {fileID: 8300000, guid: 8c017361805cd1941b23dc59c477f361, type: 3}
   runSoundLoop: {fileID: 8300000, guid: 6e7f43148e150644a810544afe68b081, type: 3}
+  breathingAudioSource: {fileID: 1443479531}
+  breathingSoundLoop: {fileID: 8300000, guid: 1b79cce2bfdd32b4ab1910e414631aa2, type: 3}
+  breathingWalkVolume: 0.3
+  breathingRunVolume: 0.5
   groundCheckDistance: 3
   audioFadeSpeed: 10
   canLock: 0
@@ -57550,6 +57591,102 @@ AudioSource:
   OutputAudioMixerGroup: {fileID: 0}
   m_audioClip: {fileID: 0}
   m_PlayOnAwake: 0
+  m_Volume: 1
+  m_Pitch: 1
+  Loop: 0
+  Mute: 0
+  Spatialize: 0
+  SpatializePostEffects: 0
+  Priority: 128
+  DopplerLevel: 1
+  MinDistance: 1
+  MaxDistance: 500
+  Pan2D: 0
+  rolloffMode: 0
+  BypassEffects: 0
+  BypassListenerEffects: 0
+  BypassReverbZones: 0
+  rolloffCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    - serializedVersion: 3
+      time: 1
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  panLevelCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  spreadCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  reverbZoneMixCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+--- !u!82 &1443479531
+AudioSource:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1443479520}
+  m_Enabled: 1
+  serializedVersion: 4
+  OutputAudioMixerGroup: {fileID: 0}
+  m_audioClip: {fileID: 0}
+  m_PlayOnAwake: 1
   m_Volume: 1
   m_Pitch: 1
   Loop: 0
@@ -68164,6 +68301,7 @@ GameObject:
   - component: {fileID: 1754405438}
   - component: {fileID: 1754405437}
   - component: {fileID: 1754405436}
+  - component: {fileID: 1754405439}
   m_Layer: 0
   m_Name: Trapcamera
   m_TagString: Untagged
@@ -68245,6 +68383,66 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 10, y: 180, z: 0}
+--- !u!114 &1754405439
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1754405435}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 948f4100a11a5c24981795d21301da5c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  volumeTrigger: {fileID: 1754405438}
+  volumeLayer:
+    serializedVersion: 2
+    m_Bits: 256
+  stopNaNPropagation: 1
+  finalBlitToCameraTarget: 0
+  antialiasingMode: 0
+  temporalAntialiasing:
+    jitterSpread: 0.75
+    sharpness: 0.25
+    stationaryBlending: 0.95
+    motionBlending: 0.85
+  subpixelMorphologicalAntialiasing:
+    quality: 2
+  fastApproximateAntialiasing:
+    fastMode: 0
+    keepAlpha: 0
+  fog:
+    enabled: 1
+    excludeSkybox: 1
+  debugLayer:
+    lightMeter:
+      width: 512
+      height: 256
+      showCurves: 1
+    histogram:
+      width: 512
+      height: 256
+      channel: 3
+    waveform:
+      exposure: 0.12
+      height: 256
+    vectorscope:
+      size: 256
+      exposure: 0.12
+    overlaySettings:
+      linearDepth: 0
+      motionColorIntensity: 4
+      motionGridSize: 64
+      colorBlindnessType: 0
+      colorBlindnessStrength: 1
+  m_Resources: {fileID: 11400000, guid: d82512f9c8e5d4a4d938b575d47f88d4, type: 2}
+  m_ShowToolkit: 0
+  m_ShowCustomSorter: 0
+  breakBeforeColorGrading: 0
+  m_BeforeTransparentBundles: []
+  m_BeforeStackBundles: []
+  m_AfterStackBundles: []
 --- !u!1001 &1757557925
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -81479,11 +81677,6 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 4000010134359102, guid: 3cdf614b79009ca49a2a5c117fb49c35, type: 3}
   m_PrefabInstance: {fileID: 994126962}
   m_PrefabAsset: {fileID: 0}
---- !u!198 &2020708212 stripped
-ParticleSystem:
-  m_CorrespondingSourceObject: {fileID: 198000011154698040, guid: 3cdf614b79009ca49a2a5c117fb49c35, type: 3}
-  m_PrefabInstance: {fileID: 994126962}
-  m_PrefabAsset: {fileID: 0}
 --- !u!114 &2020708214
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -81496,26 +81689,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 71e44edc6ef8faa4e8beadb5ff989413, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  canUseLighter: 0
-  fireParticle: {fileID: 2020708212}
-  fireLight: {fileID: 376814336}
-  lighterSound: {fileID: 2020708216}
-  ignitionClip: {fileID: 8300000, guid: b8c1669b187c07848bb48e0fb4edc8e0, type: 3}
-  burningClip: {fileID: 0}
-  scorchPrefab: {fileID: 5396198768943742605, guid: a7bf19fbde568e44da83a77a456f933b, type: 3}
-  firePoint: {fileID: 383394569}
-  drawingLayer:
-    serializedVersion: 2
-    m_Bits: 4096
-  drawDistance: 3
-  drawRate: 0.001
-  drawingPosOffset: {x: 0.1, y: -0.3, z: 0.2}
-  drawingRotOffset: {x: 15, y: -10, z: 0}
-  hiddenTextLayer:
-    serializedVersion: 2
-    m_Bits: 8192
-  smoothSpeed: 10
+  lightSource: {fileID: 2020708210}
+  requiredLayerName: Lighter
+  toggleKey: 116
+  igniteSound: {fileID: 0}
+  offSound: {fileID: 0}
   isLighterOn: 0
+  canUseLighter: 0
 --- !u!82 &2020708216
 AudioSource:
   m_ObjectHideFlags: 0
@@ -89485,11 +89665,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d7a14567565a0db4bb5edf38122dec96, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  canUseFlashlight: 0
-  flashlightSpot: {fileID: 655215645}
-  flashlightSource: {fileID: 2111599504}
-  clickSound: {fileID: 8300000, guid: 851d793e218882c40a7fb4a4632e63a1, type: 3}
+  lightSource: {fileID: 655215643}
   isFlashlightOn: 1
+  canUseFlashlight: 0
 --- !u!82 &2111599504
 AudioSource:
   m_ObjectHideFlags: 0
@@ -91083,7 +91261,6 @@ SceneRoots:
   - {fileID: 812684950}
   - {fileID: 188583340475015851}
   - {fileID: 1225843883}
-  - {fileID: 1063458832}
   - {fileID: 1803221714}
   - {fileID: 8636456}
   - {fileID: 1754405438}

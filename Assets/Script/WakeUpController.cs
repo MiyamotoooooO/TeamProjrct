@@ -35,7 +35,7 @@ public class WakeUpController : MonoBehaviour
         {
             // --- パターンA：セーブデータがある場合（続きから） ---
 
-            // ★追加：SaveManagerのデータを使って位置を復元する
+            // SaveManagerのデータを使って位置を復元する
             if (SaveManager.Instance != null && SaveManager.Instance.currentData != null)
             {
                 // CharacterControllerが邪魔をして移動できない場合があるので、一瞬オフにする
@@ -92,6 +92,13 @@ public class WakeUpController : MonoBehaviour
 
             // 3. 起きるまでは動けないように操作スクリプトを止める
             EnableControls(false);
+
+            if (flashlightSystem != null)
+            {
+                flashlightSystem.isFlashlightOn = true; // フラグをON
+
+                flashlightSystem.ApplyState();
+            }
 
             isSleeping = true;
         }

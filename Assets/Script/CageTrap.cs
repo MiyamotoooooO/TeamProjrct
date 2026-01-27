@@ -60,7 +60,6 @@ public class CageTrap : MonoBehaviour
     // （TrapTriggerスクリプトを作る手間を省くため、このスクリプトだけで完結させます）
     void OnTriggerEnter(Collider other)
     {
-        // もしこのスクリプトがトリガー自体についている場合用
         CheckActivation(other);
     }
 

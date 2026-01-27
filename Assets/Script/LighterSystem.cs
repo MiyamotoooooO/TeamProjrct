@@ -1,227 +1,121 @@
 using UnityEngine;
-using System.Collections; // ★コルーチン(待機処理)のために必要
-using System.Collections.Generic;
 
 public class LighterSystem : MonoBehaviour
 {
-    [Header("--- 制御設定 ---")]
-    [Tooltip("最初はライターを使えないようにするか？")]
-    public bool canUseLighter = false;
+    [Header("設定")]
+    [Tooltip("ライターの火（Lightコンポーネントがついているオブジェクト）")]
+    public GameObject lightSource;
 
-    [Header("--- 基本設定 ---")]
-    public ParticleSystem fireParticle;
-    public Light fireLight;
-    public AudioSource lighterSound;
+    [Tooltip("この名前のレイヤーが付いたオブジェクトを持っていないと使えない")]
+    public string requiredLayerName = "Lighter";
 
-    [Header("--- 音声設定(追加) ---")]
-    [Tooltip("カチッという点火音")]
-    public AudioClip ignitionClip;
-    [Tooltip("燃えている間のループ音")]
-    public AudioClip burningClip;
+    [Tooltip("点灯/消灯するキー")]
+    public KeyCode toggleKey = KeyCode.L;
 
-    [Header("--- 描画設定 ---")]
-    public GameObject scorchPrefab;
-    public Transform firePoint;
-    public LayerMask drawingLayer;
-    public float drawDistance = 1.5f;
-    public float drawRate = 0.05f;
+    [Header("音の設定")]
+    public AudioClip igniteSound; // カチッ（点火）
+    public AudioClip offSound;    // シュッ（消火）
 
-    [Header("--- アニメーション設定 ---")]
-    public Vector3 drawingPosOffset = new Vector3(0.1f, -0.1f, 0.2f);
-    public Vector3 drawingRotOffset = new Vector3(15f, -10f, 0f);
+    // 外部から制御するための変数
+    [HideInInspector] public bool isLighterOn = false;
+    [HideInInspector] public bool canUseLighter = true;
 
-    [Header("--- 炙り出し設定 ---")]
-    public LayerMask hiddenTextLayer;
-    public float smoothSpeed = 10f;
-    public bool isLighterOn = false;
-
-    // private
-    private float nextDrawTime = 0f;
-    private Vector3 initialLocalPos;
-    private Quaternion initialLocalRot;
-    private Transform targetTransform;
-    private List<GameObject> drawnMarks = new List<GameObject>();
-    private bool isIgniting = false; // 点火モーション中かどうかのフラグ
+    private AudioSource audioSource;
+    private int lighterLayerIndex; // レイヤー番号記憶用
 
     void Start()
     {
-        targetTransform = this.transform;
-        initialLocalPos = targetTransform.localPosition;
-        initialLocalRot = targetTransform.localRotation;
+        // レイヤーの名前から番号を取得しておく
+        lighterLayerIndex = LayerMask.NameToLayer(requiredLayerName);
 
-        // AudioSourceのループ設定を初期化（燃焼音はループさせるため）
-        if (lighterSound != null) lighterSound.loop = false;
+        // もしレイヤー設定を忘れていたら警告を出す
+        if (lighterLayerIndex == -1)
+        {
+            Debug.LogError("エラー：UnityのLayers設定に '" + requiredLayerName + "' というレイヤーが見つかりません！");
+        }
 
+        // 最初は消しておく
         isLighterOn = false;
-        TurnOff();
+        if (lightSource != null) lightSource.SetActive(false);
+
+        audioSource = GetComponent<AudioSource>();
+        if (audioSource == null) audioSource = gameObject.AddComponent<AudioSource>();
     }
 
     void Update()
     {
-        if (!canUseLighter)
-        {
-            if (isLighterOn)
-            {
-                TurnOff();
-            }
-            return;
-        }
+        // 外部から使用禁止にされていたら何もしない
+        if (!canUseLighter) return;
 
-        // Tキーで点火・消火
-        // ※ isIgniting(点火動作中)なら操作を受け付けないようにする
-        if (Input.GetKeyDown(KeyCode.T) && !isIgniting)
+        // キー入力があったら切り替え
+        if (Input.GetKeyDown(toggleKey))
         {
-            if (!isLighterOn)
+            // ★重要：ライターアイテムを持っているかチェック
+            if (CheckHasLighterItem())
             {
-                // まだ付いてないなら、点火プロセス開始
-                StartCoroutine(IgniteProcess());
+                ToggleLighter();
             }
             else
             {
-                // もう付いてるなら消す
-                TurnOff();
+                Debug.Log("ライターを持っていません（" + requiredLayerName + "レイヤーのアイテムが必要です）");
+                // ここに「ライターがない」という音を鳴らしてもいいですね
             }
         }
 
-        // Mキーでリセット（全部消す）
-        if (Input.GetKeyDown(KeyCode.M))
+        // （オプション）もし点灯中にアイテムを失ったら（捨てたら）消す処理
+        if (isLighterOn && !CheckHasLighterItem())
         {
-            ClearAllMarks();
+            TurnOff();
         }
-
-        HandleDrawingAndAnimation();
     }
 
-    // ★追加：時間差で火をつけるコルーチン
-    IEnumerator IgniteProcess()
+    // ★プレイヤーがライターレイヤーの付いたオブジェクトを持っているか探す関数
+    bool CheckHasLighterItem()
     {
-        isIgniting = true; // 操作ロック開始
+        // 自分（プレイヤー）の子オブジェクトをすべて探す
+        // (true)を入れることで、非表示になっているオブジェクトも含めて探せます
+        Transform[] allChildren = GetComponentsInChildren<Transform>(true);
 
-        // 1. カチッという音を鳴らす
-        if (lighterSound != null && ignitionClip != null)
+        foreach (Transform child in allChildren)
         {
-            lighterSound.loop = false;
-            lighterSound.clip = ignitionClip;
-            lighterSound.Play();
+            if (child.gameObject.layer == lighterLayerIndex)
+            {
+                return true; // 見つかった！
+            }
+        }
+        return false; // 最後まで見つからなかった
+    }
 
-            // 音の長さ分だけ待機する
-            yield return new WaitForSeconds(ignitionClip.length);
+    // ON/OFF切り替え
+    void ToggleLighter()
+    {
+        isLighterOn = !isLighterOn;
+
+        if (isLighterOn)
+        {
+            if (lightSource != null) lightSource.SetActive(true);
+            if (igniteSound != null) audioSource.PlayOneShot(igniteSound);
         }
         else
         {
-            // 音がない場合は一瞬だけ待つ（即時着火だと違和感がある場合）
-            yield return new WaitForSeconds(0.1f);
-        }
-
-        // 2. 待機が終わったら火をつける
-        isLighterOn = true;
-        if (fireParticle != null) fireParticle.Play();
-        if (fireLight != null) fireLight.enabled = true;
-
-        // 3. 燃焼音に切り替えてループ再生する
-        if (lighterSound != null && burningClip != null)
-        {
-            lighterSound.clip = burningClip;
-            lighterSound.loop = true; // ループ有効化
-            lighterSound.Play();
-        }
-
-        isIgniting = false; // 操作ロック解除
-    }
-
-    void HandleDrawingAndAnimation()
-    {
-        Vector3 targetPos = initialLocalPos;
-        Quaternion targetRot = initialLocalRot;
-
-        if (isLighterOn && Input.GetMouseButton(1))
-        {
-            targetPos = initialLocalPos + drawingPosOffset;
-            targetRot = initialLocalRot * Quaternion.Euler(drawingRotOffset);
-
-            if (Time.time >= nextDrawTime)
-            {
-                DrawScorchMark();
-                nextDrawTime = Time.time + drawRate;
-            }
-
-            // 隠し文字の炙り出し処理
-            RevealText();
-        }
-
-        targetTransform.localPosition = Vector3.Lerp(targetTransform.localPosition, targetPos, Time.deltaTime * smoothSpeed);
-        targetTransform.localRotation = Quaternion.Slerp(targetTransform.localRotation, targetRot, Time.deltaTime * smoothSpeed);
-    }
-
-    void DrawScorchMark()
-    {
-        Vector3 startPoint = (firePoint != null) ? firePoint.position : transform.position;
-        Vector3 direction = (firePoint != null) ? firePoint.forward : transform.forward;
-
-        RaycastHit hit;
-
-        Debug.DrawRay(startPoint, direction * drawDistance, Color.red, 0.1f);
-
-        if (Physics.Raycast(startPoint, direction, out hit, drawDistance, drawingLayer))
-        {
-            GameObject newMark = Instantiate(scorchPrefab, hit.point + (hit.normal * 0.05f), Quaternion.LookRotation(hit.normal));
-            drawnMarks.Add(newMark);
+            if (lightSource != null) lightSource.SetActive(false);
+            if (offSound != null) audioSource.PlayOneShot(offSound);
         }
     }
 
-    public void RevealText()
-    {
-        Vector3 startPoint = (firePoint != null) ? firePoint.position : transform.position;
-        Vector3 direction = (firePoint != null) ? firePoint.forward : transform.forward;
-        RaycastHit hit;
-        float beamRadius = 0.3f;
-
-        Debug.DrawRay(startPoint, direction * drawDistance, Color.red, 0.1f);
-
-        if (Physics.SphereCast(startPoint, beamRadius, direction, out hit, drawDistance, hiddenTextLayer))
-        {
-            HiddenTextReveal targetText = hit.collider.GetComponent<HiddenTextReveal>();
-            if (targetText != null)
-            {
-                targetText.ReceiveHeat();
-            }
-        }
-    }
-
-    void ClearAllMarks()
-    {
-        foreach (GameObject mark in drawnMarks)
-        {
-            if (mark != null) Destroy(mark);
-        }
-        drawnMarks.Clear();
-        Debug.Log("焦げ跡をリセットしました");
-    }
-
-    // publicだが、内部処理ではIgniteProcessを使うため、これは主にTurnOff用や外部強制ON用
-    public void TurnOn()
-    {
-        // 外部から強制的に呼ばれた場合、音の待機なしでつける
-        isLighterOn = true;
-        if (fireParticle != null) fireParticle.Play();
-        if (fireLight != null) fireLight.enabled = true;
-    }
+    // --- 他のスクリプト（イベントなど）からの制御用 ---
 
     public void TurnOff()
     {
-        // もし点火待ちの最中に消されたら、待機処理を強制停止する
-        StopAllCoroutines();
-        isIgniting = false;
         isLighterOn = false;
+        if (lightSource != null) lightSource.SetActive(false);
+    }
 
-        if (fireParticle != null) fireParticle.Stop();
-        if (fireLight != null) fireLight.enabled = false;
-
-        // 音を止める（ループしている燃焼音を止める）
-        if (lighterSound != null)
-        {
-            lighterSound.Stop();
-            lighterSound.loop = false;
-        }
+    public void TurnOn()
+    {
+        // 強制点灯の場合も、アイテムチェックを入れるならここにも判定が必要ですが、
+        // 演出で強制的に付けたい場合はチェックなしでOKとします
+        isLighterOn = true;
+        if (lightSource != null) lightSource.SetActive(true);
     }
 }
