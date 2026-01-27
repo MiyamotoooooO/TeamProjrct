@@ -26342,9 +26342,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b3690c9e79fa01643a215e6fcfe0a43b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  pauseMenuPanel: {fileID: 1243193210}
-  playerMovementScript: {fileID: 1443479527}
-  playerCameraScript: {fileID: 329624371}
 --- !u!1001 &813662306
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -57527,6 +57524,8 @@ MonoBehaviour:
   SwingUpAmount: 0.1
   SwingDownAmount: -0.25
   SwingSpeed: 6
+  SwingUpRotation: -20
+  SwingDownRotation: 60
   decoy: {fileID: 6488913755602162186, guid: d2687c27cfded2f4b80f1fc3d3ade1b8, type: 3}
   decoySpawnDistance: 2
   footstepAudioSource: {fileID: 1443479530}
@@ -57536,8 +57535,18 @@ MonoBehaviour:
   breathingSoundLoop: {fileID: 8300000, guid: 1b79cce2bfdd32b4ab1910e414631aa2, type: 3}
   breathingWalkVolume: 0.3
   breathingRunVolume: 0.5
+  walkBobFrequency: 10
+  walkBobAmount: {x: 0.05, y: 0.05}
+  runBobFrequency: 15
+  runBobAmount: {x: 0.1, y: 0.15}
+  bobSmoothing: 10
   groundCheckDistance: 3
   audioFadeSpeed: 10
+  cameraSwingSpeed: 0.01
+  cameraSwingUpAngle: -6
+  cameraSwingDownAngle: 2
+  swingUpAngle: 4
+  swingDownAngle: -12
   canLock: 0
   isInventoryOpen: 0
 --- !u!114 &1443479528
@@ -58456,7 +58465,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 477712, guid: ec1ebb41f4c94ab41a06eafbf11736e9, type: 3}
       propertyPath: m_LocalPosition.x
-      value: -5.3385315
+      value: -6.492
       objectReference: {fileID: 0}
     - target: {fileID: 477712, guid: ec1ebb41f4c94ab41a06eafbf11736e9, type: 3}
       propertyPath: m_LocalPosition.y
@@ -91162,6 +91171,10 @@ PrefabInstance:
     - target: {fileID: 4241267849225321449, guid: 2a9378b66deff784f9db540e1f682f93, type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7499943958520499360, guid: 2a9378b66deff784f9db540e1f682f93, type: 3}
+      propertyPath: m_Constraints
+      value: 112
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
