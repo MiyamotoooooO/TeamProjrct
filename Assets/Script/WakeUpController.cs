@@ -100,6 +100,13 @@ public class WakeUpController : MonoBehaviour
                 flashlightSystem.ApplyState();
             }
 
+            if(lighterSystem != null)
+            {
+                lighterSystem.isLighterOn = false;
+
+                lighterSystem.ApplyState();
+            }
+
             isSleeping = true;
         }
 
@@ -163,6 +170,14 @@ public class WakeUpController : MonoBehaviour
 
         playerCamera.localRotation = endRotation;
         EnableControls(true); // 操作許可
+
+        // ★★★ ここに追加：ライターの使用を許可する ★★★
+        if (lighterSystem != null)
+        {
+            lighterSystem.canUseLighter = true;
+            Debug.Log("ライターが使用可能になりました");
+        }
+        // ★★★★★★★★★★★★★★★★★★★★★★★★★
 
         isSleeping = false;
         Debug.Log("おはようございます！操作可能です。");

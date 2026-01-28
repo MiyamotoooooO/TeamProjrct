@@ -170,4 +170,16 @@ public class SaveManager : MonoBehaviour
         if (currentData == null) return false;
         return currentData.completedEventIDs.Contains(eventID);
     }
+
+    public bool HasItem(string itemName)
+    {
+        // データがまだない、またはリストが空なら「持っていない」
+        if (currentData == null || currentData.collectedItems == null)
+        {
+            return false;
+        }
+
+        // リストの中に名前が含まれているかチェック
+        return currentData.collectedItems.Contains(itemName);
+    }
 }

@@ -6,44 +6,52 @@ public class FlashlightSystem : MonoBehaviour
     [Tooltip("ライトの本体（Spotlightなどの光源）")]
     public GameObject lightSource;
 
+    [Tooltip("ライトのON/OFFを切り替えるキー")]
+    public KeyCode toggleKey = KeyCode.F;
+
     // 外部（TrapEventSystemなど）から制御するための変数
-    // ※Inspectorでは見えなくても良いので HideInInspector にしていますが、
-    //   他のスクリプトからアクセスできるように public にしています。
     [HideInInspector] public bool isFlashlightOn = true;
     [HideInInspector] public bool canUseFlashlight = true;
 
     void Start()
     {
-        // ★ゲーム開始時に強制的にオンにする
+        // ゲーム開始時の状態（最初はONにしておく）
+        // ※もし最初はOFFがいいなら false に変えてください
         isFlashlightOn = true;
         ApplyState();
     }
 
     void Update()
     {
-        // ★以前あった「キー入力（Fキーなど）でオンオフする処理」を削除しました。
-        // これにより、プレイヤーが勝手に消すことはできなくなります。
-
-        // ※もし「常にライトをカメラの向きに追従させたい」場合は、
-        // ライトをカメラの子オブジェクトにしていれば自動で追従します。
+        // ★復活：Fキーが押されたら切り替える処理
+        if (Input.GetKeyDown(toggleKey))
+        {
+            // ライトが使用可能な状態（イベント中でない）なら切り替え
+            if (canUseFlashlight)
+            {
+                ToggleFlashlight();
+            }
+        }
     }
 
-    // 状態を反映させる関数（TrapEventSystemなどから呼ばれます）
+    // ON/OFFを反転させる処理
+    void ToggleFlashlight()
+    {
+        isFlashlightOn = !isFlashlightOn; // trueならfalseに、falseならtrueにする
+        ApplyState(); // 実際のライトに反映
+    }
+
+    // 状態を反映させる関数
     public void ApplyState()
     {
         if (lightSource != null)
         {
-            // フラグの状態に合わせて表示・非表示を切り替える
             lightSource.SetActive(isFlashlightOn);
         }
     }
 
-    // --- 以下、他のスクリプトとの互換性用（エラー防止） ---
+    // --- 他のスクリプトとの互換性用 ---
 
-    // TrapEventSystemなどで「消灯」命令が来た時の処理
-    // ※「常にオン」と言いつつ、檻が落ちる演出などの時は消したい場合があるため、
-    //   外部からの強制変更は受け入れるようにしています。
-    //   もし「演出中も絶対につけっぱなしがいい」場合は、この中身も削除してください。
     public void TurnOff()
     {
         if (!canUseFlashlight) return;

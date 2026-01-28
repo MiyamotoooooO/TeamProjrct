@@ -1,121 +1,122 @@
 using UnityEngine;
+using System.Collections.Generic;
 
 public class LighterSystem : MonoBehaviour
 {
-    [Header("設定")]
-    [Tooltip("ライターの火（Lightコンポーネントがついているオブジェクト）")]
+    [Header("連携設定")]
+    [Tooltip("インベントリマネージャー")]
+    public InventoryManager inventoryManager;
+
+    [Tooltip("インベントリ内でのアイテム名（一文字でも違うと反応しません）")]
+    public string lighterItemName = "Lighter";
+
+    [Header("ライト設定")]
     public GameObject lightSource;
+    public KeyCode toggleKey = KeyCode.T;
+    public AudioClip igniteSound;
+    public AudioClip offSound;
 
-    [Tooltip("この名前のレイヤーが付いたオブジェクトを持っていないと使えない")]
-    public string requiredLayerName = "Lighter";
+    [Header("状態確認")]
+    public bool hasLighterItem = false;
 
-    [Tooltip("点灯/消灯するキー")]
-    public KeyCode toggleKey = KeyCode.L;
-
-    [Header("音の設定")]
-    public AudioClip igniteSound; // カチッ（点火）
-    public AudioClip offSound;    // シュッ（消火）
-
-    // 外部から制御するための変数
     [HideInInspector] public bool isLighterOn = false;
     [HideInInspector] public bool canUseLighter = true;
 
     private AudioSource audioSource;
-    private int lighterLayerIndex; // レイヤー番号記憶用
 
     void Start()
     {
-        // レイヤーの名前から番号を取得しておく
-        lighterLayerIndex = LayerMask.NameToLayer(requiredLayerName);
-
-        // もしレイヤー設定を忘れていたら警告を出す
-        if (lighterLayerIndex == -1)
+        if (inventoryManager == null)
         {
-            Debug.LogError("エラー：UnityのLayers設定に '" + requiredLayerName + "' というレイヤーが見つかりません！");
+            inventoryManager = FindAnyObjectByType<InventoryManager>();
+            if (inventoryManager == null)
+            {
+                Debug.LogError("【エラー】LighterSystem: InventoryManagerが見つかりません！Hierarchyにありますか？");
+            }
+            else
+            {
+                Debug.Log("【成功】LighterSystem: InventoryManagerを見つけました。");
+            }
         }
 
-        // 最初は消しておく
-        isLighterOn = false;
         if (lightSource != null) lightSource.SetActive(false);
-
         audioSource = GetComponent<AudioSource>();
         if (audioSource == null) audioSource = gameObject.AddComponent<AudioSource>();
     }
 
     void Update()
     {
-        // 外部から使用禁止にされていたら何もしない
+        Debug.Log("ライターはつけれないよ");
         if (!canUseLighter) return;
+        Debug.Log("ライターの許可");
 
-        // キー入力があったら切り替え
+        // --- ★デバッグ用チェック ---
+        if (inventoryManager != null && inventoryManager.currentItems != null)
+        {
+            // インベントリにあるかチェック
+            bool found = inventoryManager.currentItems.Contains(lighterItemName);
+
+            // 状態が変わった時だけログを出す（毎フレーム出るとうるさいので）
+            if (found != hasLighterItem)
+            {
+                hasLighterItem = found;
+                if (found)
+                {
+                    Debug.Log($"【発見】インベントリ内に '{lighterItemName}' を検知しました！ライター使用可能です。");
+                }
+                else
+                {
+                    Debug.Log($"【未発見】インベントリ内に '{lighterItemName}' が見つかりません。");
+                    // 現在の中身をすべて表示してみる（名前ミスの確認用）
+                    string allItems = string.Join(", ", inventoryManager.currentItems);
+                    Debug.Log($"　→ 現在のインベントリの中身: [{allItems}]");
+                }
+            }
+        }
+        // ---------------------------
+
         if (Input.GetKeyDown(toggleKey))
         {
-            // ★重要：ライターアイテムを持っているかチェック
-            if (CheckHasLighterItem())
+            if (hasLighterItem)
             {
+                Debug.Log("ライター着火");
                 ToggleLighter();
             }
             else
             {
-                Debug.Log("ライターを持っていません（" + requiredLayerName + "レイヤーのアイテムが必要です）");
-                // ここに「ライターがない」という音を鳴らしてもいいですね
+                // 押したときに詳細な理由を表示
+                if (inventoryManager == null) Debug.Log("エラー: InventoryManagerが空です。");
+                else Debug.Log($"失敗: インベントリに '{lighterItemName}' がありません。");
             }
         }
 
-        // （オプション）もし点灯中にアイテムを失ったら（捨てたら）消す処理
-        if (isLighterOn && !CheckHasLighterItem())
+        if (isLighterOn && !hasLighterItem)
         {
             TurnOff();
         }
     }
 
-    // ★プレイヤーがライターレイヤーの付いたオブジェクトを持っているか探す関数
-    bool CheckHasLighterItem()
-    {
-        // 自分（プレイヤー）の子オブジェクトをすべて探す
-        // (true)を入れることで、非表示になっているオブジェクトも含めて探せます
-        Transform[] allChildren = GetComponentsInChildren<Transform>(true);
-
-        foreach (Transform child in allChildren)
-        {
-            if (child.gameObject.layer == lighterLayerIndex)
-            {
-                return true; // 見つかった！
-            }
-        }
-        return false; // 最後まで見つからなかった
-    }
-
-    // ON/OFF切り替え
     void ToggleLighter()
     {
         isLighterOn = !isLighterOn;
-
-        if (isLighterOn)
-        {
-            if (lightSource != null) lightSource.SetActive(true);
-            if (igniteSound != null) audioSource.PlayOneShot(igniteSound);
-        }
-        else
-        {
-            if (lightSource != null) lightSource.SetActive(false);
-            if (offSound != null) audioSource.PlayOneShot(offSound);
-        }
+        ApplyState();
+        if (audioSource != null) audioSource.PlayOneShot(isLighterOn ? igniteSound : offSound);
     }
-
-    // --- 他のスクリプト（イベントなど）からの制御用 ---
 
     public void TurnOff()
     {
         isLighterOn = false;
-        if (lightSource != null) lightSource.SetActive(false);
+        ApplyState();
     }
 
     public void TurnOn()
     {
-        // 強制点灯の場合も、アイテムチェックを入れるならここにも判定が必要ですが、
-        // 演出で強制的に付けたい場合はチェックなしでOKとします
         isLighterOn = true;
-        if (lightSource != null) lightSource.SetActive(true);
+        ApplyState();
+    }
+
+    public void ApplyState()
+    {
+        if (lightSource != null) lightSource.SetActive(isLighterOn);
     }
 }
