@@ -26645,11 +26645,14 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
 <<<<<<< HEAD
+<<<<<<< HEAD
   pauseMenuPanel: {fileID: 1243193210}
   playerMovementScript: {fileID: 1443479527}
   playerCameraScript: {fileID: 329624371}
   isPaused: 0
   shouldShowCursor: 0
+=======
+>>>>>>> c58c53a2d4aae10472d02e74e52b711c4bdac401
 =======
 >>>>>>> c58c53a2d4aae10472d02e74e52b711c4bdac401
 --- !u!1001 &813662306
@@ -62791,6 +62794,9 @@ MonoBehaviour:
 <<<<<<< HEAD
 =======
   SwingSpeed: 6
+<<<<<<< HEAD
+>>>>>>> c58c53a2d4aae10472d02e74e52b711c4bdac401
+=======
 >>>>>>> c58c53a2d4aae10472d02e74e52b711c4bdac401
   SwingUpRotation: -20
   SwingDownRotation: 60
@@ -62805,9 +62811,15 @@ MonoBehaviour:
   breathingRunVolume: 0.5
   walkBobFrequency: 10
 <<<<<<< HEAD
+<<<<<<< HEAD
   walkBobAmount: {x: 0.1, y: 0.1}
   runBobFrequency: 15
   runBobAmount: {x: 0.2, y: 0.2}
+=======
+  walkBobAmount: {x: 0.05, y: 0.05}
+  runBobFrequency: 15
+  runBobAmount: {x: 0.1, y: 0.15}
+>>>>>>> c58c53a2d4aae10472d02e74e52b711c4bdac401
 =======
   walkBobAmount: {x: 0.05, y: 0.05}
   runBobFrequency: 15
