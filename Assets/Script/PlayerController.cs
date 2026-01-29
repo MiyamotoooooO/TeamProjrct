@@ -83,6 +83,12 @@ public class PlayerController : MonoBehaviour
     public float groundCheckDistance = 0.5f;
     public float audioFadeSpeed = 5.0f;
 
+    [Header("SortStoneスクリプト")]
+    [SerializeField] SortStone sortStone;
+
+    [Header("Stoneレイヤー")]
+    [SerializeField] LayerMask stoneLayer;
+
     // 内部変数
     private Vector3 KeyModelDefaultPos;
     private Vector3 itemModelDefaultPos;
@@ -177,6 +183,7 @@ public class PlayerController : MonoBehaviour
 
         RotateCamera();
         UpdateCursorLock();
+        CheckHitStone();
 
         if (!isInventoryOpen)
         {
@@ -408,6 +415,25 @@ public class PlayerController : MonoBehaviour
             if (Input.GetKeyDown(KeyCode.E))
             {
                 if (inventoryManager != null) { inventoryManager.PickUpItem(hit.collider.gameObject); UpdateItemModel(); }
+            }
+        }
+    }
+
+    void CheckHitStone()
+    {
+        //playerの見ている方向にRayを飛ばす
+        Ray ray = new Ray(cam.transform.position, cam.transform.forward);
+        RaycastHit hit;
+
+        Debug.DrawRay(ray.origin, ray.direction, Color.red);
+
+        if (Physics.Raycast(ray, out hit, pickUpDistance, stoneLayer))
+        {
+            //左クリックされたなら
+            if (Input.GetMouseButtonDown(0))
+            {
+                //SortStoneの関数を呼ぶ
+                sortStone.Stone(hit.collider.gameObject);
             }
         }
     }
