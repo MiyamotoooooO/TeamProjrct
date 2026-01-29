@@ -67,10 +67,10 @@ public class WakeUpController : MonoBehaviour
             // ‘€ì‚ğ‹–‰Â‚·‚é
             EnableControls(true);
 
-            if (lighterSystem != null)
+            /*if (lighterSystem != null)
             {
                 lighterSystem.canUseLighter = true;
-            }
+            }*/
         }
         else
         {

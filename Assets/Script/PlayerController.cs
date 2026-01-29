@@ -449,40 +449,51 @@ public class PlayerController : MonoBehaviour
 
     public void UpdateItemModel()
     {
-        // 1. まず全てのモデルを非表示（チェックを外す）にする
+        // 1. 初期化：一旦すべて非表示にする
         if (KeyModel != null) KeyModel.SetActive(false);
         if (ItemModel != null) ItemModel.SetActive(false);
         if (FlashlightModel != null) FlashlightModel.SetActive(false);
         if (LighterModel != null) LighterModel.SetActive(false);
 
-        // インベントリが空なら何もしないで終わる
+        // インベントリが空なら終了
         if (inventoryManager == null || inventoryManager.currentItems.Count == 0) return;
 
-        // 現在持っているアイテムの名前とレイヤーを取得
+        // アイテム情報の取得
         string firstItem = inventoryManager.currentItems[0];
-        int layer = inventoryManager.GetItemLayer(firstItem);
+        int currentLayer = inventoryManager.GetItemLayer(firstItem);
+        int targetLighterLayer = LayerMask.NameToLayer("Lighter");
 
-        // 2. アイテムの種類に合わせて表示をONにする
-        // ★修正点：レイヤー番号だけでなく「名前」でも判定するようにしました（確実性アップ！）
+        // --- ★原因究明用のログ（解決したら消してOK）---
+        // 拾ったアイテムのレイヤー番号 vs Lighterレイヤーの正解番号
+        Debug.Log($"【判定中】アイテム名: {firstItem}");
+        Debug.Log($"　→ 持っている物のレイヤー番号: {currentLayer}");
+        Debug.Log($"　→ 'Lighter' の正解レイヤー番号: {targetLighterLayer}");
+        // ----------------------------------------------
 
-        // --- 鍵 (Key) ---
-        if (layer == LayerMask.NameToLayer("Key") || firstItem.Contains("Key"))
+        // 2. 判定処理
+
+        // ★ライター判定 (ここが通るかどうか、上のログの番号が一致しているか見てください)
+        if (currentLayer == targetLighterLayer)
+        {
+            Debug.Log("　→ 判定成功！ライターを表示します。");
+            if (LighterModel != null) LighterModel.SetActive(true);
+        }
+        // もしレイヤーがダメでも、名前で救済する処理（保険）
+        else if (firstItem.Contains("Lighter"))
+        {
+            Debug.Log("　→ レイヤーは違いましたが、名前でライターと判断しました。");
+            if (LighterModel != null) LighterModel.SetActive(true);
+        }
+        // --- その他のアイテム ---
+        else if (currentLayer == LayerMask.NameToLayer("Key") || firstItem.Contains("Key"))
         {
             if (KeyModel != null) KeyModel.SetActive(true);
         }
-        // --- 懐中電灯 (Flashlight) ---
-        else if (layer == LayerMask.NameToLayer("Flashlight") || firstItem == "Flashlight")
+        else if (currentLayer == LayerMask.NameToLayer("Flashlight") || firstItem.Contains("Flashlight"))
         {
             if (FlashlightModel != null) FlashlightModel.SetActive(true);
         }
-        // --- ライター (Lighter) ---
-        // ★ここが今回の修正の目玉です
-        else if (layer == LayerMask.NameToLayer("Lighter") || firstItem == "Lighter")
-        {
-            if (LighterModel != null) LighterModel.SetActive(true);
-        }
-        // --- その他のアイテム (Item) ---
-        else if (layer == LayerMask.NameToLayer("Item"))
+        else if (currentLayer == LayerMask.NameToLayer("Item"))
         {
             if (ItemModel != null) ItemModel.SetActive(true);
         }

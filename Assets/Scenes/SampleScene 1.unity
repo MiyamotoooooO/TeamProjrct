@@ -38295,7 +38295,7 @@ MonoBehaviour:
   playerTransform: {fileID: 1443479526}
   playerCamera: {fileID: 329624368}
   playerMovementScript: {fileID: 1443479527}
-  lighterSystem: {fileID: 0}
+  lighterSystem: {fileID: 2130089584}
   flashlightSystem: {fileID: 2111599503}
 --- !u!114 &879497208
 MonoBehaviour:
@@ -50353,9 +50353,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ca9749751a690ad4f9106a032359730f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  currentItems:
-  - 
-  - 
+  currentItems: []
   saveManager: {fileID: 1602219355}
   itemPrefabs:
   - itemName: Key
@@ -95964,6 +95962,17 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 4107670223908969884, guid: 05a4c425a6f98934ab40685b522c1894, type: 3}
   m_PrefabInstance: {fileID: 4369082490618185501}
   m_PrefabAsset: {fileID: 0}
+--- !u!114 &2130089584 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 6484272107275419520, guid: 05a4c425a6f98934ab40685b522c1894, type: 3}
+  m_PrefabInstance: {fileID: 4369082490618185501}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 71e44edc6ef8faa4e8beadb5ff989413, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1 &2130110791
 GameObject:
   m_ObjectHideFlags: 0
