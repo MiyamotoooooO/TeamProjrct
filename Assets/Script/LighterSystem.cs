@@ -11,17 +11,21 @@ public class LighterSystem : MonoBehaviour
     public string lighterItemName = "Lighter";
 
     [Header("ライト設定")]
+    [Tooltip("ライターの火（Lightコンポーネントがついているオブジェクト）")]
     public GameObject lightSource;
+    [Tooltip("点火キー")]
     public KeyCode toggleKey = KeyCode.T;
+
+    [Header("音の設定")]
     public AudioClip igniteSound;
     public AudioClip offSound;
 
-    [Header("状態確認")]
-    public bool hasLighterItem = false;
-
-    [HideInInspector] public bool isLighterOn = false;
+    // 外部（イベント等）から制御するための変数
+    // ※「ライターを持っていても、イベント中は使わせたくない」場合などに false にする
     [HideInInspector] public bool canUseLighter = true;
 
+    // 内部状態
+    [HideInInspector] public bool isLighterOn = false;
     private AudioSource audioSource;
 
     void Start()
@@ -29,14 +33,6 @@ public class LighterSystem : MonoBehaviour
         if (inventoryManager == null)
         {
             inventoryManager = FindAnyObjectByType<InventoryManager>();
-            if (inventoryManager == null)
-            {
-                Debug.LogError("【エラー】LighterSystem: InventoryManagerが見つかりません！Hierarchyにありますか？");
-            }
-            else
-            {
-                Debug.Log("【成功】LighterSystem: InventoryManagerを見つけました。");
-            }
         }
 
         if (lightSource != null) lightSource.SetActive(false);
@@ -46,54 +42,42 @@ public class LighterSystem : MonoBehaviour
 
     void Update()
     {
-        Debug.Log("ライターはつけれないよ");
+        // 1. ストーリー上の許可が出ているか？
         if (!canUseLighter) return;
-        Debug.Log("ライターの許可");
 
-        // --- ★デバッグ用チェック ---
-        if (inventoryManager != null && inventoryManager.currentItems != null)
+        // 2. 現在、手にライターを持っているか？
+        bool isHoldingLighter = CheckIfHoldingLighter();
+
+        // もしライターを持っていない（他のアイテムに持ち替えた）のに火がついていたら消す
+        if (!isHoldingLighter && isLighterOn)
         {
-            // インベントリにあるかチェック
-            bool found = inventoryManager.currentItems.Contains(lighterItemName);
-
-            // 状態が変わった時だけログを出す（毎フレーム出るとうるさいので）
-            if (found != hasLighterItem)
-            {
-                hasLighterItem = found;
-                if (found)
-                {
-                    Debug.Log($"【発見】インベントリ内に '{lighterItemName}' を検知しました！ライター使用可能です。");
-                }
-                else
-                {
-                    Debug.Log($"【未発見】インベントリ内に '{lighterItemName}' が見つかりません。");
-                    // 現在の中身をすべて表示してみる（名前ミスの確認用）
-                    string allItems = string.Join(", ", inventoryManager.currentItems);
-                    Debug.Log($"　→ 現在のインベントリの中身: [{allItems}]");
-                }
-            }
+            TurnOff();
         }
-        // ---------------------------
 
+        // 3. キー入力判定
         if (Input.GetKeyDown(toggleKey))
         {
-            if (hasLighterItem)
+            if (isHoldingLighter)
             {
-                Debug.Log("ライター着火");
                 ToggleLighter();
             }
             else
             {
-                // 押したときに詳細な理由を表示
-                if (inventoryManager == null) Debug.Log("エラー: InventoryManagerが空です。");
-                else Debug.Log($"失敗: インベントリに '{lighterItemName}' がありません。");
+                // 手に持っていない時はログを出す（デバッグ用）
+                // Debug.Log("ライターを手に持っていません（装備してください）");
             }
         }
+    }
 
-        if (isLighterOn && !hasLighterItem)
+    // ★追加：現在装備している（インベントリ先頭の）アイテムがライターか確認する
+    bool CheckIfHoldingLighter()
+    {
+        if (inventoryManager != null && inventoryManager.currentItems.Count > 0)
         {
-            TurnOff();
+            // 先頭のアイテム名が lighterItemName と一致するか？
+            return inventoryManager.currentItems[0] == lighterItemName;
         }
+        return false;
     }
 
     void ToggleLighter()
@@ -111,6 +95,8 @@ public class LighterSystem : MonoBehaviour
 
     public void TurnOn()
     {
+        // 強制点灯の場合も「持っているか」チェックを入れるのが安全ですが、
+        // 演出で強制的に点けたい場合もあるので、ここはそのまま点灯させます
         isLighterOn = true;
         ApplyState();
     }

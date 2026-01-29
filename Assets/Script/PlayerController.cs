@@ -41,17 +41,19 @@ public class PlayerController : MonoBehaviour
     [Header("モデル設定")]
     public GameObject KeyModel;
     public GameObject ItemModel;
+    public GameObject FlashlightModel; // 懐中電灯
+    public GameObject LighterModel;    // ★追加：ライターのモデル
+
     public float bobSpeed = 6f;
     public float bobAmount = 0.05f;
     public float swingAmount = 0.1f;
     public float swingSpeed = 1f;
     public float SwingUpAmount = 0.1f;
     public float SwingDownAmount = -0.25f;
-    public float SwingUpRotation = -20f; // 振り上げ量
-    public float SwingDownRotation = 60f; // 振り下ろし量
+    public float SwingUpRotation = -20f;
+    public float SwingDownRotation = 60f;
     private Quaternion defaultRot;
     Quaternion cameraSwingStartRot;
-
 
     [Header("デコイ")]
     [SerializeField] private GameObject decoy;
@@ -59,46 +61,34 @@ public class PlayerController : MonoBehaviour
 
     [Header("--- 足音設定 ---")]
     public AudioSource footstepAudioSource;
-    [Tooltip("歩いている時のループ音源")]
     public AudioClip walkSoundLoop;
-    [Tooltip("走っている時のループ音源")]
     public AudioClip runSoundLoop;
 
     [Header("--- 吐息（ブレス）設定 ---")]
-    [Tooltip("吐息用のAudioSource")]
     public AudioSource breathingAudioSource;
-    [Tooltip("吐息のループ音源")]
     public AudioClip breathingSoundLoop;
-    [Tooltip("歩き時の吐息音量")]
     [Range(0f, 1f)]
     public float breathingWalkVolume = 0.3f;
-    [Tooltip("走り時の吐息音量")]
     [Range(0f, 1f)]
     public float breathingRunVolume = 0.5f;
 
     [Header("--- 視点の揺れ（Head Bob） ---")]
-    [Tooltip("歩いている時の揺れる速さ")]
     public float walkBobFrequency = 10.0f;
-    [Tooltip("歩いている時の揺れ幅（X, Y）")]
     public Vector2 walkBobAmount = new Vector2(0.05f, 0.05f);
-
-    [Tooltip("走っている時の揺れる速さ")]
     public float runBobFrequency = 15.0f;
-    [Tooltip("走っている時の揺れ幅（X, Y）... 強くするならここを大きく")]
     public Vector2 runBobAmount = new Vector2(0.1f, 0.15f);
-
-    [Tooltip("揺れの滑らかさ")]
     public float bobSmoothing = 10.0f;
 
     [Header("共通オーディオ設定")]
-    [Tooltip("地面判定の距離")]
     public float groundCheckDistance = 0.5f;
-    [Tooltip("音のフェード速度")]
     public float audioFadeSpeed = 5.0f;
 
     // 内部変数
     private Vector3 KeyModelDefaultPos;
     private Vector3 itemModelDefaultPos;
+    private Vector3 flashlightModelDefaultPos;
+    private Vector3 lighterModelDefaultPos; // ★追加：ライターの位置保存用
+
     private float bobTimer = 0f;
     private bool isSwinging = false;
     private float swingTimer = 0f;
@@ -107,14 +97,13 @@ public class PlayerController : MonoBehaviour
 
     private bool isCameraSwing = false;
     private float cameraSwingTimer = -2f;
-    public float cameraSwingSpeed = 0.01f; // 速さ
-    public float cameraSwingUpAngle = -6f; // 上に傾ける角度
-    public float cameraSwingDownAngle = 2f; // 下に傾ける角度
-    public float swingUpAngle = 4f; // 振りかぶりの角度
-    public float swingDownAngle = -12f; // 振り下ろしの角度
+    public float cameraSwingSpeed = 0.01f;
+    public float cameraSwingUpAngle = -6f;
+    public float cameraSwingDownAngle = 2f;
+    public float swingUpAngle = 4f;
+    public float swingDownAngle = -12f;
     private Quaternion cameraDefaultRot;
 
-    // ★カメラ揺れ用変数
     private Vector3 defaultCamPos;
     private float camBobTimer = 0f;
 
@@ -151,10 +140,13 @@ public class PlayerController : MonoBehaviour
 
         KeyModelDefaultPos = KeyModel.transform.localPosition;
         itemModelDefaultPos = ItemModel.transform.localPosition;
+        if (FlashlightModel != null) flashlightModelDefaultPos = FlashlightModel.transform.localPosition;
+
+        // ★追加：ライターの初期位置保存
+        if (LighterModel != null) lighterModelDefaultPos = LighterModel.transform.localPosition;
+
         defaultRot = ItemModel.transform.localRotation;
         cameraDefaultRot = cam.transform.localRotation;
-
-        // ★カメラの初期位置を保存
         defaultCamPos = cam.transform.localPosition;
     }
 
@@ -198,8 +190,6 @@ public class PlayerController : MonoBehaviour
         UpdateCameraSwing();
         HandleFootstepsAudio();
         HandleBreathingAudio();
-
-        // ★追加：カメラの揺れ処理
         HandleCameraShake();
 
         if (Input.GetKeyDown(KeyCode.G))
@@ -210,14 +200,8 @@ public class PlayerController : MonoBehaviour
 
         if (Input.GetMouseButtonDown(0))
         {
-            if (KeyModel.activeSelf)
-            {
-                PlayKeySwing();
-            }
-            else if (ItemModel.activeSelf)
-            {
-                PlayItemSwing();
-            }
+            if (KeyModel.activeSelf) PlayKeySwing();
+            else if (ItemModel.activeSelf) PlayItemSwing();
         }
     }
 
@@ -265,46 +249,32 @@ public class PlayerController : MonoBehaviour
         rb.velocity = new Vector3(moveDir.x * currentSpeed, rb.velocity.y, moveDir.z * currentSpeed);
     }
 
-    // --- ★追加：カメラの揺れ（Head Bob）処理 ---
     void HandleCameraShake()
     {
-        // 接地していて、かつ移動キー入力があるか
         bool isGrounded = Physics.Raycast(transform.position + Vector3.up * 0.1f, Vector3.down, groundCheckDistance);
         bool hasInput = (Input.GetAxisRaw("Horizontal") != 0 || Input.GetAxisRaw("Vertical") != 0);
 
         if (isGrounded && hasInput)
         {
-            // 走っているか判定
             bool isRunning = Input.GetKey(KeyCode.R);
-
-            // パラメータの切り替え
             float currentFrequency = isRunning ? runBobFrequency : walkBobFrequency;
             Vector2 currentAmount = isRunning ? runBobAmount : walkBobAmount;
 
-            // タイマーを進める（サインカーブ用）
             camBobTimer += Time.deltaTime * currentFrequency;
 
-            // 位置のオフセット計算
-            // Y軸：上下の揺れ（sin波）
             float yOffset = Mathf.Sin(camBobTimer) * currentAmount.y;
-            // X軸：左右の揺れ（cos波で少しゆっくりにすると8の字を描くような揺れになる）
             float xOffset = Mathf.Cos(camBobTimer * 0.5f) * currentAmount.x;
 
-            // 目標位置を計算
             Vector3 targetPos = defaultCamPos + new Vector3(xOffset, yOffset, 0);
-
-            // 滑らかに移動させる
             cam.transform.localPosition = Vector3.Lerp(cam.transform.localPosition, targetPos, Time.deltaTime * bobSmoothing);
         }
         else
         {
-            // 止まっている時は初期位置に戻す
             camBobTimer = 0;
             cam.transform.localPosition = Vector3.Lerp(cam.transform.localPosition, defaultCamPos, Time.deltaTime * bobSmoothing);
         }
     }
 
-    // --- 音声関連 ---
     void HandleFootstepsAudio()
     {
         bool isGrounded = Physics.Raycast(transform.position + Vector3.up * 0.1f, Vector3.down, groundCheckDistance);
@@ -380,7 +350,6 @@ public class PlayerController : MonoBehaviour
         }
     }
 
-    // --- 既存関数 ---
     void RotateCamera()
     {
         float xRot = Input.GetAxis("Mouse X") * Ysensityvity;
@@ -454,13 +423,43 @@ public class PlayerController : MonoBehaviour
 
     public void UpdateItemModel()
     {
-        KeyModel.SetActive(false);
-        ItemModel.SetActive(false);
-        if (inventoryManager.currentItems.Count == 0) return;
+        // 1. まず全てのモデルを非表示（チェックを外す）にする
+        if (KeyModel != null) KeyModel.SetActive(false);
+        if (ItemModel != null) ItemModel.SetActive(false);
+        if (FlashlightModel != null) FlashlightModel.SetActive(false);
+        if (LighterModel != null) LighterModel.SetActive(false);
+
+        // インベントリが空なら何もしないで終わる
+        if (inventoryManager == null || inventoryManager.currentItems.Count == 0) return;
+
+        // 現在持っているアイテムの名前とレイヤーを取得
         string firstItem = inventoryManager.currentItems[0];
         int layer = inventoryManager.GetItemLayer(firstItem);
-        if (layer == LayerMask.NameToLayer("Key")) KeyModel.SetActive(true);
-        else if (layer == LayerMask.NameToLayer("Item")) ItemModel.SetActive(true);
+
+        // 2. アイテムの種類に合わせて表示をONにする
+        // ★修正点：レイヤー番号だけでなく「名前」でも判定するようにしました（確実性アップ！）
+
+        // --- 鍵 (Key) ---
+        if (layer == LayerMask.NameToLayer("Key") || firstItem.Contains("Key"))
+        {
+            if (KeyModel != null) KeyModel.SetActive(true);
+        }
+        // --- 懐中電灯 (Flashlight) ---
+        else if (layer == LayerMask.NameToLayer("Flashlight") || firstItem == "Flashlight")
+        {
+            if (FlashlightModel != null) FlashlightModel.SetActive(true);
+        }
+        // --- ライター (Lighter) ---
+        // ★ここが今回の修正の目玉です
+        else if (layer == LayerMask.NameToLayer("Lighter") || firstItem == "Lighter")
+        {
+            if (LighterModel != null) LighterModel.SetActive(true);
+        }
+        // --- その他のアイテム (Item) ---
+        else if (layer == LayerMask.NameToLayer("Item"))
+        {
+            if (ItemModel != null) ItemModel.SetActive(true);
+        }
     }
 
     void UpdateItemBob()
@@ -471,13 +470,29 @@ public class PlayerController : MonoBehaviour
             bobTimer += Time.deltaTime * bobSpeed;
             float bobOffsetY = Mathf.Sin(bobTimer) * bobAmount;
             float bobOffsetX = Mathf.Cos(bobTimer * 0.5f) * bobAmount;
+
             if (KeyModel.activeSelf) KeyModel.transform.localPosition = KeyModelDefaultPos + new Vector3(bobOffsetX, bobOffsetY, 0);
             if (ItemModel.activeSelf) ItemModel.transform.localPosition = itemModelDefaultPos + new Vector3(bobOffsetX, bobOffsetY, 0);
+
+            if (FlashlightModel != null && FlashlightModel.activeSelf)
+                FlashlightModel.transform.localPosition = flashlightModelDefaultPos + new Vector3(bobOffsetX, bobOffsetY, 0);
+
+            // ★追加：ライターの揺れ
+            if (LighterModel != null && LighterModel.activeSelf)
+                LighterModel.transform.localPosition = lighterModelDefaultPos + new Vector3(bobOffsetX, bobOffsetY, 0);
         }
         else
         {
             if (KeyModel.activeSelf) KeyModel.transform.localPosition = Vector3.Lerp(KeyModel.transform.localPosition, KeyModelDefaultPos, Time.deltaTime * 10f);
             if (ItemModel.activeSelf) ItemModel.transform.localPosition = Vector3.Lerp(ItemModel.transform.localPosition, itemModelDefaultPos, Time.deltaTime * 10f);
+
+            if (FlashlightModel != null && FlashlightModel.activeSelf)
+                FlashlightModel.transform.localPosition = Vector3.Lerp(FlashlightModel.transform.localPosition, flashlightModelDefaultPos, Time.deltaTime * 10f);
+
+            // ★追加：ライターの位置戻し
+            if (LighterModel != null && LighterModel.activeSelf)
+                LighterModel.transform.localPosition = Vector3.Lerp(LighterModel.transform.localPosition, lighterModelDefaultPos, Time.deltaTime * 10f);
+
             bobTimer = 0f;
         }
     }
@@ -488,31 +503,21 @@ public class PlayerController : MonoBehaviour
         swingTimer += Time.deltaTime * swingSpeed;
         float swingOffset = Mathf.Sin(swingTimer) * swingAmount;
 
-        // 揺れ動きの適用
         if (KeyModel.activeSelf) KeyModel.transform.localPosition = KeyModelDefaultPos + new Vector3(0, 0, swingOffset);
         if (ItemModel.activeSelf) ItemModel.transform.localPosition = itemModelDefaultPos + new Vector3(0, 0, swingOffset);
 
-        // --- 動作終了時の処理 ---
         if (swingTimer >= Mathf.PI)
         {
             isSwinging = false;
-
-            // 位置を初期位置に戻す
             if (KeyModel.activeSelf) KeyModel.transform.localPosition = KeyModelDefaultPos;
             if (ItemModel.activeSelf) ItemModel.transform.localPosition = itemModelDefaultPos;
 
-            // 鍵が表示されていた場合（鍵を使った場合）
             if (KeyModel.activeSelf)
             {
-                KeyModel.SetActive(false); // まず見た目を消す
-
-                // ★追加：インベントリデータから削除する処理
+                KeyModel.SetActive(false);
                 if (inventoryManager != null && inventoryManager.currentItems.Count > 0)
                 {
-                    // 現在持っているアイテム（リストの先頭）を削除
                     inventoryManager.currentItems.RemoveAt(0);
-
-                    // インベントリの状態が変わったので、モデルの表示更新処理を呼ぶ
                     UpdateItemModel();
                 }
             }
@@ -550,52 +555,19 @@ public class PlayerController : MonoBehaviour
     void UpdateCameraSwing()
     {
         if (!isCameraSwing) return;
-
         cameraSwingTimer += Time.deltaTime * swingSpeed;
-
         float currentX = cam.transform.localEulerAngles.x;
         if (currentX > 180f) currentX -= 360f;
-
         float downLimit = -85f;
         float allowedDownAngle = cameraSwingDownAngle;
-
-        if (currentX <= downLimit)
-        {
-            allowedDownAngle = 0f;
-        }
-        else
-        {
-            float margin = Mathf.InverseLerp(-90f, downLimit, currentX);
-            allowedDownAngle *= margin;
-        }
+        if (currentX <= downLimit) { allowedDownAngle = 0f; }
+        else { float margin = Mathf.InverseLerp(-90f, downLimit, currentX); allowedDownAngle *= margin; }
 
         float angle = 0f;
-
-        if (cameraSwingTimer < 0.5f)
-        {
-            float t = cameraSwingTimer / 0.3f;
-            t = Mathf.SmoothStep(0f, 1f, t);
-            angle = Mathf.Lerp(0, cameraSwingUpAngle, t);
-        }
-        else if (cameraSwingTimer < 0.9f)
-        {
-            float t = (cameraSwingTimer - 0.3f) / 0.6f;
-            t = Mathf.SmoothStep(0f, 1f, t);
-            angle = Mathf.Lerp(cameraSwingUpAngle, allowedDownAngle, t);
-        }
-        else if (cameraSwingTimer < 1.5f)
-        {
-            float t = (cameraSwingTimer - 1f) / 0.6f;
-            t = Mathf.SmoothStep(0f, 1f, t);
-            angle = Mathf.Lerp(allowedDownAngle, 0, t);
-        }
-        else
-        {
-            cam.transform.localRotation = cameraSwingStartRot;
-            isCameraSwing = false;
-            cameraSwingTimer = 0f;
-            return;
-        }
+        if (cameraSwingTimer < 0.5f) { float t = cameraSwingTimer / 0.3f; t = Mathf.SmoothStep(0f, 1f, t); angle = Mathf.Lerp(0, cameraSwingUpAngle, t); }
+        else if (cameraSwingTimer < 0.9f) { float t = (cameraSwingTimer - 0.3f) / 0.6f; t = Mathf.SmoothStep(0f, 1f, t); angle = Mathf.Lerp(cameraSwingUpAngle, allowedDownAngle, t); }
+        else if (cameraSwingTimer < 1.5f) { float t = (cameraSwingTimer - 1f) / 0.6f; t = Mathf.SmoothStep(0f, 1f, t); angle = Mathf.Lerp(allowedDownAngle, 0, t); }
+        else { cam.transform.localRotation = cameraSwingStartRot; isCameraSwing = false; cameraSwingTimer = 0f; return; }
         cam.transform.localRotation = cameraSwingStartRot * Quaternion.Euler(angle, 0, 0);
     }
 }
