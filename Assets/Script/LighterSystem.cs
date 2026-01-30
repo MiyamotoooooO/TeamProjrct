@@ -1,108 +1,107 @@
 using UnityEngine;
-using System.Collections.Generic;
 
 public class LighterSystem : MonoBehaviour
 {
-    [Header("連携設定")]
+    [Header("設定")]
     [Tooltip("インベントリマネージャー")]
     public InventoryManager inventoryManager;
 
-    [Tooltip("インベントリ内でのアイテム名（一文字でも違うと反応しません）")]
+    [Tooltip("アイテムとしての名前（例: Lighter）")]
     public string lighterItemName = "Lighter";
 
-    [Header("ライト設定")]
-    [Tooltip("ライターの火（Lightコンポーネントがついているオブジェクト）")]
-    public GameObject lightSource;
-    [Tooltip("点火キー")]
-    public KeyCode toggleKey = KeyCode.T;
+    [Tooltip("火のオブジェクト（LightやParticle）")]
+    public GameObject flameEffect;
 
-    [Header("音の設定")]
-    public AudioClip igniteSound;
-    public AudioClip offSound;
+    [Tooltip("ライト（光源）")]
+    public Light lighterLight;
 
-    // 外部（イベント等）から制御するための変数
-    // ※「ライターを持っていても、イベント中は使わせたくない」場合などに false にする
-    [HideInInspector] public bool canUseLighter = true;
+    [Header("状態フラグ")]
+    // 演出（WakeUpControllerなど）から操作されるフラグ
+    // trueなら使用許可、falseなら強制禁止
+    public bool canUseLighter = true;
 
-    // 内部状態
-    [HideInInspector] public bool isLighterOn = false;
-    private AudioSource audioSource;
+    // 現在火がついているかどうか
+    public bool isLighterOn = false;
 
     void Start()
     {
         if (inventoryManager == null)
-        {
             inventoryManager = FindAnyObjectByType<InventoryManager>();
-        }
 
-        if (lightSource != null) lightSource.SetActive(false);
-        audioSource = GetComponent<AudioSource>();
-        if (audioSource == null) audioSource = gameObject.AddComponent<AudioSource>();
+        // ゲーム開始時、まずは火を消した状態でスタート
+        isLighterOn = false;
+        ApplyState();
     }
 
     void Update()
     {
-        // 1. ストーリー上の許可が出ているか？
-        if (!canUseLighter) return;
-
-        // 2. 現在、手にライターを持っているか？
-        bool isHoldingLighter = CheckIfHoldingLighter();
-
-        // もしライターを持っていない（他のアイテムに持ち替えた）のに火がついていたら消す
-        if (!isHoldingLighter && isLighterOn)
+        // ----------------------------------------------------
+        // 1. 【最優先】演出中は強制的にオフ＆操作禁止
+        // ----------------------------------------------------
+        if (!canUseLighter)
         {
-            TurnOff();
-        }
-
-        // 3. キー入力判定
-        if (Input.GetKeyDown(toggleKey))
-        {
-            if (isHoldingLighter)
+            // もし火がついていたら消す
+            if (isLighterOn)
             {
-                ToggleLighter();
+                TurnOff();
             }
-            else
-            {
-                // 手に持っていない時はログを出す（デバッグ用）
-                // Debug.Log("ライターを手に持っていません（装備してください）");
-            }
+            return; // ここで処理を終わらせる（他のスクリプトは無視！）
         }
-    }
 
-    // ★追加：現在装備している（インベントリ先頭の）アイテムがライターか確認する
-    bool CheckIfHoldingLighter()
-    {
-        if (inventoryManager != null && inventoryManager.currentItems.Count > 0)
+        // ----------------------------------------------------
+        // 2. インベントリチェック（メイン枠にあるか？）
+        // ----------------------------------------------------
+        if (!IsHoldingLighter())
         {
-            // 先頭のアイテム名が lighterItemName と一致するか？
-            return inventoryManager.currentItems[0] == lighterItemName;
+            // 持っていないのに火がついていたら消す（装備を変えた時など）
+            if (isLighterOn)
+            {
+                TurnOff();
+            }
+            return; // 持っていないので操作させない
         }
-        return false;
+
+        // ----------------------------------------------------
+        // 3. 入力処理（ここまで来た＝使ってOKな状態）
+        // ----------------------------------------------------
+        if (Input.GetKeyDown(KeyCode.T))
+        {
+            isLighterOn = !isLighterOn; // ON/OFF切り替え
+            ApplyState();
+
+            // 音を鳴らしたい場合はここに PlayOneShot など
+            Debug.Log("ライターの状態: " + isLighterOn);
+        }
     }
 
-    void ToggleLighter()
-    {
-        isLighterOn = !isLighterOn;
-        ApplyState();
-        if (audioSource != null) audioSource.PlayOneShot(isLighterOn ? igniteSound : offSound);
-    }
-
-    public void TurnOff()
+    // 火を消す専用関数
+    void TurnOff()
     {
         isLighterOn = false;
         ApplyState();
     }
 
-    public void TurnOn()
-    {
-        // 強制点灯の場合も「持っているか」チェックを入れるのが安全ですが、
-        // 演出で強制的に点けたい場合もあるので、ここはそのまま点灯させます
-        isLighterOn = true;
-        ApplyState();
-    }
-
+    // 実際の見た目を反映する関数
     public void ApplyState()
     {
-        if (lightSource != null) lightSource.SetActive(isLighterOn);
+        if (flameEffect != null) flameEffect.SetActive(isLighterOn);
+        if (lighterLight != null) lighterLight.enabled = isLighterOn;
+    }
+
+    // メイン枠（左上）にライターがあるか確認する関数
+    bool IsHoldingLighter()
+    {
+        if (inventoryManager != null)
+        {
+            // メイン枠のアイテム名を取得
+            string equipped = inventoryManager.GetEquippedItem();
+
+            // 名前が含まれているかチェック
+            if (!string.IsNullOrEmpty(equipped) && equipped.Contains(lighterItemName))
+            {
+                return true;
+            }
+        }
+        return false;
     }
 }

@@ -113,7 +113,7 @@ public class TrapEventSystem : MonoBehaviour
         {
             wasLighterOn = lighterSystem.isLighterOn;
             lighterSystem.canUseLighter = false;
-            lighterSystem.TurnOff();
+            //lighterSystem.TurnOff();
             lighterSystem.isLighterOn = false;
         }
         if (flashlightSystem != null)
@@ -172,7 +172,7 @@ public class TrapEventSystem : MonoBehaviour
         if (lighterSystem != null)
         {
             lighterSystem.canUseLighter = true;
-            if (wasLighterOn) { lighterSystem.isLighterOn = true; lighterSystem.TurnOn(); }
+            //if (wasLighterOn) { lighterSystem.isLighterOn = true; lighterSystem.TurnOn(); }
         }
         if (flashlightSystem != null)
         {

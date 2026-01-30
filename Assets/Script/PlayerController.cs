@@ -427,18 +427,24 @@ public class PlayerController : MonoBehaviour
         Ray ray = new Ray(cam.transform.position, cam.transform.forward);
         RaycastHit hit;
         pickUpText.enabled = false;
+        string[] pickableTags = { "Item", "Key", "Flashlight", "Lighter", "Crowber" };
+
         if (Physics.Raycast(ray, out hit, pickUpDistance))
         {
-            if (hit.collider.CompareTag("Item"))
+            foreach (string t in pickableTags)
             {
-                pickUpText.enabled = true;
-                if (Input.GetKeyDown(KeyCode.E))
+                if (hit.collider.CompareTag(t))
                 {
-                    if (inventoryManager != null) { inventoryManager.PickUpItem(hit.collider.gameObject); UpdateItemModel(); }
-                }
+                    pickUpText.enabled = true;
 
+                    if (Input.GetKeyDown(KeyCode.E))
+                    {
+                        inventoryManager.PickUpItem(hit.collider.gameObject);
+                        UpdateItemModel();
+                    }
+                    return;
+                }
             }
-            
         }
     }
 
@@ -486,6 +492,7 @@ public class PlayerController : MonoBehaviour
 
         // アイテム情報の取得
         string firstItem = inventoryManager.currentItems[0];
+        //string firstItem = inventoryManager.GetItemTag(firstItem);
         string tag = inventoryManager.GetItemTag(firstItem);
 
         // --- ★原因究明用のログ（解決したら消してOK）---

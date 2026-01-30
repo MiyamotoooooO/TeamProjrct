@@ -6,6 +6,9 @@ public class InventoryManager : MonoBehaviour
     [Header("現在持っているアイテム")]
     public List<string> currentItems = new List<string>();
 
+    [Header("現在装備中のメインスロット番号")]
+    public int equippedIndex = 0;
+
     [Header("参照")]
     public SaveManager saveManager; // セーブマネージャーへの参照
 
@@ -138,6 +141,30 @@ public class InventoryManager : MonoBehaviour
 
         Debug.LogWarning("タグが習得できませんでした：" + itemName);
         return null;
+    }
+
+    public string GetEquippedItem()
+    {
+        // 範囲外チェック（アイテムを持っていない、または選択番号がおかしい時）
+        if (currentItems.Count == 0 || equippedIndex >= currentItems.Count)
+        {
+            return ""; // 何も持っていない
+        }
+        return currentItems[equippedIndex];
+    }
+
+    public void SwapItems(int slotA, int slotB)
+    {
+        // 両方のスロットにアイテムがある場合のみ入れ替え可能
+        // (空のスロットと入れ替えるのは、リストの構造上難しいため今回は除外します)
+        if (slotA < currentItems.Count && slotB < currentItems.Count)
+        {
+            string temp = currentItems[slotA];
+            currentItems[slotA] = currentItems[slotB];
+            currentItems[slotB] = temp;
+
+            Debug.Log($"アイテムを入れ替えました: {currentItems[slotA]} <-> {currentItems[slotB]}");
+        }
     }
 
     // アイテム名からプレハブのレイヤーを取得する

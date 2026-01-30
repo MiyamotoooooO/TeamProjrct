@@ -57,7 +57,7 @@ public class FlashlightSystem : MonoBehaviour
         if (inventoryManager != null && inventoryManager.currentItems.Count > 0)
         {
             // インベントリの先頭のアイテム名が "Flashlight" なら true
-            return inventoryManager.currentItems[0] == flashlightItemName;
+            return inventoryManager.GetEquippedItem().Contains(flashlightItemName);
         }
         return false;
     }
