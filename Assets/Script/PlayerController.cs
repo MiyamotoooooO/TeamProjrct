@@ -170,6 +170,24 @@ public class PlayerController : MonoBehaviour
             return;
         }
 
+        if (isInventoryOpen)
+        {
+            // カーソルを表示してロック解除
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
+
+            // これ以降の処理（カメラ回転やアイテム使用）をさせないためにここでリターン
+            return;
+        }
+
+        if (Input.GetKeyDown(KeyCode.Escape))
+        {
+            canControl = false;
+            FadeOutAndPause();
+            pauseMenu.SetActive(true);
+            return;
+        }
+
         if (canLock)
         {
             float xRot = Input.GetAxis("Mouse X") * Ysensityvity;
@@ -214,12 +232,12 @@ public class PlayerController : MonoBehaviour
 
     private void FixedUpdate()
     {
-        if (Input.GetKey(KeyCode.Escape))
+        /*if (Input.GetKey(KeyCode.Escape))
         {
             canControl = false;
             FadeOutAndPause();
             pauseMenu.SetActive(true);
-        }
+        }*/
 
         if (!canControl)
         {
