@@ -20357,6 +20357,11 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 0a252d80add0348439615bc02e74781d, type: 3}
+--- !u!1 &596059141 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 6419997433014780559, guid: 05a4c425a6f98934ab40685b522c1894, type: 3}
+  m_PrefabInstance: {fileID: 4369082490618185501}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1001 &600006384
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -22422,7 +22427,6 @@ GameObject:
   m_Component:
   - component: {fileID: 655215644}
   - component: {fileID: 655215645}
-  - component: {fileID: 655215646}
   m_Layer: 18
   m_Name: Spot Light
   m_TagString: Untagged
@@ -22456,11 +22460,11 @@ Light:
   serializedVersion: 10
   m_Type: 0
   m_Shape: 0
-  m_Color: {r: 1, g: 1, b: 1, a: 1}
-  m_Intensity: 1.5
+  m_Color: {r: 1, g: 0.9607843, b: 0.8627451, a: 1}
+  m_Intensity: 5
   m_Range: 25
-  m_SpotAngle: 50
-  m_InnerSpotAngle: 5
+  m_SpotAngle: 25
+  m_InnerSpotAngle: 1
   m_CookieSize: 10
   m_Shadows:
     m_Type: 2
@@ -22499,7 +22503,7 @@ Light:
   m_Lightmapping: 4
   m_LightShadowCasterMode: 0
   m_AreaSize: {x: 1, y: 1}
-  m_BounceIntensity: 1
+  m_BounceIntensity: 0
   m_ColorTemperature: 6570
   m_UseColorTemperature: 0
   m_BoundingSphereOverride: {x: 0, y: 0, z: 0, w: 0}
@@ -22507,24 +22511,6 @@ Light:
   m_UseViewFrustumForShadowCasterCull: 1
   m_ShadowRadius: 0
   m_ShadowAngle: 0
---- !u!114 &655215646
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 655215643}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: d7a14567565a0db4bb5edf38122dec96, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  lightSource: {fileID: 655215643}
-  toggleKey: 102
-  inventoryManager: {fileID: 0}
-  flashlightItemName: Flashlight
-  isFlashlightOn: 1
-  canUseFlashlight: 1
 --- !u!1001 &658134532
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -64984,7 +64970,7 @@ MonoBehaviour:
   KeyModel: {fileID: 452371954}
   ItemModel: {fileID: 1582599287}
   FlashlightModel: {fileID: 1835614222}
-  LighterModel: {fileID: 889938025}
+  LighterModel: {fileID: 596059141}
   bobSpeed: 6
   bobAmount: 0.01
   swingAmount: 0.15
@@ -79072,6 +79058,10 @@ PrefabInstance:
       propertyPath: m_IsActive
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 1002705123656268, guid: d86ca2f4159e6a942abd8dfc52b38395, type: 3}
+      propertyPath: m_TagString
+      value: Flashlight
+      objectReference: {fileID: 0}
     - target: {fileID: 1175331865632600, guid: d86ca2f4159e6a942abd8dfc52b38395, type: 3}
       propertyPath: m_Layer
       value: 18
@@ -79199,12 +79189,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d7a14567565a0db4bb5edf38122dec96, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  lightSource: {fileID: 655215643}
-  toggleKey: 102
   inventoryManager: {fileID: 1092730148}
   flashlightItemName: Flashlight
+  flashlightLight: {fileID: 655215645}
   isFlashlightOn: 0
-  canUseFlashlight: 1
 --- !u!1001 &1836352947
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -87682,7 +87670,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!114 &1931355366
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -95626,7 +95614,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!114 &2039890989
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -98119,12 +98107,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d7a14567565a0db4bb5edf38122dec96, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  lightSource: {fileID: 655215643}
-  toggleKey: 102
   inventoryManager: {fileID: 0}
   flashlightItemName: Flashlight
+  flashlightLight: {fileID: 0}
   isFlashlightOn: 1
-  canUseFlashlight: 0
 --- !u!82 &2111599504
 AudioSource:
   m_ObjectHideFlags: 0
@@ -99134,7 +99120,7 @@ MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 6484272107275419520, guid: 05a4c425a6f98934ab40685b522c1894, type: 3}
   m_PrefabInstance: {fileID: 4369082490618185501}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
+  m_GameObject: {fileID: 596059141}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 71e44edc6ef8faa4e8beadb5ff989413, type: 3}
@@ -105272,7 +105258,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6419997433014780559, guid: 05a4c425a6f98934ab40685b522c1894, type: 3}
       propertyPath: m_IsActive
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 6484272107275419520, guid: 05a4c425a6f98934ab40685b522c1894, type: 3}
       propertyPath: flameEffect

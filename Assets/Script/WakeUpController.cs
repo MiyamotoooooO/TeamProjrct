@@ -151,7 +151,7 @@ public class WakeUpController : MonoBehaviour
     {
         if (playerMovementScript != null) playerMovementScript.enabled = isEnabled;
         if (lighterSystem != null) lighterSystem.canUseLighter = isEnabled;
-        if (flashlightSystem != null) flashlightSystem.canUseFlashlight = isEnabled;
+        //if (flashlightSystem != null) flashlightSystem.canUseFlashlight = isEnabled;
     }
 
     // ゆっくり起き上がるコルーチン

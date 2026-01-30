@@ -119,7 +119,7 @@ public class TrapEventSystem : MonoBehaviour
         if (flashlightSystem != null)
         {
             wasFlashlightOn = flashlightSystem.isFlashlightOn;
-            flashlightSystem.canUseFlashlight = false;
+            //flashlightSystem.canUseFlashlight = false;
             flashlightSystem.isFlashlightOn = false;
             flashlightSystem.ApplyState();
         }
@@ -176,7 +176,7 @@ public class TrapEventSystem : MonoBehaviour
         }
         if (flashlightSystem != null)
         {
-            flashlightSystem.canUseFlashlight = true;
+            //flashlightSystem.canUseFlashlight = true;
             if (wasFlashlightOn) { flashlightSystem.isFlashlightOn = true; flashlightSystem.ApplyState(); }
         }
 

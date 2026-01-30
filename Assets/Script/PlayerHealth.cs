@@ -48,7 +48,7 @@ public class PlayerHealth : MonoBehaviour
             playerMovementScript.enabled = false;
 
         if (lighterSystem != null) lighterSystem.canUseLighter = false;
-        if (flashlightSystem != null) flashlightSystem.canUseFlashlight = false;
+        //if (flashlightSystem != null) flashlightSystem.canUseFlashlight = false;
 
         StopAllEnemies();
         StartCoroutine(DeathSequence());
