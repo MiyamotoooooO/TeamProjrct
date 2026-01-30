@@ -63,24 +63,26 @@ public class ItemUse : MonoBehaviour
             {
                 Debug.Log("鍵(" + requiredKeyName + ")を使用して壁を消しました：" + hit.collider.name);
 
-                int layer = player.inventoryManager.GetItemLayer(requiredKeyName);
+                string tag = player.inventoryManager.GetItemTag(requiredKeyName);
 
-                if (layer == LayerMask.NameToLayer("Key"))
+                if (tag == null)
                 {
-                    // 鍵を使う動作
-                    player.PlayKeySwing();
-                    // 停止
-                    await Task.Delay(TimeSpan.FromSeconds(0.9));
-                    // 使用したらインベントリから削除
-                    player.inventoryManager.RemoveItem(requiredKeyName);
-                    // 壁を消す
-                    Destroy(hit.collider.gameObject);
+                    if (tag == ("Key"))
+                    {
+                        // 鍵を使う動作
+                        player.PlayKeySwing();
+                        // 停止
+                        await Task.Delay(TimeSpan.FromSeconds(0.9));
+                        // 使用したらインベントリから削除
+                        player.inventoryManager.RemoveItem(requiredKeyName);
+                        // 壁を消す
+                        Destroy(hit.collider.gameObject);
+                    }
+                    else if (tag == ("Item"))
+                    {
+                        player.PlayItemSwing();
+                    }
                 }
-                else if (layer == LayerMask.NameToLayer("Item"))
-                {
-                    player.PlayItemSwing();
-                }
-
                 // 手持ちのモデルを更新
             }
             else

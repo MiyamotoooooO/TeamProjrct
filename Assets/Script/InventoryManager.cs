@@ -125,19 +125,34 @@ public class InventoryManager : MonoBehaviour
         return null;
     }
 
-    // アイテム名からプレハブのレイヤーを取得する
-    public int GetItemLayer(string itemName)
+    // アイテム名からプレハブのタグを習得する
+    public string GetItemTag(string itemName)
     {
         foreach (var pair in itemPrefabs)
         {
             if (pair.itemName == itemName)
             {
-                return pair.prefab.layer;
+                return pair.prefab.tag;
             }
         }
 
-        Debug.LogWarning("レイヤーが取得できませんでした：" + itemName);
-        return -1;
+        Debug.LogWarning("タグが習得できませんでした：" + itemName);
+        return null;
     }
+
+    // アイテム名からプレハブのレイヤーを取得する
+    //public int GetItemLayer(string itemName)
+    //{
+    //    foreach (var pair in itemPrefabs)
+    //    {
+    //        if (pair.itemName == itemName)
+    //        {
+    //            return pair.prefab.layer;
+    //        }
+    //    }
+
+    //    Debug.LogWarning("レイヤーが取得できませんでした：" + itemName);
+    //    return -1;
+    //}
 }
 

@@ -38,7 +38,7 @@ RenderSettings:
   m_ReflectionIntensity: 1
   m_CustomReflection: {fileID: 0}
   m_Sun: {fileID: 705507994}
-  m_IndirectSpecularColor: {r: 0.027737066, g: 0.03472399, b: 0.047217086, a: 1}
+  m_IndirectSpecularColor: {r: 0.18028378, g: 0.22571412, b: 0.30692285, a: 1}
   m_UseRadianceAmbientProbe: 0
 --- !u!157 &3
 LightmapSettings:
@@ -62902,7 +62902,6 @@ GameObject:
   m_Component:
   - component: {fileID: 1443479526}
   - component: {fileID: 1443479525}
-  - component: {fileID: 1443479524}
   - component: {fileID: 1443479523}
   - component: {fileID: 1443479527}
   - component: {fileID: 1443479522}
@@ -63010,18 +63009,6 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &1443479524
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1443479520}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e3975c32931663445a9433c61920d126, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!33 &1443479525
 MeshFilter:
   m_ObjectHideFlags: 0

@@ -427,13 +427,18 @@ public class PlayerController : MonoBehaviour
         Ray ray = new Ray(cam.transform.position, cam.transform.forward);
         RaycastHit hit;
         pickUpText.enabled = false;
-        if (Physics.Raycast(ray, out hit, pickUpDistance, itemLayer))
+        if (Physics.Raycast(ray, out hit, pickUpDistance))
         {
-            pickUpText.enabled = true;
-            if (Input.GetKeyDown(KeyCode.E))
+            if (hit.collider.CompareTag("Item"))
             {
-                if (inventoryManager != null) { inventoryManager.PickUpItem(hit.collider.gameObject); UpdateItemModel(); }
+                pickUpText.enabled = true;
+                if (Input.GetKeyDown(KeyCode.E))
+                {
+                    if (inventoryManager != null) { inventoryManager.PickUpItem(hit.collider.gameObject); UpdateItemModel(); }
+                }
+
             }
+            
         }
     }
 
@@ -445,13 +450,16 @@ public class PlayerController : MonoBehaviour
 
         Debug.DrawRay(ray.origin, ray.direction, Color.red);
 
-        if (Physics.Raycast(ray, out hit, pickUpDistance, stoneLayer))
+        if (Physics.Raycast(ray, out hit, pickUpDistance))
         {
-            //左クリックされたなら
-            if (Input.GetMouseButtonDown(0))
+            if (hit.collider.CompareTag("Stone"))
             {
-                //SortStoneの関数を呼ぶ
-                sortStone.Stone(hit.collider.gameObject);
+                //左クリックされたなら
+                if (Input.GetMouseButtonDown(0))
+                {
+                    //SortStoneの関数を呼ぶ
+                    sortStone.Stone(hit.collider.gameObject);
+                }
             }
         }
     }
@@ -478,42 +486,67 @@ public class PlayerController : MonoBehaviour
 
         // アイテム情報の取得
         string firstItem = inventoryManager.currentItems[0];
-        int currentLayer = inventoryManager.GetItemLayer(firstItem);
-        int targetLighterLayer = LayerMask.NameToLayer("Lighter");
+        string tag = inventoryManager.GetItemTag(firstItem);
 
         // --- ★原因究明用のログ（解決したら消してOK）---
         // 拾ったアイテムのレイヤー番号 vs Lighterレイヤーの正解番号
         Debug.Log($"【判定中】アイテム名: {firstItem}");
-        Debug.Log($"　→ 持っている物のレイヤー番号: {currentLayer}");
-        Debug.Log($"　→ 'Lighter' の正解レイヤー番号: {targetLighterLayer}");
+        Debug.Log($" → アイテムのタグ: {tag}");
+
+        // タグでモデルを切り替える
+        switch (tag)
+        {
+            case "Key":
+                if (KeyModel != null) KeyModel.SetActive(true);
+                break;
+
+            case "Crowbar":
+                if (ItemModel != null) ItemModel.SetActive(true);
+                break;
+            case "Flashlight":
+                if (ItemModel != null) FlashlightModel.SetActive(true);
+                break;
+            case "Lighter":
+                if (LighterModel != null) LighterModel.SetActive(true);
+                break;
+            default:
+                Debug.LogWarning($"未対応のタグです: {tag}");
+                break;
+        }
         // ----------------------------------------------
 
         // 2. 判定処理
 
+        Debug.Log($"[判定中]アイテム名: {firstItem}");
+        Debug.Log($" → アイテムのタグ: {tag}");
         // ★ライター判定 (ここが通るかどうか、上のログの番号が一致しているか見てください)
-        if (currentLayer == targetLighterLayer)
+        if (tag == "Lighter")
         {
             Debug.Log("　→ 判定成功！ライターを表示します。");
             if (LighterModel != null) LighterModel.SetActive(true);
         }
         // もしレイヤーがダメでも、名前で救済する処理（保険）
-        else if (firstItem.Contains("Lighter"))
+        else if (tag == "Lighter")
         {
             Debug.Log("　→ レイヤーは違いましたが、名前でライターと判断しました。");
             if (LighterModel != null) LighterModel.SetActive(true);
         }
         // --- その他のアイテム ---
-        else if (currentLayer == LayerMask.NameToLayer("Key") || firstItem.Contains("Key"))
+        else if (tag == "Key")
         {
             if (KeyModel != null) KeyModel.SetActive(true);
         }
-        else if (currentLayer == LayerMask.NameToLayer("Flashlight") || firstItem.Contains("Flashlight"))
+        else if (tag == "Flashlight")
         {
             if (FlashlightModel != null) FlashlightModel.SetActive(true);
         }
-        else if (currentLayer == LayerMask.NameToLayer("Item"))
+        else if (tag == "Crowbar" || tag == "Item")
         {
             if (ItemModel != null) ItemModel.SetActive(true);
+        }
+        else
+        {
+            Debug.LogWarning($"未対応のタグです: {tag}");
         }
     }
 
