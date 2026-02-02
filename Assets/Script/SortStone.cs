@@ -6,8 +6,7 @@ using UnityEngine;
 public class SortStone : MonoBehaviour
 {
     [Header("石本体の配列")]
-    [SerializeField] private GameObject[] stones1;
-    [SerializeField] private GameObject[] stones2;
+    public GameObject[] stones;
 
     [Header("石のMaterial")]
     [SerializeField] private Material black;
@@ -15,63 +14,41 @@ public class SortStone : MonoBehaviour
     [SerializeField] private Material selectBlack;
     [SerializeField] private Material selectWhite;
 
-    [Header("石のレイヤー")]
-    [SerializeField] private LayerMask stone;
-
     [Header("初期状態を格納する配列(確認用)")]
-    [SerializeField] private Material[] default1;
-    [SerializeField] private Material[] default2;
+    [SerializeField] private Material[] initial;
 
     [Header("解答を格納する配列(確認用)")]
-    [SerializeField] private Material[] ans1;
-    [SerializeField] private Material[] ans2;
+    [SerializeField] private Material[] ans;
 
     [Header("選択中の石を格納するリスト(確認用)")]
     [SerializeField] private List<GameObject> select;
 
     [Header("試行回数(確認用)")]
-    [SerializeField] int count;
+    [SerializeField] private int count;
 
     [Header("試行回数上限")]
-    [SerializeField] int maxCount1;
-    [SerializeField] int maxCount2;
+    [SerializeField] private int maxCount;
 
     void Start()
     {
         //配列とリストを初期化
-        ans1 = new Material[stones1.Length];
-        ans2 = new Material[stones2.Length];
-        default1 = new Material[stones1.Length];
-        default2 = new Material[stones2.Length];
+        ans = new Material[stones.Length];
+        initial = new Material[stones.Length];
         select = new List<GameObject>();
 
         //初期設定の色と逆の色を解答用配列"ans"に格納
-        for (int i = 0; i < stones1.Length; i++)
+        for (int i = 0; i < stones.Length; i++)
         {
-            MeshRenderer mr = stones1[i].GetComponent<MeshRenderer>();
+            MeshRenderer mr = stones[i].GetComponent<MeshRenderer>();
             if (mr.sharedMaterial == black)
             {
-                default1[i] = black;
-                ans1[i] = white;
+                initial[i] = black;
+                ans[i] = white;
             }
             else if (mr.sharedMaterial == white)
             {
-                default1[i] = white;
-                ans1[i] = black;
-            }
-        }
-        for (int i = 0; i < stones2.Length; i++)
-        {
-            MeshRenderer mr = stones2[i].GetComponent<MeshRenderer>();
-            if (mr.sharedMaterial == black)
-            {
-                default2[i] = black;
-                ans2[i] = white;
-            }
-            else if (mr.sharedMaterial == white)
-            {
-                default2[i] = white;
-                ans2[i] = black;
+                initial[i] = white;
+                ans[i] = black;
             }
         }
     }
@@ -105,24 +82,12 @@ public class SortStone : MonoBehaviour
 
     private void swap()
     {
-        //選んだオブジェクトがstones1のものであるかどうか
-        bool _bool = System.Array.Exists(stones1, obj => obj == select[0]);
         //選択中のオブジェクトを通常時の色に戻す
         foreach (GameObject obj in select)
             ColorChange(obj);
         //2つのオブジェクトの配列における配列番号を取得
-        int indexA;
-        int indexB;
-        if (_bool)
-        {
-            indexA = Array.IndexOf(stones1, select[0]);
-            indexB = Array.IndexOf(stones1, select[1]);
-        }
-        else
-        {
-            indexA = Array.IndexOf(stones2, select[0]);
-            indexB = Array.IndexOf(stones2, select[1]);
-        }
+        int indexA = Array.IndexOf(stones, select[0]);
+        int indexB = Array.IndexOf(stones, select[1]);
         //番号が隣り合っていなければselectを空にして関数を抜ける
         if (Mathf.Abs(indexA - indexB) != 1)
         {
@@ -137,36 +102,20 @@ public class SortStone : MonoBehaviour
         count++;
 
         //2つのオブジェクトの色を反転させる
-        foreach (GameObject obj in select)
-        {
-            MeshRenderer mr = obj.GetComponent<MeshRenderer>();
-            if (mr.sharedMaterial == black)
-                mr.material = white;
-            else if (mr.sharedMaterial == white)
-                mr.material = black;
-        }
+        MeshRenderer mr0 = select[0].GetComponent<MeshRenderer>();
+        MeshRenderer mr1 = select[1].GetComponent<MeshRenderer>();
+        Material temp = mr0.sharedMaterial;
+        mr0.material = mr1.sharedMaterial;
+        mr1.material = temp;
         select.Clear();
         //反転させたのち、色がansと一致していれば正解とする
-        if (_bool)
+        if (CheckStone(stones, ans))
         {
-            if (CheckStone(stones1, ans1))
-            {
-                count = 0;
-                Debug.Log("正解！");
-            }
-            else if (count >= maxCount1)    //この回の反転で不正解&試行回数が上限値に達していれば初期化する
-                InitStone(stones1, default1);
+            count = 0;
+            Debug.Log("正解！");
         }
-        else
-        {
-            if (CheckStone(stones2, ans2))
-            {
-                count = 0;
-                Debug.Log("正解！");
-            }
-            else if (count >= maxCount2)    //この回の反転で不正解&試行回数が上限値に達していれば初期化する
-                InitStone(stones2, default2);
-        }
+        else if (count >= maxCount)    //この回の反転で不正解&試行回数が上限値に達していれば初期化する
+            InitStone(stones, initial);
     }
 
     private void InitStone(GameObject[] stones, Material[] defaults)

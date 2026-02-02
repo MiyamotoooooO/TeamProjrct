@@ -10,6 +10,9 @@ TagManager:
   - Lighter
   - Flashlight
   - Key
+  - Stone
+  - Crowber
+  - Picture
   layers:
   - Default
   - TransparentFX

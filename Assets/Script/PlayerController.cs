@@ -2,6 +2,9 @@
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
+using static UnityEngine.GraphicsBuffer;
+using System;
 
 [RequireComponent(typeof(Rigidbody))]
 [RequireComponent(typeof(PlayerItemConnection))]
@@ -64,10 +67,10 @@ public class PlayerController : MonoBehaviour
     public float groundCheckDistance = 0.5f;
 
     [Header("SortStoneスクリプト")]
-    [SerializeField] SortStone sortStone;
+    [SerializeField] SortStone[] sortStones;
 
-    [Header("Stoneレイヤー")]
-    [SerializeField] LayerMask stoneLayer;
+    [Header("SortPictureスクリプト")]
+    [SerializeField] SortPicture[] sortPictures;
 
     // 内部変数
     private Vector3 defaultCamPos;
@@ -102,8 +105,8 @@ public class PlayerController : MonoBehaviour
             audioController = GetComponent<PlayerAudioController>();
         }
 
-        if (inventoryManager == null)
-            inventoryManager = Object.FindAnyObjectByType<InventoryManager>();
+        //if (inventoryManager == null)
+        //    inventoryManager = Object.FindAnyObjectByType<InventoryManager>();
 
         cameraRot = cam.transform.localRotation;
         defaultCamPos = cam.transform.localPosition;
@@ -149,7 +152,6 @@ public class PlayerController : MonoBehaviour
 
         RotateCamera();
         UpdateCursorLock();
-        CheckHitStone();
 
         if (!isInventoryOpen)
         {
@@ -297,6 +299,9 @@ public class PlayerController : MonoBehaviour
         if (isInventoryOpen) return;
         Ray ray = new Ray(cam.transform.position, cam.transform.forward);
         RaycastHit hit;
+
+        Debug.DrawRay(ray.origin, ray.direction, Color.red);
+
         pickUpText.enabled = false;
         string[] pickableTags = { "Item", "Key", "Flashlight", "Lighter", "Crowber" };
 
@@ -316,25 +321,38 @@ public class PlayerController : MonoBehaviour
                     return;
                 }
             }
-        }
-    }
-
-    void CheckHitStone()
-    {
-        Ray ray = new Ray(cam.transform.position, cam.transform.forward);
-        RaycastHit hit;
-        Debug.DrawRay(ray.origin, ray.direction, Color.red);
-
-        if (Physics.Raycast(ray, out hit, pickUpDistance))
-        {
             if (hit.collider.CompareTag("Stone"))
             {
                 if (Input.GetMouseButtonDown(0))
                 {
-                    sortStone.Stone(hit.collider.gameObject);
+                    foreach (SortStone sortStone in sortStones)
+                    {
+                        if (ObjectInArray(hit.collider.gameObject, sortStone.stones))
+                            sortStone.Stone(hit.collider.gameObject);
+                    }
+                }
+            }
+            if (hit.collider.CompareTag("Picture"))
+            {
+                if (Input.GetMouseButtonDown(0))
+                {
+                    foreach (SortPicture sortPicture in sortPictures)
+                    {
+                        if (ObjectInArray(hit.collider.gameObject, sortPicture.pictures))
+                            sortPicture.Picture(hit.collider.gameObject);
+                    }
                 }
             }
         }
+    }
+    private bool ObjectInArray(GameObject obj, GameObject[] array)
+    {
+        for (int i = 0; i < array.Length; i++)
+        {
+            if (array[i] == obj)
+                return true;
+        }
+        return false;
     }
 }
 
