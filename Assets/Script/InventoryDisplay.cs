@@ -4,7 +4,10 @@ using System.Collections.Generic;
 
 public class InventoryDisplay : MonoBehaviour
 {
+    [Header("InventoryManagerを参照")]
     public InventoryManager inventoryManager;
+
+    [Header("InventoryのItem欄のSlotsを全部入れる")]
     public InventorySlot[] slots;
 
     [System.Serializable]
@@ -13,6 +16,7 @@ public class InventoryDisplay : MonoBehaviour
         public string itemName;
         public Sprite icon;
     }
+    [Header("Itemの名前とIconにしたい画像")]
     public List<ItemIconData> itemIcons;
 
     void Start()
@@ -34,7 +38,7 @@ public class InventoryDisplay : MonoBehaviour
             }
         }
 
-        // ★追加：ゲーム開始時に、強制的に「0番（左上）」を選択状態にする
+        // ゲーム開始時に、強制的に「0番（左上）」を選択状態にする
         if (inventoryManager != null)
         {
             inventoryManager.equippedIndex = 0;
@@ -58,7 +62,7 @@ public class InventoryDisplay : MonoBehaviour
             // クリックされた場所を「装備中（メイン）」に変更する
             inventoryManager.equippedIndex = index;
 
-            // ログで確認
+            // Logで確認
             Debug.Log($"スロット {index} がメインに切り替わりました");
         }
 

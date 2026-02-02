@@ -4,10 +4,16 @@ using System.Collections;
 [ExecuteInEditMode]
 public class RealMirror : MonoBehaviour
 {
-    [Header("Basic Settings")]
+    [Header("鏡の解像度")]
     public int textureSize = 512;
+
+    [Header("鏡が映す距離")]
     public float renderDistance = 25f;
+
+    [Header("映り込み防止用の隙間調整")]
     public float clipPlaneOffset = 0.05f;
+
+    [Header("Mirrorに設定")]
     public LayerMask mirrorLayer;
 
     [Header("Optimization")]
@@ -36,10 +42,8 @@ public class RealMirror : MonoBehaviour
             return;
         }
 
-        // 1. Setup Camera & Texture
         CreateMirrorObjects(cam);
 
-        // 2. Calculate Reflection Matrix
         Vector3 pos = transform.position;
         Vector3 normal = transform.forward;
 
@@ -49,14 +53,11 @@ public class RealMirror : MonoBehaviour
         Matrix4x4 reflectionMatrix = Matrix4x4.zero;
         CalculateReflectionMatrix(ref reflectionMatrix, reflectionPlane);
 
-        // 3. Apply Transformation
         reflectionCamera.worldToCameraMatrix = cam.worldToCameraMatrix * reflectionMatrix;
 
-        // 4. Setup Oblique Projection Plane (Crucial for performance and artifacts)
         Vector4 clipPlane = CameraSpacePlane(reflectionCamera, pos, normal, 1.0f);
         reflectionCamera.projectionMatrix = cam.CalculateObliqueMatrix(clipPlane);
 
-        // 5. Render
         GL.invertCulling = true;
         reflectionCamera.cullingMask = ~(mirrorLayer) & cam.cullingMask;
         reflectionCamera.Render();
@@ -70,21 +71,17 @@ public class RealMirror : MonoBehaviour
 
     private void CreateMirrorObjects(Camera currentCamera)
     {
-        // 鏡自体の縦横比を計算
-        // ※鏡がPlaneの場合はlocalScale.xとzを見る必要がありますが、Cubeならxとy、またはxとzです。
-        // ここでは一般的な「垂直に立ったQuadやCube」を想定して X(幅) と Y(高さ) を見ます。
         float aspectRatio = transform.lossyScale.x / transform.lossyScale.y;
 
         // 基本サイズを縦幅として、横幅を比率に合わせて計算
         int height = textureSize;
         int width = Mathf.RoundToInt(textureSize * aspectRatio);
 
-        // テクスチャが存在しない、またはサイズが変わった場合に作り直す
         if (!mirrorTexture || mirrorTexture.width != width || mirrorTexture.height != height)
         {
             if (mirrorTexture) DestroyImmediate(mirrorTexture);
 
-            // 計算した width と height で作成
+            // 計算したwidthとheightで作成
             mirrorTexture = new RenderTexture(width, height, 16);
             mirrorTexture.name = "__MirrorReflection" + GetHashCode();
             mirrorTexture.isPowerOfTwo = true;

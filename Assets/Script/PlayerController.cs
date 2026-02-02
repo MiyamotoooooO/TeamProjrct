@@ -4,6 +4,349 @@ using UnityEngine.SceneManagement;
 using System.Collections.Generic;
 
 [RequireComponent(typeof(Rigidbody))]
+[RequireComponent(typeof(PlayerItemConnection))]
+[RequireComponent(typeof(PlayerAudioController))]
+public class PlayerController : MonoBehaviour
+{
+    float x, z;
+
+    [Header("歩く速度")]
+    public float walkSpeed = 5.0f;
+
+    [Header("走る速度")]
+    public float dashSpeed = 10.0f;
+
+    [Header("メインカメラを参照")]
+    public GameObject cam;
+
+    [Header("InventoryManagerを参照")]
+    public InventoryManager inventoryManager;
+
+    [Header("PlayerItemConnectionを参照")]
+    public PlayerItemConnection itemConnection;
+
+    [Header("PlayerAudioControllerを参照")]
+    public PlayerAudioController audioController; // ★追加
+
+    [Header("プレイヤーが操作可能かどうか")]
+    public bool canControl = true;
+
+    [Header("感度設定(x軸)")]
+    public float Xsensityvity = 3f;
+
+    [Header("感度設定(y軸)")]
+    public float Ysensityvity = 3f;
+
+    [Header("拾うアイテムのすべてのLayer")]
+    public LayerMask itemLayer;
+
+    [Header("ポーズ画面関連")]
+    [SerializeField] private GameObject pauseMenu;
+    [SerializeField] private GameObject option;
+    private bool save;
+
+    [Header("拾うUI")]
+    public TMP_Text pickUpText;
+    public float pickUpDistance = 3f;
+
+    [Header("デコイ")]
+    [SerializeField] private GameObject decoy;
+    [SerializeField] private float decoySpawnDistance;
+
+    [Header("--- 視点の揺れ（Head Bob） ---")]
+    public float walkBobFrequency = 10.0f;
+    public Vector2 walkBobAmount = new Vector2(0.05f, 0.05f);
+    public float runBobFrequency = 15.0f;
+    public Vector2 runBobAmount = new Vector2(0.1f, 0.15f);
+    public float bobSmoothing = 10.0f;
+
+    [Header("共通設定")]
+    public float groundCheckDistance = 0.5f;
+
+    [Header("SortStoneスクリプト")]
+    [SerializeField] SortStone sortStone;
+
+    [Header("Stoneレイヤー")]
+    [SerializeField] LayerMask stoneLayer;
+
+    // 内部変数
+    private Vector3 defaultCamPos;
+    private float camBobTimer = 0f;
+
+    Quaternion cameraRot, characterRot;
+    bool cursorLock = true;
+    public bool canLock = true;
+    public bool isInventoryOpen = false;
+    float minX = -90f, maxX = 90f;
+    Rigidbody rb;
+
+    private void Start()
+    {
+        cameraRot = cam.transform.localRotation;
+        characterRot = transform.localRotation;
+
+        rb = GetComponent<Rigidbody>();
+        rb.freezeRotation = true;
+
+        // アイテム接続スクリプトの取得
+        if (itemConnection == null)
+        {
+            itemConnection = GetComponent<PlayerItemConnection>();
+            itemConnection.cam = this.cam;
+            itemConnection.inventoryManager = this.inventoryManager;
+        }
+
+        // ★追加：オーディオコントローラーの取得
+        if (audioController == null)
+        {
+            audioController = GetComponent<PlayerAudioController>();
+        }
+
+        if (inventoryManager == null)
+            inventoryManager = Object.FindAnyObjectByType<InventoryManager>();
+
+        cameraRot = cam.transform.localRotation;
+        defaultCamPos = cam.transform.localPosition;
+    }
+
+    // OnDisableでのオーディオ停止は AudioController 側で行うため削除
+
+    private void Update()
+    {
+        if (!canControl)
+        {
+            // AudioControllerに停止を依頼
+            audioController.FadeOutAudio();
+            return;
+        }
+
+        if (isInventoryOpen)
+        {
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
+            return;
+        }
+
+        if (Input.GetKeyDown(KeyCode.Escape))
+        {
+            canControl = false;
+            // AudioControllerに停止を依頼
+            audioController.FadeOutAudio();
+            pauseMenu.SetActive(true);
+            return;
+        }
+
+        if (canLock)
+        {
+            float xRot = Input.GetAxis("Mouse X") * Ysensityvity;
+            float yRot = Input.GetAxis("Mouse Y") * Xsensityvity;
+            cameraRot *= Quaternion.Euler(-yRot, 0, 0);
+            characterRot *= Quaternion.Euler(0, xRot, 0);
+            cameraRot = ClampRotation(cameraRot);
+            cam.transform.localRotation = cameraRot;
+            transform.localRotation = characterRot;
+        }
+
+        RotateCamera();
+        UpdateCursorLock();
+        CheckHitStone();
+
+        if (!isInventoryOpen)
+        {
+            CheckPickUp();
+            if (Input.GetKeyDown(KeyCode.Q)) itemConnection.DropCurrentItem();
+        }
+
+        // 移動状態を計算してオーディオとカメラ揺れに渡す
+        bool isGrounded = Physics.Raycast(transform.position + Vector3.up * 0.1f, Vector3.down, groundCheckDistance);
+        bool hasInput = (Input.GetAxisRaw("Horizontal") != 0 || Input.GetAxisRaw("Vertical") != 0);
+        bool isMoving = isGrounded && hasInput;
+        bool isRunning = Input.GetKey(KeyCode.R);
+
+        // オーディオの更新
+        audioController.UpdateAudio(isMoving, isRunning);
+
+        // カメラ揺れの更新
+        HandleCameraShake();
+
+        if (Input.GetKeyDown(KeyCode.G))
+        {
+            Vector3 spawnPos = transform.position + transform.forward * decoySpawnDistance;
+            Instantiate(decoy, spawnPos, Quaternion.identity);
+        }
+
+        if (Input.GetMouseButtonDown(0))
+        {
+            itemConnection.HandleAttackInput();
+        }
+    }
+
+    private void FixedUpdate()
+    {
+        if (!canControl)
+        {
+            rb.velocity = new Vector3(0, rb.velocity.y, 0);
+            return;
+        }
+
+        MoveCharacter();
+
+        if (isInventoryOpen)
+        {
+            rb.velocity = new Vector3(0, rb.velocity.y, 0);
+            return;
+        }
+        x = Input.GetAxisRaw("Horizontal") * walkSpeed;
+        z = Input.GetAxisRaw("Vertical") * walkSpeed;
+    }
+
+    void MoveCharacter()
+    {
+        float h = Input.GetAxisRaw("Horizontal");
+        float v = Input.GetAxisRaw("Vertical");
+
+        Vector3 forward = transform.forward;
+        forward.y = 0;
+        forward.Normalize();
+        Vector3 right = transform.right;
+        right.y = 0;
+        right.Normalize();
+
+        Vector3 moveDir = (forward * v + right * h).normalized;
+        float currentSpeed = Input.GetKey(KeyCode.R) ? dashSpeed : walkSpeed;
+
+        rb.velocity = new Vector3(moveDir.x * currentSpeed, rb.velocity.y, moveDir.z * currentSpeed);
+    }
+
+    void HandleCameraShake()
+    {
+        bool isGrounded = Physics.Raycast(transform.position + Vector3.up * 0.1f, Vector3.down, groundCheckDistance);
+        bool hasInput = (Input.GetAxisRaw("Horizontal") != 0 || Input.GetAxisRaw("Vertical") != 0);
+
+        if (isGrounded && hasInput)
+        {
+            bool isRunning = Input.GetKey(KeyCode.R);
+            float currentFrequency = isRunning ? runBobFrequency : walkBobFrequency;
+            Vector2 currentAmount = isRunning ? runBobAmount : walkBobAmount;
+
+            camBobTimer += Time.deltaTime * currentFrequency;
+
+            float yOffset = Mathf.Sin(camBobTimer) * currentAmount.y;
+            float xOffset = Mathf.Cos(camBobTimer * 0.5f) * currentAmount.x;
+
+            Vector3 targetPos = defaultCamPos + new Vector3(xOffset, yOffset, 0);
+            cam.transform.localPosition = Vector3.Lerp(cam.transform.localPosition, targetPos, Time.deltaTime * bobSmoothing);
+        }
+        else
+        {
+            camBobTimer = 0;
+            cam.transform.localPosition = Vector3.Lerp(cam.transform.localPosition, defaultCamPos, Time.deltaTime * bobSmoothing);
+        }
+    }
+
+    // ★削除：HandleFootstepsAudio と HandleBreathingAudio、FadeOutAndPause は AudioControllerへ移動済み
+
+    void RotateCamera()
+    {
+        float xRot = Input.GetAxis("Mouse X") * Ysensityvity;
+        float yRot = Input.GetAxis("Mouse Y") * Xsensityvity;
+        cameraRot *= Quaternion.Euler(-yRot, 0, 0);
+        characterRot *= Quaternion.Euler(0, xRot, 0);
+        cameraRot = ClampRotation(cameraRot);
+        cam.transform.localRotation = cameraRot;
+        transform.localRotation = characterRot;
+    }
+
+    public void UpdateCursorLock()
+    {
+        if (Input.GetKeyDown(KeyCode.Escape)) cursorLock = false;
+        else if (Input.GetMouseButton(0)) cursorLock = true;
+        if (cursorLock) { Cursor.lockState = CursorLockMode.Locked; Cursor.visible = false; }
+        else { Cursor.lockState = CursorLockMode.None; Cursor.visible = true; }
+    }
+
+    public Quaternion ClampRotation(Quaternion q)
+    {
+        q.x /= q.w; q.y /= q.w; q.z /= q.w; q.w = 1f;
+        float angleX = Mathf.Atan(q.x) * Mathf.Rad2Deg * 2f;
+        angleX = Mathf.Clamp(angleX, minX, maxX);
+        q.x = Mathf.Tan(angleX * Mathf.Deg2Rad * 0.5f);
+        return q;
+    }
+
+    public void SyncRotationToCurrent()
+    {
+        cameraRot = cam.transform.localRotation;
+        characterRot = transform.localRotation;
+    }
+
+    public void pause(string command)
+    {
+        switch (command)
+        {
+            case "Title": if (save) SceneManager.LoadScene("TitleScene"); else Debug.Log("NoSave"); break;
+            case "Option": option.SetActive(true); pauseMenu.SetActive(false); break;
+            case "Save": save = true; Debug.Log("SaveGame"); break;
+            case "Return": save = false; canControl = true; pauseMenu.SetActive(false); break;
+            case "Pause": option.SetActive(false); pauseMenu.SetActive(true); break;
+        }
+    }
+
+    void CheckPickUp()
+    {
+        if (isInventoryOpen) return;
+        Ray ray = new Ray(cam.transform.position, cam.transform.forward);
+        RaycastHit hit;
+        pickUpText.enabled = false;
+        string[] pickableTags = { "Item", "Key", "Flashlight", "Lighter", "Crowber" };
+
+        if (Physics.Raycast(ray, out hit, pickUpDistance))
+        {
+            foreach (string t in pickableTags)
+            {
+                if (hit.collider.CompareTag(t))
+                {
+                    pickUpText.enabled = true;
+
+                    if (Input.GetKeyDown(KeyCode.E))
+                    {
+                        inventoryManager.PickUpItem(hit.collider.gameObject);
+                        itemConnection.UpdateItemModel();
+                    }
+                    return;
+                }
+            }
+        }
+    }
+
+    void CheckHitStone()
+    {
+        Ray ray = new Ray(cam.transform.position, cam.transform.forward);
+        RaycastHit hit;
+        Debug.DrawRay(ray.origin, ray.direction, Color.red);
+
+        if (Physics.Raycast(ray, out hit, pickUpDistance))
+        {
+            if (hit.collider.CompareTag("Stone"))
+            {
+                if (Input.GetMouseButtonDown(0))
+                {
+                    sortStone.Stone(hit.collider.gameObject);
+                }
+            }
+        }
+    }
+}
+
+
+
+
+/*using TMPro;
+using UnityEngine;
+using UnityEngine.SceneManagement;
+using System.Collections.Generic;
+
+[RequireComponent(typeof(Rigidbody))]
 [RequireComponent(typeof(AudioSource))]
 public class PlayerController : MonoBehaviour
 {
@@ -232,12 +575,12 @@ public class PlayerController : MonoBehaviour
 
     private void FixedUpdate()
     {
-        /*if (Input.GetKey(KeyCode.Escape))
-        {
-            canControl = false;
-            FadeOutAndPause();
-            pauseMenu.SetActive(true);
-        }*/
+        //if (Input.GetKey(KeyCode.Escape))
+        //{
+          //  canControl = false;
+            //FadeOutAndPause();
+            //pauseMenu.SetActive(true);
+        //}
 
         if (!canControl)
         {
@@ -665,4 +1008,4 @@ public class PlayerController : MonoBehaviour
         else { cam.transform.localRotation = cameraSwingStartRot; isCameraSwing = false; cameraSwingTimer = 0f; return; }
         cam.transform.localRotation = cameraSwingStartRot * Quaternion.Euler(angle, 0, 0);
     }
-}
+}*/

@@ -16,8 +16,10 @@ public class InventryUI : MonoBehaviour
     [Header("アイコンのプレハブ")]
     public GameObject itemIconPrefab;
 
+    [Header("PlayerControllerを参照")]
     public PlayerController playerController;
 
+    [Header("開いている状態かどうか")]
     private bool isOpen = false;
 
     private void Start()

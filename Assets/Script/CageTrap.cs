@@ -2,23 +2,21 @@ using UnityEngine;
 
 public class CageTrap : MonoBehaviour
 {
-    [Header("--- 設定 ---")]
-    [Tooltip("檻（自分自身）が落ちて止まる目標の高さ（Y座標）")]
-    public float targetYPosition = 0.5f; // 床より少し下か、ピッタリの位置を指定
+    [Header("檻が落ちて止まる目標の高さ")]
+    public float targetYPosition = 0.5f;
 
-    [Tooltip("落ちるスピード（大きいほど速い）")]
+    [Header("落ちるスピード")]
     public float fallSpeed = 15.0f;
 
-    [Header("--- 参照 ---")]
-    [Tooltip("トリガーとなる透明な箱を指定してください")]
+    [Header("トリガーとなる透明な箱")]
     public GameObject trapTriggerObj;
 
-    [Tooltip("落ちた時の音（あれば）")]
+    [Header("落ちた時の音")]
     public AudioSource trapSound;
 
-    // 内部変数
-    private bool isActivated = false;
-    private Transform myTransform;
+    // private
+    private bool isActivated = false; // 罠がもう作動したかどうかのフラグ
+    private Transform myTransform; // 自分自身の場所や向きの情報をしまっておく箱
 
     void Start()
     {
@@ -28,7 +26,7 @@ public class CageTrap : MonoBehaviour
         Rigidbody rb = GetComponent<Rigidbody>();
         if (rb != null)
         {
-            rb.isKinematic = true; // 物理演算を無効化（これで壁も貫通します）
+            rb.isKinematic = true; // 物理演算を無効化
             rb.useGravity = false; // 重力もオフ
         }
     }
@@ -41,23 +39,15 @@ public class CageTrap : MonoBehaviour
             // 現在の位置
             Vector3 currentPos = myTransform.position;
 
-            // 目標の位置（XとZは今のまま、Yだけ指定した高さ）
+            // 目標の位置
             Vector3 targetPos = new Vector3(currentPos.x, targetYPosition, currentPos.z);
 
             // MoveTowardsを使って、指定スピードで目標へ向かう
-            // （isKinematicがtrueなので、床や壁があっても無視して貫通します）
             myTransform.position = Vector3.MoveTowards(currentPos, targetPos, fallSpeed * Time.deltaTime);
-
-            // 到着したら（位置がほぼ同じになったら）
-            if (Vector3.Distance(myTransform.position, targetPos) < 0.001f)
-            {
-                // ここに「着地時の処理」を書けます（音を止めるなど）
-            }
         }
     }
 
     // トリガー側から呼ばれる関数
-    // （TrapTriggerスクリプトを作る手間を省くため、このスクリプトだけで完結させます）
     void OnTriggerEnter(Collider other)
     {
         CheckActivation(other);

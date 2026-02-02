@@ -5,42 +5,44 @@ using UnityEngine.AI;
 
 public class TrapEventSystem : MonoBehaviour
 {
-    [Header("セーブ設定")]
-    [Tooltip("このイベント固有のID（例: Trap_Cage01）。他のイベントと被らない名前にしてください")]
+    [Header("このイベントの名前を記載")]
     public string eventID = "UniqueTrapEvent";
 
-    [Header("--- 必要なパーツ ---")]
-    [Tooltip("檻のスクリプト（CageTrap）")]
+    [Header("CageTrapを参照")]
     public CageTrap cageScript;
 
-    [Tooltip("★追加：檻が落ちきった後の位置（空のオブジェクトを置いて指定）")]
+    [Header("CageFallenPointを参照")]
     public Transform fallenPoint;
 
-    [Tooltip("普段使っているメインカメラ")]
+    [Header("普段使っているメインカメラ")]
     public GameObject mainCamera;
 
-    [Tooltip("今回作った演出用カメラ")]
+    [Header("演出用カメラ")]
     public GameObject trapCamera;
 
-    [Tooltip("プレイヤー本体")]
+    [Header("Player本体")]
     public GameObject playerObj;
 
-    [Tooltip("プレイヤーの移動スクリプト")]
+    [Header("Playerの移動スクリプト")]
     public MonoBehaviour playerMoveScript;
 
-    [Header("--- 時間設定 ---")]
+    [Header("落下する演出が発動するまでの時間")]
     public float delayBeforeDrop = 0.5f;
+
+    [Header("このイベントの全体の長さ")]
     public float eventDuration = 2.5f;
 
-    [Header("--- アイテム連携 ---")]
+    [Header("LighterSystemを参照")]
     public LighterSystem lighterSystem;
+
+    [Header("FlashlightSystemを参照")]
     public FlashlightSystem flashlightSystem;
 
     // private
-    private Quaternion originalRotation;
-    private List<ZombieState> frozenZombies = new List<ZombieState>();
-    private bool wasLighterOn = false;
-    private bool wasFlashlightOn = false;
+    private Quaternion originalRotation; // 罠にかかる直前のプレイヤーの体の向き
+    private List<ZombieState> frozenZombies = new List<ZombieState>(); // 動きを止めたゾンビたちのリスト
+    private bool wasLighterOn = false; // イベント前にライターがついていたかどうかのフラグ
+    private bool wasFlashlightOn = false; // イベント前に懐中電灯がついていたかどうかのフラグ
 
     class ZombieState
     {
@@ -54,8 +56,7 @@ public class TrapEventSystem : MonoBehaviour
 
     void Start()
     {
-        // ★セーブデータ確認
-        // もし「この罠イベントはもう終わったよ」という記録があれば
+        // セーブデータ確認
         if (!string.IsNullOrEmpty(eventID) && SaveManager.Instance != null && SaveManager.Instance.IsEventCompleted(eventID))
         {
             if (cageScript != null)
@@ -63,7 +64,7 @@ public class TrapEventSystem : MonoBehaviour
                 // 1. 檻を表示する
                 cageScript.gameObject.SetActive(true);
 
-                // 2. ★修正：物理的に落とすのではなく、落ちた後の場所にワープさせる
+                // 2. 物理的に落とすのではなく、落ちた後の場所にワープさせる
                 if (fallenPoint != null)
                 {
                     cageScript.transform.position = fallenPoint.position;
@@ -76,20 +77,18 @@ public class TrapEventSystem : MonoBehaviour
                     cageScript.ActivateTrap();
                 }
 
-                // 3. 檻の物理演算（Rigidbody）が暴れないように固定してしまう（任意）
+                // 3. 檻の物理演算が暴れないように固定する
                 Rigidbody cageRb = cageScript.GetComponent<Rigidbody>();
                 if (cageRb != null)
                 {
-                    cageRb.isKinematic = false; // 重力を有効にするか、
-                    // もしくは完全に固定したいなら true にする
-                    // cageRb.isKinematic = true; 
+                    cageRb.isKinematic = false; // 重力を有効にする
                 }
             }
             // 演出は再生せず終了
             return;
         }
 
-        // --- まだイベントが起きていない場合 ---
+        // まだイベントが起きていない場合
         if (cageScript != null)
         {
             // 演出待ちのため非表示
@@ -185,11 +184,10 @@ public class TrapEventSystem : MonoBehaviour
         // 9. 操作許可
         if (playerMoveScript != null) playerMoveScript.enabled = true;
 
-        // ★セーブ記録
+        // セーブ記録
         if (!string.IsNullOrEmpty(eventID) && SaveManager.Instance != null)
         {
             SaveManager.Instance.MarkEventAsCompleted(eventID);
-            // オートセーブするならここで SaveManager.Instance.SaveGame();
         }
     }
 

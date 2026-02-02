@@ -2,28 +2,31 @@
 
 public class WeatherManager : MonoBehaviour
 {
-    [Header("時間設定（秒）")]
-    [Tooltip("次の雨が降るまでの最小時間（例: 300秒 = 5分）")]
-    public float minRainInterval = 300f; // 5分
-    [Tooltip("次の雨が降るまでの最大時間（例: 600秒 = 10分）")]
-    public float maxRainInterval = 600f; // 10分
+    [Header("次の雨が降るまでの最小時間")]
+    public float minRainInterval = 300f;
 
-    [Tooltip("雨が降り続く最小時間（例: 180秒 = 3分）")]
-    public float minRainDuration = 180f; // 3分
-    [Tooltip("雨が降り続く最大時間（例: 300秒 = 5分）")]
-    public float maxRainDuration = 300f; // 5分
+    [Header("次の雨が降るまでの最大時間")]
+    public float maxRainInterval = 600f;
 
-    [Header("雷の設定")]
-    [Tooltip("雨が降った時に、雷も発生する確率（0.0 〜 1.0）")]
+    [Header("雨が降り続く最小時間")]
+    public float minRainDuration = 180f;
+    [Header("雨が降り続く最大時間")]
+    public float maxRainDuration = 300f;
+
+    [Header("雨が降った時に、雷も発生する確率")]
     [Range(0f, 1f)]
-    public float thunderProbability = 0.35f; // 35%
+    public float thunderProbability = 0.35f;
 
-    [Header("参照")]
+    [Header("RainEffectを参照")]
     public ParticleSystem rainParticle;
+
+    [Header("RainEffectのAudioを参照")]
     public AudioSource rainAudio;
+
+    [Header("LightningManagerを参照")]
     public LightningManager lightningManager;
 
-    // 内部変数
+    // private
     private float stateTimer;      // 現在の状態の残り時間
     private bool isRaining = false; // 現在雨が降っているか
 
@@ -95,7 +98,7 @@ public class WeatherManager : MonoBehaviour
         }
         else
         {
-            // 雷はなし（念のためOFF）
+            // 雷はなし
             if (lightningManager != null)
             {
                 lightningManager.isThunderActive = false;

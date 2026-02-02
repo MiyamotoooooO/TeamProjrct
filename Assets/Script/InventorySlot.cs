@@ -3,22 +3,21 @@ using UnityEngine.UI;
 
 public class InventorySlot : MonoBehaviour
 {
-    [Header("部品の割り当て")]
-    [Tooltip("アイテムアイコンを表示するImage")]
+    [Header("アイテムアイコンを表示するImage")]
     public Image iconImage;
 
-    [Tooltip("枠の画像（このオブジェクト自身のImage）")]
+    [Header("Itemの枠の画像")]
     public Image frameImage;
 
-    [Tooltip("ボタンコンポーネント")]
+    [Header("ボタンコンポーネントを追加")]
     public Button button;
 
-    [Header("枠のデザイン設定（ここに画像をセットする）")]
-    [Tooltip("通常時（選択されていない時）の枠画像")]
-    public Sprite normalSprite; // ★追加：通常の画像
+    [Header(" ---枠のデザイン設定---")]
+    [Header("通常時の枠画像")]
+    public Sprite normalSprite;
 
-    [Tooltip("選択されている時の枠画像（メイン表示）")]
-    public Sprite selectedSprite; // ★追加：メインの画像
+    [Header("選択されている時の枠画像")]
+    public Sprite selectedSprite;
 
     void Awake()
     {
@@ -35,7 +34,7 @@ public class InventorySlot : MonoBehaviour
         }
     }
 
-    // アイテムをセットして表示する（ここは変更なし）
+    // アイテムをセットして表示する
     public void SetItem(Sprite itemSprite)
     {
         if (iconImage == null) return;
@@ -43,7 +42,7 @@ public class InventorySlot : MonoBehaviour
         iconImage.enabled = true;
     }
 
-    // アイテムをクリアして非表示にする（ここは変更なし）
+    // アイテムをクリアして非表示にする
     public void ClearSlot()
     {
         if (iconImage == null) return;
@@ -51,7 +50,7 @@ public class InventorySlot : MonoBehaviour
         iconImage.enabled = false;
     }
 
-    // ★ここが重要！選択状態に合わせて「画像」を切り替える
+    // 選択状態に合わせて画像を切り替える
     public void SetSelected(bool isSelected)
     {
         if (frameImage == null) return;
@@ -61,8 +60,7 @@ public class InventorySlot : MonoBehaviour
 
         if (isSelected)
         {
-            // ■ メインに選ばれた時
-            // 「メイン画像」が設定されていれば、それに切り替える
+            // メインに選ばれた時
             if (selectedSprite != null)
             {
                 frameImage.sprite = selectedSprite;
@@ -70,8 +68,7 @@ public class InventorySlot : MonoBehaviour
         }
         else
         {
-            // ■ 通常に戻った時
-            // 「通常画像」が設定されていれば、それに切り替える
+            // 通常に戻った時
             if (normalSprite != null)
             {
                 frameImage.sprite = normalSprite;

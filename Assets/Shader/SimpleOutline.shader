@@ -2,7 +2,7 @@ Shader "Custom/SimpleOutline"
 {
     Properties
     {
-        _OutlineColor ("Outline Color", Color) = (1,1,1,1) // 枠の色（白）
+        _OutlineColor ("Outline Color", Color) = (1,1,1,1) // 枠の色
         _OutlineWidth ("Outline Width", Range(0.0, 0.1)) = 0.02 // 枠の太さ
     }
     SubShader
@@ -12,7 +12,7 @@ Shader "Custom/SimpleOutline"
 
         Pass
         {
-            // ここがミソ：裏面を描画することで、膨らませたモデルの内側（＝枠）を見せる
+            // 裏面を描画することで、膨らませたモデルの枠を見せる
             Cull Front
 
             CGPROGRAM

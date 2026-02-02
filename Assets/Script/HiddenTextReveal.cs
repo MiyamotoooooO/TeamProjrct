@@ -3,20 +3,18 @@ using TMPro;
 
 public class HiddenTextReveal : MonoBehaviour
 {
-    [Header("--- 設定 ---")]
-    [Tooltip("最初から表示しておきたい文字の番号（0から始まります）")]
+    [Header("最初から見えてる文字の番号(0からスタート)")]
     public int[] visibleCharIndexes;
-    // 例：1文字目と3文字目を見せたいなら、ここに 0 と 2 を入力します
 
-    [Tooltip("炙った時に文字が浮かび上がる速さ")]
+    [Header("炙った時に文字が浮かび上がる速さ")]
     public float revealSpeed = 0.5f;
 
-    // --- 内部変数 ---
-    private TMP_Text myText;
+    // private
+    private TMP_Text myText; // いじくる対象のTextMeshPro本体
     private bool[] isInitiallyVisible; // その文字が最初から見えているかフラグ
     private float[] randomOffsets;     // 炙り出しのタイミングを少しずらす用
     private float heatLevel = 0f;      // 現在の熱量
-    private bool isInitialized = false;
+    private bool isInitialized = false; // 準備完了のフラグ
 
     void Start()
     {
@@ -24,7 +22,7 @@ public class HiddenTextReveal : MonoBehaviour
 
         if (myText != null)
         {
-            // 文字色を強制的に不透明(Alpha=1)にする
+            // 文字色を強制的に不透明にする
             Color baseColor = myText.color;
             baseColor.a = 1.0f;
             myText.color = baseColor;
@@ -105,7 +103,7 @@ public class HiddenTextReveal : MonoBehaviour
             }
             else
             {
-                // それ以外は熱量に応じて表示（隠れている状態からスタート）
+                // それ以外は熱量に応じて表示
                 float calculatedAlpha = (heatLevel - randomOffsets[i]) * 2.0f;
                 alpha = Mathf.Clamp01(calculatedAlpha);
             }

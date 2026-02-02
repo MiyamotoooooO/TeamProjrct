@@ -5,53 +5,70 @@ using UnityEngine.AI;
 
 public class ZombiePassByEvent : MonoBehaviour
 {
-    [Header("セーブ設定（重要！）")]
-    [Tooltip("このイベントの名前（ID）。他のイベントと被らない名前にしてください。例：Event_ZombieCorridor")]
+    [Header("このイベントの名前を設定")]
     public string eventID = "Event_UniqueName";
 
-    [Header("ターゲット設定")]
+    [Header("zoomcameraを参照")]
     public Transform[] focusTargets;
 
-    [Header("通り過ぎるゾンビの設定")]
+    [Header("演出用のゾンビを参照")]
     public GameObject walkerZombie;
+
+    [Header("StartPointを参照")]
     public Transform zombieStartPoint;
+
+    [Header("EndPointを参照")]
     public Transform zombieEndPoint;
+
+    [Header("zombieの歩く速度")]
     public float zombieWalkSpeed = 2.0f;
+
+    [Header("zombieの動きを止めるためにSpeedを記載")]
     public string animSpeedParam = "Speed";
 
-    [Header("周囲の敵の停止設定")]
+    [Header("演出中に止める敵のLayer")]
     public string targetLayerName = "Enemy";
 
-    [Header("演出設定")]
+    [Header("zoomcameraの位置までカメラが寄る速度")]
     public float zoomInDuration = 3.0f;
+
+    [Header("演出が終わってカメラがPlayerの視点に戻る時間")]
     public float zoomOutDuration = 0.5f;
+
+    [Header("カメラが移動しきった後静止している時間")]
     public float stopDuration = 3.0f;
+
+    [Header("周囲の敵を止める範囲")]
     public float stopDistance = 2.0f;
+
+    [Header("カメラの位置ずれの調節用")]
     public Vector3 positionOffset = Vector3.zero;
+
+    [Header("カメラの角度ずれの調節用")]
     public Vector3 rotationOffset = Vector3.zero;
 
     [Header("一度きりのイベントにするか")]
     public bool playOnlyOnce = true;
 
     // private
-    private bool hasPlayed = false;
-    private PlayerController playerScript;
-    private Camera playerCamera;
-    private Vector3 defaultPos;
-    private Quaternion defaultRot;
+    private bool hasPlayed = false; // もう再生済みというフラグ
+    private PlayerController playerScript; // 演出中にPlayerの動きを無効化
+    private Camera playerCamera; // カメラを動かすために取得
+    private Vector3 defaultPos; // 演出前のカメラのもとの位置を覚えておく変数
+    private Quaternion defaultRot; // 演出前のカメラのもとの位置を覚えておく変数
 
     // 停止用リスト
-    private List<Animator> pausedAnimators = new List<Animator>();
-    private List<NavMeshAgent> pausedAgents = new List<NavMeshAgent>();
+    private List<Animator> pausedAnimators = new List<Animator>(); // 停止させたゾンビたちのリスト
+    private List<NavMeshAgent> pausedAgents = new List<NavMeshAgent>(); // 停止させたゾンビたちのリスト
 
     void Start()
     {
-        // ★ゲーム開始時チェック：このイベントが既に終わっているか？
+        // このイベントが既に終わっているか？
         if (playOnlyOnce && !string.IsNullOrEmpty(eventID))
         {
             if (SaveManager.Instance != null && SaveManager.Instance.IsEventCompleted(eventID))
             {
-                // 終わってるなら、イベント用ゾンビも消して、自分（トリガー）も消す
+                // 終わってるなら、イベント用ゾンビも消して、トリガーも消す
                 if (walkerZombie != null) Destroy(walkerZombie);
                 Destroy(gameObject);
             }
@@ -128,19 +145,17 @@ public class ZombiePassByEvent : MonoBehaviour
 
         ResumeAllEnemies(); // 敵再開
 
-        // ★演出終了：セーブデータに「終わったよ」と記録する
+        // セーブデータに「終わったよ」と記録する
         if (playOnlyOnce)
         {
             if (SaveManager.Instance != null && !string.IsNullOrEmpty(eventID))
             {
                 SaveManager.Instance.MarkEventAsCompleted(eventID);
-                // ここで SaveManager.Instance.SaveGame(); を呼べば、イベント直後にオートセーブも可能です
             }
             Destroy(gameObject);
         }
     }
 
-    // --- (以下、前回と同じ移動・停止処理) ---
     IEnumerator MoveZombieRoutine()
     {
         walkerZombie.SetActive(true);

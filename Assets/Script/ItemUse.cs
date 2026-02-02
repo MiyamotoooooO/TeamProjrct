@@ -5,6 +5,9 @@ using System;
 
 public class ItemUse : MonoBehaviour
 {
+    [Header("PlayerItemConnectionを参照")]
+    public PlayerItemConnection playerItemConnection;
+
     [Header("PlayerControllerを参照")]
     public PlayerController player;
 
@@ -70,7 +73,7 @@ public class ItemUse : MonoBehaviour
                     if (tag == ("Key"))
                     {
                         // 鍵を使う動作
-                        player.PlayKeySwing();
+                        playerItemConnection.PlayKeySwing();
                         // 停止
                         await Task.Delay(TimeSpan.FromSeconds(0.9));
                         // 使用したらインベントリから削除
@@ -80,7 +83,7 @@ public class ItemUse : MonoBehaviour
                     }
                     else if (tag == ("Item"))
                     {
-                        player.PlayItemSwing();
+                        playerItemConnection.PlayItemSwing();
                     }
                 }
                 // 手持ちのモデルを更新

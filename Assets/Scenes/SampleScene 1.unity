@@ -38,7 +38,7 @@ RenderSettings:
   m_ReflectionIntensity: 1
   m_CustomReflection: {fileID: 0}
   m_Sun: {fileID: 705507994}
-  m_IndirectSpecularColor: {r: 0.027737066, g: 0.03472399, b: 0.047217086, a: 1}
+  m_IndirectSpecularColor: {r: 0.18028378, g: 0.22571412, b: 0.30692285, a: 1}
   m_UseRadianceAmbientProbe: 0
 --- !u!157 &3
 LightmapSettings:
@@ -15938,11 +15938,6 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 4743926f06b7fdc4c93033724c776cdc, type: 3}
---- !u!1 &452371954 stripped
-GameObject:
-  m_CorrespondingSourceObject: {fileID: 2513150065475899978, guid: 2a9378b66deff784f9db540e1f682f93, type: 3}
-  m_PrefabInstance: {fileID: 1037287875}
-  m_PrefabAsset: {fileID: 0}
 --- !u!4 &452371955 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 4241267849225321449, guid: 2a9378b66deff784f9db540e1f682f93, type: 3}
@@ -20357,11 +20352,6 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 0a252d80add0348439615bc02e74781d, type: 3}
---- !u!1 &596059141 stripped
-GameObject:
-  m_CorrespondingSourceObject: {fileID: 6419997433014780559, guid: 05a4c425a6f98934ab40685b522c1894, type: 3}
-  m_PrefabInstance: {fileID: 4369082490618185501}
-  m_PrefabAsset: {fileID: 0}
 --- !u!1001 &600006384
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -33268,6 +33258,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 70b457c25d0ef184287aefcad0efd9eb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  playerItemConnection: {fileID: 0}
   player: {fileID: 1443479527}
   cam: {fileID: 329624367}
   useDistance: 3
@@ -42115,6 +42106,11 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 2b47339eb26d121449e856af24f74cbd, type: 3}
+--- !u!1 &941677586 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 7806637188403312054, guid: 2b47339eb26d121449e856af24f74cbd, type: 3}
+  m_PrefabInstance: {fileID: 941677585}
+  m_PrefabAsset: {fileID: 0}
 --- !u!4 &943050649 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 415016, guid: 4743926f06b7fdc4c93033724c776cdc, type: 3}
@@ -64810,6 +64806,8 @@ GameObject:
   - component: {fileID: 1443479525}
   - component: {fileID: 1443479523}
   - component: {fileID: 1443479527}
+  - component: {fileID: 1443479532}
+  - component: {fileID: 1443479533}
   - component: {fileID: 1443479522}
   - component: {fileID: 1443479521}
   - component: {fileID: 1443479528}
@@ -64957,6 +64955,8 @@ MonoBehaviour:
   dashSpeed: 10
   cam: {fileID: 329624367}
   inventoryManager: {fileID: 1092730148}
+  itemConnection: {fileID: 0}
+  audioController: {fileID: 0}
   canControl: 1
   Xsensityvity: 3
   Ysensityvity: 3
@@ -64967,43 +64967,18 @@ MonoBehaviour:
   option: {fileID: 1748183824}
   pickUpText: {fileID: 1468070820}
   pickUpDistance: 3
-  KeyModel: {fileID: 452371954}
-  ItemModel: {fileID: 1582599287}
-  FlashlightModel: {fileID: 1835614222}
-  LighterModel: {fileID: 596059141}
-  bobSpeed: 6
-  bobAmount: 0.01
-  swingAmount: 0.15
-  swingSpeed: 1.5
-  SwingUpAmount: 0.1
-  SwingDownAmount: -0.25
-  SwingUpRotation: -20
-  SwingDownRotation: 60
   decoy: {fileID: 6488913755602162186, guid: d2687c27cfded2f4b80f1fc3d3ade1b8, type: 3}
   decoySpawnDistance: 2
-  footstepAudioSource: {fileID: 1443479530}
-  walkSoundLoop: {fileID: 8300000, guid: 8c017361805cd1941b23dc59c477f361, type: 3}
-  runSoundLoop: {fileID: 8300000, guid: 6e7f43148e150644a810544afe68b081, type: 3}
-  breathingAudioSource: {fileID: 1443479531}
-  breathingSoundLoop: {fileID: 8300000, guid: 1b79cce2bfdd32b4ab1910e414631aa2, type: 3}
-  breathingWalkVolume: 0.3
-  breathingRunVolume: 0.5
   walkBobFrequency: 10
   walkBobAmount: {x: 0.05, y: 0.05}
   runBobFrequency: 15
   runBobAmount: {x: 0.1, y: 0.15}
   bobSmoothing: 10
   groundCheckDistance: 3
-  audioFadeSpeed: 10
   sortStone: {fileID: 319273993}
   stoneLayer:
     serializedVersion: 2
     m_Bits: 524288
-  cameraSwingSpeed: 0.01
-  cameraSwingUpAngle: -6
-  cameraSwingDownAngle: 2
-  swingUpAngle: 4
-  swingDownAngle: -12
   canLock: 0
   isInventoryOpen: 0
 --- !u!114 &1443479528
@@ -65038,6 +65013,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 70b457c25d0ef184287aefcad0efd9eb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  playerItemConnection: {fileID: 0}
   player: {fileID: 1443479527}
   cam: {fileID: 329624367}
   useDistance: 3
@@ -65238,6 +65214,55 @@ AudioSource:
     m_PreInfinity: 2
     m_PostInfinity: 2
     m_RotationOrder: 4
+--- !u!114 &1443479532
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1443479520}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a7eb9d8fc15a56f4b9acb0d28dd0869d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  cam: {fileID: 329624367}
+  inventoryManager: {fileID: 1092730148}
+  KeyModel: {fileID: 1605487276}
+  ItemModel: {fileID: 615209597812683726}
+  FlashlightModel: {fileID: 941677586}
+  LighterModel: {fileID: 889938025}
+  bobSpeed: 6
+  bobAmount: 0.05
+  swingAmount: 0.1
+  swingSpeed: 1
+  SwingUpAmount: 0.1
+  SwingDownAmount: -0.25
+  SwingUpRotation: -20
+  SwingDownRotation: 60
+  cameraSwingSpeed: 0.01
+  cameraSwingUpAngle: -6
+  cameraSwingDownAngle: 2
+--- !u!114 &1443479533
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1443479520}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c016ca58873ec1c488bca212d2612eaf, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  footstepAudioSource: {fileID: 1443479530}
+  walkSoundLoop: {fileID: 8300000, guid: 8c017361805cd1941b23dc59c477f361, type: 3}
+  runSoundLoop: {fileID: 8300000, guid: 6e7f43148e150644a810544afe68b081, type: 3}
+  breathingAudioSource: {fileID: 1443479531}
+  breathingSoundLoop: {fileID: 8300000, guid: 1b79cce2bfdd32b4ab1910e414631aa2, type: 3}
+  breathingWalkVolume: 0.3
+  breathingRunVolume: 0.5
+  audioFadeSpeed: 5
 --- !u!1001 &1445157990
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -70398,11 +70423,6 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 3d6af86994b168f459350d61d340227e, type: 3}
---- !u!1 &1582599287 stripped
-GameObject:
-  m_CorrespondingSourceObject: {fileID: 7806637188403312054, guid: 2b47339eb26d121449e856af24f74cbd, type: 3}
-  m_PrefabInstance: {fileID: 1342348427}
-  m_PrefabAsset: {fileID: 0}
 --- !u!4 &1582599288 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 2062824645448068887, guid: 2b47339eb26d121449e856af24f74cbd, type: 3}
@@ -99120,7 +99140,7 @@ MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 6484272107275419520, guid: 05a4c425a6f98934ab40685b522c1894, type: 3}
   m_PrefabInstance: {fileID: 4369082490618185501}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 596059141}
+  m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 71e44edc6ef8faa4e8beadb5ff989413, type: 3}
@@ -104854,6 +104874,11 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 2b47339eb26d121449e856af24f74cbd, type: 3}
+--- !u!1 &615209597812683726 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 7806637188403312054, guid: 2b47339eb26d121449e856af24f74cbd, type: 3}
+  m_PrefabInstance: {fileID: 615209597812683725}
+  m_PrefabAsset: {fileID: 0}
 --- !u!23 &1193306721606089909
 MeshRenderer:
   m_ObjectHideFlags: 0

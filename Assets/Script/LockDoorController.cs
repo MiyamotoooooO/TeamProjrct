@@ -3,38 +3,44 @@ using System.Collections;
 
 public class LockDoorController : MonoBehaviour
 {
-    [Header("ロック設定")]
-    [Tooltip("チェックを入れると最初は鍵がかかった状態になります")]
+    [Header("鍵がかかっているかの確認")]
     public bool isLocked = true;
 
-    [Header("ドアのペア設定")]
-    public Transform door1; // 左のドア
-    public Transform door2; // 右のドア
+    [Header("左のドア")]
+    public Transform door1;
 
-    [Header("UI設定")]
-    [Tooltip("開けられる時に出る文字")]
+    [Header("右のドア")]
+    public Transform door2;
+
+    [Header("ドアを開けられる時に出る案内文字")]
     public GameObject guideText;
-    [Tooltip("鍵がかかっている時に出る文字")]
+    [Header("鍵がかかっている時に出る案内文字")]
     public GameObject lockedText;
 
-    [Header("角度の設定")]
+    [Header("左のドアの目標角度設定")]
     public Vector3 door1OpenAngle = new Vector3(0, 90, 0);
+
+    [Header("右のドアの目標角度設定")]
     public Vector3 door2OpenAngle = new Vector3(0, -90, 0);
+
+    [Header("ドアの開閉スピード")]
     public float moveDuration = 1.0f;
 
-    [Header("音の設定")]
-    public AudioClip doorSound;   // 開く音
-    public AudioClip lockedSound; // 鍵がかかっている音（ガチャガチャ）
+    [Header("ドアの開閉音")]
+    public AudioClip doorSound;
+
+    [Header("ドアの鍵がかかっている音")]
+    public AudioClip lockedSound;
 
     // 内部変数
-    private bool isOpen = false;
-    private bool isPlayerInside = false;
-    private bool isAnimating = false;
-    private Quaternion door1ClosedRot;
-    private Quaternion door2ClosedRot;
-    private Quaternion door1OpenRot;
-    private Quaternion door2OpenRot;
-    private AudioSource audioSource;
+    private bool isOpen = false; // 今ドアは開いているかのフラグ
+    private bool isPlayerInside = false; // Playerはドアの近くにいるかのフラグ
+    private bool isAnimating = false; // 今ドアは動いている最中かのフラグ
+    private Quaternion door1ClosedRot; // 閉まっているときの角度
+    private Quaternion door2ClosedRot; // 閉まっているときの角度
+    private Quaternion door1OpenRot; // 開いたときの目標角度
+    private Quaternion door2OpenRot; // 開いたときの目標角度
+    private AudioSource audioSource; // 音を鳴らすスピーカー
 
     void Start()
     {
@@ -75,7 +81,7 @@ public class LockDoorController : MonoBehaviour
         }
     }
 
-    // ★重要：パスワード画面からこの関数が呼ばれて鍵が開く
+    // パスワード画面からこの関数が呼ばれて鍵が開く
     public void UnlockDoor()
     {
         isLocked = false;
@@ -95,7 +101,6 @@ public class LockDoorController : MonoBehaviour
         {
             audioSource.PlayOneShot(lockedSound);
         }
-        // ここに「鍵がかかっている」というメッセージを一瞬出す処理を入れてもOK
     }
 
     IEnumerator OperateDoors()

@@ -2,25 +2,22 @@ using UnityEngine;
 
 public class LighterSystem : MonoBehaviour
 {
-    [Header("設定")]
-    [Tooltip("インベントリマネージャー")]
+    [Header("InventoryManagerを参照")]
     public InventoryManager inventoryManager;
 
-    [Tooltip("アイテムとしての名前（例: Lighter）")]
+    [Header("ライターのLayer名")]
     public string lighterItemName = "Lighter";
 
-    [Tooltip("火のオブジェクト（LightやParticle）")]
+    [Header("TorchEffectを参照")]
     public GameObject flameEffect;
 
-    [Tooltip("ライト（光源）")]
+    [Tooltip("SpotLightを参照")]
     public Light lighterLight;
 
-    [Header("状態フラグ")]
-    // 演出（WakeUpControllerなど）から操作されるフラグ
-    // trueなら使用許可、falseなら強制禁止
+    [Header("使用可能かどうかのフラグ")]
     public bool canUseLighter = true;
 
-    // 現在火がついているかどうか
+    [Header("現在火がついてるかどうかのフラグ")]
     public bool isLighterOn = false;
 
     void Start()
@@ -35,9 +32,7 @@ public class LighterSystem : MonoBehaviour
 
     void Update()
     {
-        // ----------------------------------------------------
-        // 1. 【最優先】演出中は強制的にオフ＆操作禁止
-        // ----------------------------------------------------
+        // 1. 演出中は強制的にオフ＆操作禁止
         if (!canUseLighter)
         {
             // もし火がついていたら消す
@@ -45,15 +40,13 @@ public class LighterSystem : MonoBehaviour
             {
                 TurnOff();
             }
-            return; // ここで処理を終わらせる（他のスクリプトは無視！）
+            return; // ここで処理を終わらせる
         }
-
-        // ----------------------------------------------------
-        // 2. インベントリチェック（メイン枠にあるか？）
-        // ----------------------------------------------------
+        
+        // 2. インベントリチェック
         if (!IsHoldingLighter())
         {
-            // 持っていないのに火がついていたら消す（装備を変えた時など）
+            // 持っていないのに火がついていたら消す
             if (isLighterOn)
             {
                 TurnOff();
@@ -61,15 +54,12 @@ public class LighterSystem : MonoBehaviour
             return; // 持っていないので操作させない
         }
 
-        // ----------------------------------------------------
-        // 3. 入力処理（ここまで来た＝使ってOKな状態）
-        // ----------------------------------------------------
+        // 3. 入力処理
         if (Input.GetKeyDown(KeyCode.T))
         {
             isLighterOn = !isLighterOn; // ON/OFF切り替え
             ApplyState();
 
-            // 音を鳴らしたい場合はここに PlayOneShot など
             Debug.Log("ライターの状態: " + isLighterOn);
         }
     }
@@ -88,7 +78,7 @@ public class LighterSystem : MonoBehaviour
         if (lighterLight != null) lighterLight.enabled = isLighterOn;
     }
 
-    // メイン枠（左上）にライターがあるか確認する関数
+    // メイン枠にライターがあるか確認する関数
     bool IsHoldingLighter()
     {
         if (inventoryManager != null)

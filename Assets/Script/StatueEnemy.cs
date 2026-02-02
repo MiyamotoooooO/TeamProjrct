@@ -3,18 +3,23 @@ using UnityEngine.AI;
 
 public class StatueEnemy : MonoBehaviour
 {
-    [Header("--- 設定 ---")]
+    [Header("Playerを参照")]
     public Transform player;
+
+    [Header("敵の移動速度")]
     public float moveSpeed = 10.0f;
+
+    [Header("敵がPlayerに気づく感知範囲")]
     public float detectionRadius = 20.0f;
 
-    [Tooltip("壁レイヤー（Wallなどを指定）。Everythingにして、自分(Enemy)のレイヤーを外すのがベスト")]
+    [Tooltip("壁のLayer")]
     public LayerMask obstacleLayer;
 
-    private NavMeshAgent agent;
-    private Renderer myRenderer;
-    private Camera playerCamera;
-    private bool hasCaughtPlayer = false;
+    // private
+    private NavMeshAgent agent; // Ai移動システムを操るコントローラー
+    private Renderer myRenderer; // 敵の見た目を表示しているパーツ
+    private Camera playerCamera; // Playerの視点
+    private bool hasCaughtPlayer = false; // 捕まえたかどうかのフラグ
 
     void Start()
     {
@@ -69,15 +74,13 @@ public class StatueEnemy : MonoBehaviour
         }
     }
 
-    // --- 判定ロジック ---
-
     bool IsVisibleToPlayer()
     {
         // カメラの視界内に入っているか
         Plane[] planes = GeometryUtility.CalculateFrustumPlanes(playerCamera);
         if (!GeometryUtility.TestPlanesAABB(planes, myRenderer.bounds)) return false;
 
-        // 壁判定（プレイヤーの目から敵の中心へ）
+        // 壁判定
         Vector3 dir = transform.position - playerCamera.transform.position;
         if (Physics.Raycast(playerCamera.transform.position, dir, out RaycastHit hit, dir.magnitude, obstacleLayer))
         {
@@ -104,8 +107,7 @@ public class StatueEnemy : MonoBehaviour
             // パターン1：自分自身に当たった（無視してOK）
             if (hit.transform == transform) return true;
 
-            // ★パターン2：プレイヤーに当たった（壁じゃないからOK！）
-            // （タグがPlayer、またはプレイヤーのオブジェクトそのものなら通す）
+            // パターン2：プレイヤーに当たった
             if (hit.transform.CompareTag("Player") || hit.transform == player || hit.transform.root == player.root)
             {
                 Debug.DrawLine(origin, target, Color.green); // 緑線＝見える！
@@ -114,24 +116,21 @@ public class StatueEnemy : MonoBehaviour
 
             // パターン3：それ以外に当たった（これは本当に壁だ！）
             Debug.DrawLine(origin, hit.point, Color.red); // 赤線＝壁がある
-            // 何に当たって止まったかログに出す（デバッグ用）
+            // 何に当たって止まったかログに出す
             Debug.Log("壁判定で停止中。当たったもの: " + hit.transform.name);
             return false;
         }
 
-        // 何にも当たらず届いた（OK）
+        // 何にも当たらず届いた
         Debug.DrawLine(origin, target, Color.green);
         return true;
     }
-
-    // --- 移動制御 ---
 
     void StartChasing(string reason)
     {
         if (agent.isStopped)
         {
             agent.isStopped = false;
-            // Debug.Log(reason); // うるさいのでコメントアウト
         }
         agent.SetDestination(player.position);
     }
@@ -142,13 +141,12 @@ public class StatueEnemy : MonoBehaviour
         {
             agent.isStopped = true;
             agent.velocity = Vector3.zero;
-            // Debug.Log(reason); // うるさいのでコメントアウト
         }
     }
 
     void OnCollisionEnter(Collision collision)
     {
-        // 既に捕まえているなら何もしない（何度もDieを呼ばないように）
+        // 既に捕まえているなら何もしない
         if (hasCaughtPlayer) return;
 
         if (collision.gameObject.CompareTag("Player"))

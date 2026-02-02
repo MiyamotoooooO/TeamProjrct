@@ -3,19 +3,26 @@ using UnityEngine.AI;
 
 public class EnemyAI : MonoBehaviour
 {
+    [Header("Player‚ğQÆ")]
     public Transform player;
-    [Header("‹——£İ’è")]
+
+    [Header("‘–‚é‘¬“x")]
     public float runDistance = 10f;
+
+    [Header("UŒ‚‚ª“–‚½‚é”ÍˆÍ")]
     public float attackDistance = 5f;
-    [Header("œpœjİ’è")]
-    public float wanderRadius = 8f; //œpœj”¼Œa
-    public float wanderInterval = 3f; //œpœjŠÔŠu
+
+    [Header("œpœj”¼Œa")]
+    public float wanderRadius = 8f;
+
+    [Header("œpœjŠÔŠu")]
+    public float wanderInterval = 3f;
 
     NavMeshAgent agent;
     Animator animator;
 
     float timer;
-    bool isAttacking; // UŒ‚ó‘ÔŠÇ—
+    bool isAttacking;
 
     void Start()
     {

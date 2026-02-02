@@ -13,6 +13,8 @@ public class SaveManager : MonoBehaviour
 
     [Header("現在のセーブデータ")]
     public SaveData currentData;
+
+    [Header("saveするための経路")]
     private string savePath;
 
     void Awake()
@@ -49,7 +51,6 @@ public class SaveManager : MonoBehaviour
         LoadGame();
     }
 
-    // 毎フレームキー入力を監視
     void Update()
     {
         // 左コントロールキーが押されたら削除
@@ -74,8 +75,6 @@ public class SaveManager : MonoBehaviour
             {
                 inventoryManager.LoadItemData(currentData.collectedItems);
             }
-
-            // ※プレイヤーの移動は WakeUpController に任せているのでここでは何もしない
         }
     }
 
@@ -135,7 +134,7 @@ public class SaveManager : MonoBehaviour
         }
     }
 
-    // ★セーブデータを削除する関数
+    // セーブデータを削除する関数
     public void DeleteSaveData()
     {
         if (File.Exists(savePath))
@@ -152,8 +151,6 @@ public class SaveManager : MonoBehaviour
         currentData = new SaveData();
     }
 
-    // ★イベントが終わったことを記録する関数
-    // FallingCageもここを使って保存されます
     public void MarkEventAsCompleted(string eventID)
     {
         if (currentData == null) return;

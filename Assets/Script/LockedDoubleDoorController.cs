@@ -3,44 +3,49 @@ using System.Collections;
 
 public class LockedDoubleDoorController : MonoBehaviour
 {
-    [Header("鍵の設定")]
-    [Tooltip("このレイヤーがついたオブジェクトを持っていると開きます")]
+    [Header("KeyLayerに設定")]
     public LayerMask keyLayer;
 
-    [Tooltip("鍵を使ってドアを開けた時、その鍵を消滅させるか？")]
-    public bool destroyKeyOnUse = true; // ★追加：使い捨てにするか設定可能に
+    [Header("鍵を使ってドアを開けた時、その鍵を消滅させるかのフラグ")]
+    public bool destroyKeyOnUse = true;
 
-    [Tooltip("鍵を持っていない時の音（ガチャガチャ...）")]
+    [Tooltip("鍵を持っていない時の音")]
     public AudioClip lockedSound;
 
     [Tooltip("鍵がかかっている時に表示するテキスト")]
     public GameObject lockedMessage;
 
-    [Header("ドアのペア設定")]
+    [Header("左のドアの設定")]
     public Transform door1;
+
+    [Header("右のドアの設定")]
     public Transform door2;
 
     [Header("UI設定")]
     public GameObject guideText;
 
-    [Header("角度の設定")]
+    [Header("左のドアの角度設定")]
     public Vector3 door1OpenAngle = new Vector3(0, 90, 0);
+
+    [Header("右のドアの角度設定")]
     public Vector3 door2OpenAngle = new Vector3(0, -90, 0);
+
+    [Header("ドアの開閉スピード")]
     public float moveDuration = 1.0f;
 
-    [Header("音の設定")]
+    [Header("ドアの開閉音")]
     public AudioClip doorSound;
 
     // private
-    private bool isOpen = false;
-    private bool isPlayerInside = false;
-    private bool isAnimating = false;
-    private Quaternion door1ClosedRot;
-    private Quaternion door2ClosedRot;
-    private Quaternion door1OpenRot;
-    private Quaternion door2OpenRot;
-    private AudioSource audioSource;
-    private GameObject playerObject;
+    private bool isOpen = false; // 今ドアは開いているかのフラグ
+    private bool isPlayerInside = false; // Playerはドアの近くにいるかのフラグ
+    private bool isAnimating = false; // 今ドアは動いている最中かのフラグ
+    private Quaternion door1ClosedRot; // 閉まっているときの角度
+    private Quaternion door2ClosedRot; // 閉まっているときの角度
+    private Quaternion door1OpenRot; // 開いたときの目標角度
+    private Quaternion door2OpenRot; // 開いたときの目標角度
+    private AudioSource audioSource; // 音を鳴らすスピーカー
+    private GameObject playerObject; // Playerを参照
 
     void Start()
     {
@@ -79,7 +84,7 @@ public class LockedDoubleDoorController : MonoBehaviour
 
                 if (foundKey != null)
                 {
-                    // ★鍵が見つかった！ -> 削除処理
+                    // 鍵が見つかった！ -> 削除処理
                     if (destroyKeyOnUse)
                     {
                         RemoveKey(foundKey);
@@ -97,7 +102,7 @@ public class LockedDoubleDoorController : MonoBehaviour
         }
     }
 
-    // ★修正：持っている鍵オブジェクトそのものを探して返す関数
+    // 持っている鍵オブジェクトそのものを探して返す関数
     GameObject FindKeyObject()
     {
         if (playerObject == null) return null;
@@ -116,14 +121,11 @@ public class LockedDoubleDoorController : MonoBehaviour
         return null;
     }
 
-    // ★追加：鍵を削除する関数
+    // 鍵を削除する関数
     void RemoveKey(GameObject keyObj)
     {
         // 1. 手持ち（シーン上の実体）を削除
         Debug.Log("鍵を消費しました: " + keyObj.name);
-
-        // ※もしInventoryManagerを使っていて、データ削除も必要ならここで呼ぶ
-        // 例: InventoryManager.Instance.RemoveItem(keyObj.name);
 
         Destroy(keyObj);
     }

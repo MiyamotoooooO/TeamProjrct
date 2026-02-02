@@ -2,11 +2,11 @@ using UnityEngine;
 
 public class FloorBreakTrap : MonoBehaviour
 {
-    [Header("--- 床のオブジェクト設定 ---")]
-    [Tooltip("最初は表示されている「普通の床」をここに登録（複数可）")]
+    [Header(" ---床のオブジェクト設定--- ")]
+    [Header("最初は表示されている普通の床を登録")]
     public GameObject[] intactFloors;
 
-    [Tooltip("最初は隠れている「壊れた床」をここに登録（複数可）")]
+    [Header("最初は隠れている壊れた床を登録")]
     public GameObject[] brokenFloors;
 
     [Header("--- 演出設定 ---")]
@@ -16,29 +16,25 @@ public class FloorBreakTrap : MonoBehaviour
     [Tooltip("土煙のパーティクル（DustEffect）")]
     public ParticleSystem dustEffect;
 
-    // ★追加：木くずのパーティクル
     [Tooltip("木くずのパーティクル（WoodChipsEffect）")]
     public ParticleSystem woodChipsEffect;
 
-    [Tooltip("飛び散る破片のプレハブ（あれば）")]
+    [Tooltip("飛び散る破片のPrefab")]
     public GameObject debrisPrefab;
     [Tooltip("破片が出る数")]
     public int debrisCount = 5;
 
-    // 内部変数
-    private bool isBroken = false;
-    private AudioSource audioSource;
+    // private
+    private bool isBroken = false; // この床はもう割れましたかというフラグ
+    private AudioSource audioSource; // 音を鳴らすためのスピーカー
 
     void Start()
     {
-        // （省略：Startの中身は変更なし）
         foreach (var floor in intactFloors) { if (floor != null) floor.SetActive(true); }
         foreach (var floor in brokenFloors) { if (floor != null) floor.SetActive(false); }
         audioSource = GetComponent<AudioSource>();
         if (audioSource == null) audioSource = gameObject.AddComponent<AudioSource>();
     }
-
-    // （省略：OnTriggerEnterは変更なし）
     void OnTriggerEnter(Collider other)
     {
         if (isBroken) return;
@@ -64,14 +60,13 @@ public class FloorBreakTrap : MonoBehaviour
         // 4. 土煙を再生
         if (dustEffect != null) dustEffect.Play();
 
-        // 5. ★追加：木くずを再生
+        // 5. 木くずを再生
         if (woodChipsEffect != null) woodChipsEffect.Play();
 
-        // 6. 破片（瓦礫）をばら撒く演出
+        // 6. 破片をばら撒く演出
         if (debrisPrefab != null) SpawnDebris();
     }
 
-    // （省略：SpawnDebrisは変更なし）
     void SpawnDebris()
     {
         for (int i = 0; i < debrisCount; i++)

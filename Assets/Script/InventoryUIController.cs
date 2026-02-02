@@ -1,21 +1,19 @@
 using UnityEngine;
-using UnityEngine.Rendering.PostProcessing; // ★ここが変わりました！
+using UnityEngine.Rendering.PostProcessing;
 
 public class InventoryUIController : MonoBehaviour
 {
-    [Header("設定")]
-    [Tooltip("インベントリのパネル")]
+    [Header("InventoryのPanelを参照")]
     public GameObject inventoryPanel;
 
-    [Tooltip("プレイヤーコントローラー")]
+    [Tooltip("PlayerControllerを参照")]
     public PlayerController playerController;
 
-    [Tooltip("開閉キー")]
+    [Tooltip("Inventoryの開閉キー")]
     public KeyCode toggleKey = KeyCode.Tab;
 
-    [Header("ぼかし設定")]
-    [Tooltip("さっき作った InventoryBlurVolume をここに入れる")]
-    public PostProcessVolume blurVolume; // ★型が変わりました！
+    [Header("ぼかしのPostProcessVoluneを参照")]
+    public PostProcessVolume blurVolume;
 
     void Start()
     {

@@ -2,8 +2,8 @@ using UnityEngine;
 
 public class TrapSensor : MonoBehaviour
 {
-    [Tooltip("ここに TrapEventSystem をアタッチしたオブジェクトを入れる")]
-    public TrapEventSystem eventSystem; // ★ここが変わりました
+    [Header("TrapEventSystemをアタッチしたオブジェクトを参照")]
+    public TrapEventSystem eventSystem;
 
     // 一度だけ発動するためのフラグ
     private bool hasTriggered = false;
