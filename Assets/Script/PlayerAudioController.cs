@@ -1,4 +1,4 @@
-using UnityEngine;
+/*using UnityEngine;
 
 [RequireComponent(typeof(AudioSource))]
 public class PlayerAudioController : MonoBehaviour
@@ -129,4 +129,4 @@ public class PlayerAudioController : MonoBehaviour
             breathingAudioSource.volume = Mathf.Lerp(breathingAudioSource.volume, 0.0f, Time.deltaTime * audioFadeSpeed);
         }
     }
-}
+}*/

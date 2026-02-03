@@ -1,4 +1,4 @@
-using UnityEngine;
+/*using UnityEngine;
 using System.Collections.Generic;
 
 public class PlayerItemConnection : MonoBehaviour
@@ -278,4 +278,4 @@ public class PlayerItemConnection : MonoBehaviour
 
         cam.transform.localRotation = cameraSwingStartRot * Quaternion.Euler(angle, 0, 0);
     }
-}
+}*/
