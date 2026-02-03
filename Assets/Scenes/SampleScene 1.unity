@@ -37924,12 +37924,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d554d372f8cb50b4db6defca17e0c036, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  textureSize: 1024
+  textureSize: 512
   renderDistance: 8
   clipPlaneOffset: 0.05
   mirrorLayer:
     serializedVersion: 2
-    m_Bits: 1024
+    m_Bits: 0
   disablePixelLights: 1
 --- !u!65 &375335589
 BoxCollider:
@@ -127625,6 +127625,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   inventoryManager: {fileID: 1092730148}
+  itemConnection: {fileID: 0}
   slots:
   - {fileID: 780089641}
   - {fileID: 604215926}
@@ -187051,7 +187052,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 8
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!65 &1665083125
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -187155,7 +187156,7 @@ MonoBehaviour:
   clipPlaneOffset: 0.05
   mirrorLayer:
     serializedVersion: 2
-    m_Bits: 1024
+    m_Bits: 0
   disablePixelLights: 1
 --- !u!1001 &1665142556
 PrefabInstance:

@@ -6,6 +6,9 @@ public class InventoryManager : MonoBehaviour
     [Header("現在持っているアイテム")]
     public List<string> currentItems = new List<string>();
 
+    [Header("辞書")]
+    public Dictionary<string, string> itemTagDatabase = new Dictionary<string, string>();
+
     [Header("現在装備中のメインスロット番号")]
     public int equippedIndex = 0;
 
@@ -45,17 +48,21 @@ public class InventoryManager : MonoBehaviour
     // アイテムを拾う処理
     public void PickUpItem(GameObject itemObj)
     {
-        string itemName = itemObj.name.Replace("(Clone)", " ").Trim();
+        string cleanName = itemObj.name.Replace("(Clone)", "").Trim();
 
-        // まだ持っていなければリストに追加
-        if (!currentItems.Contains(itemName))
+        string tag = itemObj.tag;
+
+        currentItems.Add(cleanName);
+
+        if (!itemTagDatabase.ContainsKey(cleanName))
         {
-            currentItems.Add(itemName);
-            Debug.Log(itemName + " をインベントリに追加しました");
+            itemTagDatabase.Add(cleanName, tag);
         }
 
         // 見た目を消す
         Destroy(itemObj);
+
+        Debug.Log($"{cleanName} をインベントリに追加しました（タグ: {tag}）");
     }
 
     // アイテムを持っているか確認する処理（鍵などで使う）
@@ -131,6 +138,18 @@ public class InventoryManager : MonoBehaviour
     // アイテム名からプレハブのタグを習得する
     public string GetItemTag(string itemName)
     {
+        // 辞書（メモ帳）からタグを探して返す
+        if (itemTagDatabase.ContainsKey(itemName))
+        {
+            return itemTagDatabase[itemName];
+        }
+
+        // 見つからなかった場合（エラー回避）
+        return "Untagged";
+    }
+
+    /*public string GetItemTag(string itemName)
+    {
         foreach (var pair in itemPrefabs)
         {
             if (pair.itemName == itemName)
@@ -141,9 +160,18 @@ public class InventoryManager : MonoBehaviour
 
         Debug.LogWarning("タグが習得できませんでした：" + itemName);
         return null;
-    }
+    }*/
 
     public string GetEquippedItem()
+    {
+        if (currentItems.Count > 0 && equippedIndex < currentItems.Count)
+        {
+            return currentItems[equippedIndex];
+        }
+        return "";
+    }
+
+    /*public string GetEquippedItem()
     {
         // 範囲外チェック（アイテムを持っていない、または選択番号がおかしい時）
         if (currentItems.Count == 0 || equippedIndex >= currentItems.Count)
@@ -151,7 +179,7 @@ public class InventoryManager : MonoBehaviour
             return ""; // 何も持っていない
         }
         return currentItems[equippedIndex];
-    }
+    }*/
 
     public void SwapItems(int slotA, int slotB)
     {
