@@ -2,6 +2,8 @@
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using System.Collections.Generic;
+using System.Collections;
+using UnityEngine.UIElements;
 
 [RequireComponent(typeof(Rigidbody))]
 [RequireComponent(typeof(AudioSource))]
@@ -36,6 +38,8 @@ public class PlayerController : MonoBehaviour
     [Header("ポーズ画面関連")]
     [SerializeField] private GameObject pauseMenu;
     [SerializeField] private GameObject option;
+    [SerializeField] private UnityEngine.UI.Image backGround;
+    [SerializeField] private UnityEngine.UI.Image panel;
     private bool save;
 
     [Header("拾うUI")]
@@ -61,6 +65,9 @@ public class PlayerController : MonoBehaviour
 
     [Header("SortPictureスクリプト")]
     [SerializeField] SortPicture[] sortPictures;
+
+    [Header("BugSpawnerスクリプト")]
+    [SerializeField] BugSpawner bugSpawner;
 
     [Header("--- アイテムモデル設定 ---")]
     [Header("鍵モデル")]
@@ -234,8 +241,8 @@ public class PlayerController : MonoBehaviour
 
         if (isInventoryOpen)
         {
-            Cursor.lockState = CursorLockMode.None;
-            Cursor.visible = true;
+            UnityEngine.Cursor.lockState = CursorLockMode.None;
+            UnityEngine.Cursor.visible = true;
             return;
         }
 
@@ -243,8 +250,8 @@ public class PlayerController : MonoBehaviour
         {
             canControl = false;
             FadeOutAudio();
+            panelAlpha(90);
             pauseMenu.SetActive(true);
-            return;
         }
 
         if (canLock)
@@ -285,6 +292,11 @@ public class PlayerController : MonoBehaviour
         {
             Vector3 spawnPos = transform.position + transform.forward * decoySpawnDistance;
             Instantiate(decoy, spawnPos, Quaternion.identity);
+        }
+
+        if (Input.GetKeyDown(KeyCode.O))
+        {
+            bugSpawner.SpawnBugs();
         }
 
         if (Input.GetMouseButtonDown(0))
@@ -375,8 +387,8 @@ public class PlayerController : MonoBehaviour
     {
         if (Input.GetKeyDown(KeyCode.Escape)) cursorLock = false;
         else if (Input.GetMouseButton(0)) cursorLock = true;
-        if (cursorLock) { Cursor.lockState = CursorLockMode.Locked; Cursor.visible = false; }
-        else { Cursor.lockState = CursorLockMode.None; Cursor.visible = true; }
+        if (cursorLock) { UnityEngine.Cursor.lockState = CursorLockMode.Locked; UnityEngine.Cursor.visible = false; }
+        else { UnityEngine.Cursor.lockState = CursorLockMode.None; UnityEngine.Cursor.visible = true; }
     }
 
     public Quaternion ClampRotation(Quaternion q)
@@ -399,11 +411,42 @@ public class PlayerController : MonoBehaviour
         switch (command)
         {
             case "Title": if (save) SceneManager.LoadScene("TitleScene"); else Debug.Log("NoSave"); break;
-            case "Option": option.SetActive(true); pauseMenu.SetActive(false); break;
+            case "Option": option.SetActive(true); pauseMenu.SetActive(false); backGround.fillAmount = 0; break;
             case "Save": save = true; Debug.Log("SaveGame"); break;
-            case "Return": save = false; canControl = true; pauseMenu.SetActive(false); break;
+            case "Return": save = false; canControl = true; pauseMenu.SetActive(false); backGround.fillAmount = 0; panelAlpha(0); break;
             case "Pause": option.SetActive(false); pauseMenu.SetActive(true); break;
         }
+    }
+
+    public void backgroundTrue(float pos)
+    {
+        Debug.Log("backgroundTrue");
+        backGround.gameObject.transform.position = new Vector3(960, pos + 540, 0);
+        StartCoroutine(animBackGround());
+    }
+
+    public void backgroundFalse()
+    {
+        Debug.Log("backgroundFalse");
+        backGround.fillAmount = 0;
+    }
+
+    private IEnumerator animBackGround()
+    {
+        backGround.gameObject.SetActive(true);
+        backGround.fillAmount = 0;
+        while (backGround.fillAmount < 1f)
+        {
+            backGround.fillAmount += 5 * Time.deltaTime;
+            yield return null;
+        }
+    }
+
+    private void panelAlpha(float alpha)
+    {
+        Color c = panel.color;
+        c.a = alpha;
+        panel.color = c;
     }
 
     void CheckPickUp()
