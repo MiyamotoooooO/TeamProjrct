@@ -140,7 +140,6 @@ public class PlayerController : MonoBehaviour
     // 内部変数エリア
     // =================================================================
 
-    // カメラ制御用
     private Vector3 defaultCamPos;
     private float camBobTimer = 0f;
     Quaternion cameraRot, characterRot;
@@ -150,14 +149,12 @@ public class PlayerController : MonoBehaviour
     float minX = -90f, maxX = 90f;
     Rigidbody rb;
 
-    // アイテムモデル制御用
     private Vector3 KeyModelDefaultPos;
     private Vector3 itemModelDefaultPos;
     private Vector3 flashlightModelDefaultPos;
     private Vector3 lighterModelDefaultPos;
     private Quaternion defaultRot;
 
-    // アニメーション用
     private float itemBobTimer = 0f;
     private bool isSwinging = false;
     private float swingTimer = 0f;
@@ -166,6 +163,7 @@ public class PlayerController : MonoBehaviour
     private bool isCameraSwing = false;
     private float cameraSwingTimer = -2f;
     private Quaternion cameraSwingStartRot;
+
 
     // =================================================================
     // Unity イベント関数
@@ -182,7 +180,6 @@ public class PlayerController : MonoBehaviour
         if (inventoryManager == null)
             inventoryManager = FindAnyObjectByType<InventoryManager>();
 
-        // カメラ初期化
         if (cam != null)
         {
             cameraRot = cam.transform.localRotation;
@@ -190,9 +187,6 @@ public class PlayerController : MonoBehaviour
             defaultCamPos = cam.transform.localPosition;
         }
 
-        // ------------------------
-        // オーディオ初期化
-        // ------------------------
         if (footstepAudioSource == null)
             footstepAudioSource = GetComponent<AudioSource>();
 
@@ -210,9 +204,6 @@ public class PlayerController : MonoBehaviour
             breathingAudioSource.Play();
         }
 
-        // ------------------------
-        // アイテムモデル初期位置保存
-        // ------------------------
         if (KeyModel != null) KeyModelDefaultPos = KeyModel.transform.localPosition;
         if (ItemModel != null)
         {
@@ -221,6 +212,10 @@ public class PlayerController : MonoBehaviour
         }
         if (FlashlightModel != null) flashlightModelDefaultPos = FlashlightModel.transform.localPosition;
         if (LighterModel != null) lighterModelDefaultPos = LighterModel.transform.localPosition;
+
+        // ★修正ポイント：0.1秒待ってからモデルを表示する
+        // これにより、データの読み込み待ちによる表示ミスを防ぎます
+        Invoke(nameof(UpdateItemModel), 0.1f);
     }
 
     private void OnDisable()
@@ -231,14 +226,12 @@ public class PlayerController : MonoBehaviour
 
     private void Update()
     {
-        // 操作不能時の処理
         if (!canControl)
         {
             FadeOutAudio();
             return;
         }
 
-        // インベントリが開いている時
         if (isInventoryOpen)
         {
             Cursor.lockState = CursorLockMode.None;
@@ -246,7 +239,6 @@ public class PlayerController : MonoBehaviour
             return;
         }
 
-        // ポーズ処理
         if (Input.GetKeyDown(KeyCode.Escape))
         {
             canControl = false;
@@ -255,7 +247,6 @@ public class PlayerController : MonoBehaviour
             return;
         }
 
-        // カメラ回転
         if (canLock)
         {
             float xRot = Input.GetAxis("Mouse X") * Ysensityvity;
@@ -270,40 +261,32 @@ public class PlayerController : MonoBehaviour
         RotateCamera();
         UpdateCursorLock();
 
-        // アイテム操作
         if (!isInventoryOpen)
         {
-            CheckPickUp(); // アイテム拾い・石・絵画の判定
+            CheckPickUp();
             if (Input.GetKeyDown(KeyCode.Q)) DropCurrentItem();
         }
 
-        // 移動状態の計算
         bool isGrounded = Physics.Raycast(transform.position + Vector3.up * 0.1f, Vector3.down, groundCheckDistance);
         bool hasInput = (Input.GetAxisRaw("Horizontal") != 0 || Input.GetAxisRaw("Vertical") != 0);
         bool isMoving = isGrounded && hasInput;
         bool isRunning = Input.GetKey(KeyCode.R);
 
-        // オーディオ更新
         HandleFootsteps(isMoving, isRunning);
         HandleBreathing(isMoving, isRunning);
-
-        // カメラの揺れ（Head Bob）
         HandleCameraShake();
 
-        // アイテムの揺れとアニメーション
         UpdateItemBob(isMoving);
         UpdateKeySwing();
         UpdateItemSwing();
         UpdateCameraSwing();
 
-        // デコイ生成（デバッグ機能？）
         if (Input.GetKeyDown(KeyCode.G))
         {
             Vector3 spawnPos = transform.position + transform.forward * decoySpawnDistance;
             Instantiate(decoy, spawnPos, Quaternion.identity);
         }
 
-        // 攻撃・使用アクション
         if (Input.GetMouseButtonDown(0))
         {
             HandleAttackInput();
@@ -330,7 +313,7 @@ public class PlayerController : MonoBehaviour
     }
 
     // =================================================================
-    // 移動・カメラ制御メソッド
+    // 以下、変更なしのメソッド群
     // =================================================================
 
     void MoveCharacter()
@@ -423,10 +406,6 @@ public class PlayerController : MonoBehaviour
         }
     }
 
-    // =================================================================
-    // インタラクション（拾うなど）メソッド
-    // =================================================================
-
     void CheckPickUp()
     {
         if (isInventoryOpen) return;
@@ -488,10 +467,6 @@ public class PlayerController : MonoBehaviour
         }
         return false;
     }
-
-    // =================================================================
-    // オーディオ制御メソッド (旧 PlayerAudioController)
-    // =================================================================
 
     void HandleFootsteps(bool isMoving, bool isRunning)
     {
@@ -561,10 +536,6 @@ public class PlayerController : MonoBehaviour
         }
     }
 
-    // =================================================================
-    // アイテムモデル・アニメーション制御メソッド (旧 PlayerItemConnection)
-    // =================================================================
-
     public void DropCurrentItem()
     {
         if (inventoryManager == null || inventoryManager.currentItems.Count == 0) return;
@@ -576,8 +547,10 @@ public class PlayerController : MonoBehaviour
         UpdateItemModel();
     }
 
+    // ★重要：モデルの表示更新処理
     public void UpdateItemModel()
     {
+        // 一旦全部消す
         if (KeyModel != null) KeyModel.SetActive(false);
         if (ItemModel != null) ItemModel.SetActive(false);
         if (FlashlightModel != null) FlashlightModel.SetActive(false);
@@ -586,18 +559,13 @@ public class PlayerController : MonoBehaviour
         if (inventoryManager == null || inventoryManager.currentItems.Count == 0) return;
 
         int targetIndex = inventoryManager.equippedIndex;
+        if (targetIndex >= inventoryManager.currentItems.Count) targetIndex = 0;
 
-        // 安全策：もし装備番号が、持っている数より大きかったら0に戻す（念のため）
-        if (targetIndex >= inventoryManager.currentItems.Count)
-        {
-            targetIndex = 0;
-        }
-
-        // アイテム情報の取得
         string itemName = inventoryManager.currentItems[targetIndex];
         string tag = inventoryManager.GetItemTag(itemName);
 
-        // タグでモデルを切り替える
+        Debug.Log($"[モデル更新] アイテム: {itemName}, タグ: {tag}");
+
         switch (tag)
         {
             case "Key":
@@ -616,54 +584,10 @@ public class PlayerController : MonoBehaviour
                 if (ItemModel != null) ItemModel.SetActive(true);
                 break;
             default:
-                // ここに来ていたら「タグの設定ミス」か「名前が合っていない」
-                Debug.LogWarning($"【注意】タグ '{tag}' に対応するモデルが見つかりませんでした。表示されません。");
-
-                // 救済措置：タグ判定に失敗しても、名前で無理やり表示させる（必要ならコメントアウトを外す）
-                // if (itemName.Contains("Lighter") && LighterModel != null) LighterModel.SetActive(true);
+                Debug.LogWarning($"【注意】タグ '{tag}' に対応するモデルが見つかりませんでした。");
                 break;
         }
     }
-
-    /*public void UpdateItemModel()
-    {
-        // 1. 初期化：一旦すべて非表示にする
-        if (KeyModel != null) KeyModel.SetActive(false);
-        if (ItemModel != null) ItemModel.SetActive(false);
-        if (FlashlightModel != null) FlashlightModel.SetActive(false);
-        if (LighterModel != null) LighterModel.SetActive(false);
-
-        // インベントリが空なら終了
-        if (inventoryManager == null || inventoryManager.currentItems.Count == 0) return;
-
-        // アイテム情報の取得
-        string firstItem = inventoryManager.currentItems[0];
-        string tag = inventoryManager.GetItemTag(firstItem);
-
-        // タグでモデルを切り替える
-        switch (tag)
-        {
-            case "Key":
-                if (KeyModel != null) KeyModel.SetActive(true);
-                break;
-            case "Crowbar":
-                if (ItemModel != null) ItemModel.SetActive(true);
-                break;
-            case "Flashlight":
-                if (FlashlightModel != null) FlashlightModel.SetActive(true);
-                break;
-            case "Lighter":
-                if (LighterModel != null) LighterModel.SetActive(true);
-                break;
-            case "Item":
-                if (ItemModel != null) ItemModel.SetActive(true);
-                break;
-            default:
-                if (tag == "Lighter" && LighterModel != null) LighterModel.SetActive(true);
-                else Debug.LogWarning($"未対応のタグです: {tag}");
-                break;
-        }
-    }*/
 
     void UpdateItemBob(bool isMoving)
     {
@@ -680,12 +604,10 @@ public class PlayerController : MonoBehaviour
         }
         else
         {
-            // 元の位置に戻す補間
             if (KeyModel != null && KeyModel.activeSelf) KeyModel.transform.localPosition = Vector3.Lerp(KeyModel.transform.localPosition, KeyModelDefaultPos, Time.deltaTime * 10f);
             if (ItemModel != null && ItemModel.activeSelf) ItemModel.transform.localPosition = Vector3.Lerp(ItemModel.transform.localPosition, itemModelDefaultPos, Time.deltaTime * 10f);
             if (FlashlightModel != null && FlashlightModel.activeSelf) FlashlightModel.transform.localPosition = Vector3.Lerp(FlashlightModel.transform.localPosition, flashlightModelDefaultPos, Time.deltaTime * 10f);
             if (LighterModel != null && LighterModel.activeSelf) LighterModel.transform.localPosition = Vector3.Lerp(LighterModel.transform.localPosition, lighterModelDefaultPos, Time.deltaTime * 10f);
-
             itemBobTimer = 0f;
         }
     }
@@ -705,7 +627,6 @@ public class PlayerController : MonoBehaviour
             if (KeyModel != null && KeyModel.activeSelf) KeyModel.transform.localPosition = KeyModelDefaultPos;
             if (ItemModel != null && ItemModel.activeSelf) ItemModel.transform.localPosition = itemModelDefaultPos;
 
-            // 鍵を使用した際のアイテム消費
             if (KeyModel != null && KeyModel.activeSelf)
             {
                 KeyModel.SetActive(false);

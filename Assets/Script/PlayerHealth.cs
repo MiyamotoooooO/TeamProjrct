@@ -2,7 +2,11 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.AI;
+using UnityEngine.UI;
+using UnityEngine.Video;
+using UnityEngine.SceneManagement;
 
+[RequireComponent(typeof(AudioSource))] 
 public class PlayerHealth : MonoBehaviour
 {
     bool isDead = false;
@@ -17,23 +21,46 @@ public class PlayerHealth : MonoBehaviour
     public LighterSystem lighterSystem;
     public FlashlightSystem flashlightSystem;
 
+    [Header("砂嵐エフェクト")]
+    [Tooltip("砂嵐を表示するUIオブジェクト")]
+    public GameObject sandStormUI;
+    [Tooltip("砂嵐の音")]
+    public AudioClip sandStormSound;
+
     [Header("死亡演出の設定")]
-    [Tooltip("倒れる前にふらふらする時間（秒）")]
-    public float wobbleDuration = 3.0f; // 少し長くしました
+    [Tooltip("死亡してからリスポーンするまでの時間（秒）")]
+    public float timeToRespawn = 4.0f; // 4秒後にリスポーン
+
     [Tooltip("ふらつきの激しさ（全体）")]
     public float wobbleIntensity = 15.0f;
     [Tooltip("ふらつきの回転スピード")]
     public float wobbleSpeed = 2.0f;
-    [Tooltip("★Z軸（視界の傾き）の揺れ幅")]
-    public float zAxisWobbleAmount = 30.0f; // 大きく傾くように設定
+    [Tooltip("Z軸（視界の傾き）の揺れ幅")]
+    public float zAxisWobbleAmount = 30.0f;
 
     private Rigidbody rb;
+    private VideoPlayer sandStormPlayer;
+    private AudioSource audioSource; // 音を鳴らすコンポーネント
 
     void Start()
     {
         rb = GetComponent<Rigidbody>();
+        audioSource = GetComponent<AudioSource>(); // AudioSource取得
+
         if (playerCamera == null)
             playerCamera = GetComponentInChildren<Camera>();
+
+        // ゲーム開始時、砂嵐UIがあれば非表示にする
+        if (sandStormUI != null)
+        {
+            sandStormPlayer = sandStormUI.GetComponent<VideoPlayer>();
+
+            if (sandStormPlayer != null)
+            {
+                sandStormPlayer.Stop();
+            }
+            sandStormUI.SetActive(false);
+        }
     }
 
     public void Die()
@@ -43,12 +70,29 @@ public class PlayerHealth : MonoBehaviour
 
         Debug.Log("プレイヤー死亡");
 
-        // 移動操作をオフ
         if (playerMovementScript != null)
             playerMovementScript.enabled = false;
 
         if (lighterSystem != null) lighterSystem.canUseLighter = false;
         //if (flashlightSystem != null) flashlightSystem.canUseFlashlight = false;
+
+        // --- 砂嵐と音の再生 ---
+        if (sandStormUI != null)
+        {
+            sandStormUI.SetActive(true);
+
+            if (sandStormPlayer != null)
+            {
+                sandStormPlayer.time = 0;
+                sandStormPlayer.Play();
+            }
+        }
+
+        // 音を鳴らす
+        if (sandStormSound != null && audioSource != null)
+        {
+            audioSource.PlayOneShot(sandStormSound);
+        }
 
         StopAllEnemies();
         StartCoroutine(DeathSequence());
@@ -87,57 +131,33 @@ public class PlayerHealth : MonoBehaviour
 
     IEnumerator DeathSequence()
     {
-        // --- ① ふらふら演出（XYZすべて揺らす） ---
         float timer = 0;
         Quaternion startRot = playerCamera.transform.localRotation;
 
-        while (timer < wobbleDuration)
+        // 指定時間（4秒間）、ふらふらしながら待機
+        while (timer < timeToRespawn)
         {
             timer += Time.deltaTime;
-            float progress = timer / wobbleDuration;
 
-            // 時間とともに揺れを激しくする (0.5倍 〜 1.5倍)
+            // 進行度 (0.0 ～ 1.0)
+            float progress = timer / timeToRespawn;
+
+            // 時間とともに揺れを激しくする
             float currentIntensity = Mathf.Lerp(wobbleIntensity * 0.5f, wobbleIntensity * 1.5f, progress);
 
-            // 複雑な揺れを作るための計算
-            // X軸（上下）：ゆっくり見上げる・見下ろす動き
             float x = Mathf.Sin(timer * wobbleSpeed) * currentIntensity;
-
-            // Y軸（左右）：キョロキョロする動き（ランダム要素強め）
             float y = (Mathf.PerlinNoise(timer * 0.5f, 0) - 0.5f) * currentIntensity * 2.0f;
-
-            // ★Z軸（傾き）：船酔いのように大きくグワングワンさせる
-            // Sin波を使って、左右に大きく傾ける
             float z = Mathf.Sin(timer * wobbleSpeed * 0.8f) * zAxisWobbleAmount * progress;
-            // ※ progressを掛けることで、最初は小さく、死ぬ直前に大きく傾くようにしています
 
-            // 回転を適用
             playerCamera.transform.localRotation = startRot * Quaternion.Euler(x, y, z);
 
             yield return null;
         }
 
-        // --- ② 物理演算で倒れる ---
-        rb.constraints = RigidbodyConstraints.None; // 回転ロック解除
-
-        // 倒れる力を加える（今回はランダムな方向に）
-        Vector3 fallDirection = new Vector3(Random.Range(-1f, 1f), 0, Random.Range(-1f, 1f)).normalized;
-        rb.AddForce(fallDirection * 2.0f, ForceMode.Impulse);
-
-        // 回転力も加えて、バタリと倒れやすくする
-        rb.AddTorque(transform.right * Random.Range(-50f, 50f), ForceMode.Impulse);
-        rb.AddTorque(transform.forward * Random.Range(-50f, 50f), ForceMode.Impulse); // Z軸回転も加える
-
-        // --- ③ 地面に着くまで待機 ---
-        yield return new WaitForSeconds(3.0f);
-
-        // --- ④ 死体固定 ---
-        rb.velocity = Vector3.zero;
-        rb.angularVelocity = Vector3.zero;
-        rb.isKinematic = true;
-
-        Cursor.lockState = CursorLockMode.None;
-        Cursor.visible = true;
+        // --- リスポーン処理 ---
+        // 現在のシーンを再読み込みする
+        string currentSceneName = SceneManager.GetActiveScene().name;
+        SceneManager.LoadScene(currentSceneName);
     }
 }
 

@@ -6,16 +6,23 @@ public class InventoryManager : MonoBehaviour
     [Header("現在持っているアイテム")]
     public List<string> currentItems = new List<string>();
 
-    [Header("辞書")]
+    [Header("辞書（タグ検索用キャッシュ）")]
     public Dictionary<string, string> itemTagDatabase = new Dictionary<string, string>();
 
     [Header("現在装備中のメインスロット番号")]
     public int equippedIndex = 0;
 
     [Header("参照")]
-    public SaveManager saveManager; // セーブマネージャーへの参照
+    public SaveManager saveManager;
 
-    [HeaderAttribute("アイテム名とプレハブの対応表")]
+    [System.Serializable]
+    public class ItemPrefabPair
+    {
+        public string itemName;
+        public GameObject prefab;
+    }
+
+    [Header("★重要：ここにアイテム名とプレハブを登録してください")]
     public List<ItemPrefabPair> itemPrefabs = new List<ItemPrefabPair>();
 
     [System.Serializable]
@@ -25,72 +32,74 @@ public class InventoryManager : MonoBehaviour
         public Sprite icon;
     }
 
-    [Header("アイテムデータ一覧")]
+    [Header("アイテムデータ一覧（アイコン用）")]
     public List<ItemData> itemDataList = new List<ItemData>();
+
+    // 初期化：シーン開始時に辞書を再構築する試み
+    private void Start()
+    {
+        // もしすでにアイテムを持っているなら、念のためタグ情報を復元しておく
+        foreach (var item in currentItems)
+        {
+            GetItemTag(item); // 呼ぶだけで辞書に登録される
+        }
+    }
 
     public Sprite GetItemIcon(string itemName)
     {
         foreach (var data in itemDataList)
         {
-            if (data.itemName == itemName)
+            // 部分一致検索でヒットしやすくする
+            if (itemName.Contains(data.itemName) || data.itemName.Contains(itemName))
                 return data.icon;
         }
         return null;
-    }
-
-    [System.Serializable]
-    public class ItemPrefabPair
-    {
-        public string itemName;
-        public GameObject prefab;
     }
 
     // アイテムを拾う処理
     public void PickUpItem(GameObject itemObj)
     {
         string cleanName = itemObj.name.Replace("(Clone)", "").Trim();
-
         string tag = itemObj.tag;
 
         currentItems.Add(cleanName);
 
+        // 辞書に追加
         if (!itemTagDatabase.ContainsKey(cleanName))
         {
             itemTagDatabase.Add(cleanName, tag);
         }
 
-        // 見た目を消す
         Destroy(itemObj);
 
         Debug.Log($"{cleanName} をインベントリに追加しました（タグ: {tag}）");
     }
 
-    // アイテムを持っているか確認する処理（鍵などで使う）
     public bool HasItem(string itemName)
     {
         return currentItems.Contains(itemName);
     }
 
-    // SaveManagerから呼ばれる：セーブするデータを渡す
     public List<string> GetItemDataForSave()
     {
         return currentItems;
     }
 
-    // SaveManagerから呼ばれる：ロードしたデータを反映する
     public void LoadItemData(List<string> loadedItems)
     {
         currentItems = loadedItems;
-
-        // シーン上の全アイテムを確認し、すでに持っているものは消す
         ReflectInventoryToScene();
+
+        // ★重要：ロードした直後もタグ情報を復元する
+        itemTagDatabase.Clear();
+        foreach (var item in currentItems)
+        {
+            GetItemTag(item);
+        }
     }
 
-    // 持っているアイテムをシーン上で非表示にする処理
-    // （ロードした時に、すでに取ったアイテムが復活しないようにする）
     private void ReflectInventoryToScene()
     {
-
         foreach (string itemName in currentItems)
         {
             GameObject obj = GameObject.Find(itemName);
@@ -101,7 +110,6 @@ public class InventoryManager : MonoBehaviour
         }
     }
 
-    // アイテムを削除する処理
     public void RemoveItem(string itemName)
     {
         if (currentItems.Contains(itemName))
@@ -111,22 +119,17 @@ public class InventoryManager : MonoBehaviour
         }
     }
 
-    // アイテムのドロップ処理
     public GameObject DropItem(string itemName, Vector3 position)
     {
-        // インベントリに無ければ何もしない
         if (!currentItems.Contains(itemName))
             return null;
 
-        // インベントリから削除
         currentItems.Remove(itemName);
 
-        // 対応するプレハブを探す
         foreach (var pair in itemPrefabs)
         {
-            if (pair.itemName == itemName)
+            if (pair.itemName == itemName || itemName.Contains(pair.itemName))
             {
-                // プレハブを生成して返す
                 return Instantiate(pair.prefab, position, Quaternion.identity);
             }
         }
@@ -135,32 +138,37 @@ public class InventoryManager : MonoBehaviour
         return null;
     }
 
-    // アイテム名からプレハブのタグを習得する
+    // ★★★ 一番重要な修正箇所 ★★★
+    // アイテム名からタグを取得する（リスポーン対応版）
     public string GetItemTag(string itemName)
     {
-        // 辞書（メモ帳）からタグを探して返す
+        // 1. まず辞書（キャッシュ）を探す
         if (itemTagDatabase.ContainsKey(itemName))
         {
             return itemTagDatabase[itemName];
         }
 
-        // 見つからなかった場合（エラー回避）
-        return "Untagged";
-    }
-
-    /*public string GetItemTag(string itemName)
-    {
+        // 2. 辞書にない場合（リスポーン直後など）、登録リストから探す！
+        // ※これが「リスポーン後にモデルが出ない」を直す特効薬です
         foreach (var pair in itemPrefabs)
         {
-            if (pair.itemName == itemName)
+            // 名前が一致するかチェック（(Clone)対策で部分一致も考慮）
+            if (pair.itemName == itemName || itemName.Contains(pair.itemName))
             {
-                return pair.prefab.tag;
+                // プレハブについているタグを取得
+                string tagFromPrefab = pair.prefab.tag;
+
+                // 次回から早く見つかるように辞書に登録しておく
+                itemTagDatabase.Add(itemName, tagFromPrefab);
+
+                return tagFromPrefab;
             }
         }
 
-        Debug.LogWarning("タグが習得できませんでした：" + itemName);
-        return null;
-    }*/
+        // 3. それでも見つからない場合
+        Debug.LogWarning($"アイテム '{itemName}' のタグが見つかりません。InspectorのItem Prefabsリストに登録されていますか？");
+        return "Untagged";
+    }
 
     public string GetEquippedItem()
     {
@@ -171,43 +179,13 @@ public class InventoryManager : MonoBehaviour
         return "";
     }
 
-    /*public string GetEquippedItem()
-    {
-        // 範囲外チェック（アイテムを持っていない、または選択番号がおかしい時）
-        if (currentItems.Count == 0 || equippedIndex >= currentItems.Count)
-        {
-            return ""; // 何も持っていない
-        }
-        return currentItems[equippedIndex];
-    }*/
-
     public void SwapItems(int slotA, int slotB)
     {
-        // 両方のスロットにアイテムがある場合のみ入れ替え可能
-        // (空のスロットと入れ替えるのは、リストの構造上難しいため今回は除外します)
         if (slotA < currentItems.Count && slotB < currentItems.Count)
         {
             string temp = currentItems[slotA];
             currentItems[slotA] = currentItems[slotB];
             currentItems[slotB] = temp;
-
-            Debug.Log($"アイテムを入れ替えました: {currentItems[slotA]} <-> {currentItems[slotB]}");
         }
     }
-
-    // アイテム名からプレハブのレイヤーを取得する
-    //public int GetItemLayer(string itemName)
-    //{
-    //    foreach (var pair in itemPrefabs)
-    //    {
-    //        if (pair.itemName == itemName)
-    //        {
-    //            return pair.prefab.layer;
-    //        }
-    //    }
-
-    //    Debug.LogWarning("レイヤーが取得できませんでした：" + itemName);
-    //    return -1;
-    //}
 }
-
