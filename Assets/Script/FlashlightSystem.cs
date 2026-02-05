@@ -69,7 +69,7 @@ public class FlashlightSystem : MonoBehaviour
     {
         if (inventoryManager != null)
         {
-            // メイン枠のアイテム名を取得
+           // メイン枠のアイテム名を取得
             string equipped = inventoryManager.GetEquippedItem();
 
             // 名前が含まれているかチェック

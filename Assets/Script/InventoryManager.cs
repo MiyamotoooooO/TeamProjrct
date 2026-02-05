@@ -1,191 +1,285 @@
-using System.Collections.Generic;
+ï»¿using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
+using TMPro;
 
 public class InventoryManager : MonoBehaviour
 {
-    [Header("Œ»İ‚Á‚Ä‚¢‚éƒAƒCƒeƒ€")]
+    [Header("ã‚¤ãƒ³ãƒ™ãƒ³ãƒˆãƒªè¨­å®š")]
+    public int maxSlots = 12;
+    public int backpackColumns = 3;
+
+    [Header("ã‚¢ã‚¤ãƒ†ãƒ ãƒ‡ãƒ¼ã‚¿")]
     public List<string> currentItems = new List<string>();
-
-    [Header("«‘iƒ^ƒOŒŸõ—pƒLƒƒƒbƒVƒ…j")]
     public Dictionary<string, string> itemTagDatabase = new Dictionary<string, string>();
-
-    [Header("Œ»İ‘•”õ’†‚ÌƒƒCƒ“ƒXƒƒbƒg”Ô†")]
     public int equippedIndex = 0;
 
-    [Header("QÆ")]
+    [Header("å‚ç…§")]
     public SaveManager saveManager;
+    public PlayerController playerController;
 
     [System.Serializable]
-    public class ItemPrefabPair
-    {
-        public string itemName;
-        public GameObject prefab;
-    }
-
-    [Header("šd—vF‚±‚±‚ÉƒAƒCƒeƒ€–¼‚ÆƒvƒŒƒnƒu‚ğ“o˜^‚µ‚Ä‚­‚¾‚³‚¢")]
+    public class ItemPrefabPair { public string itemName; public GameObject prefab; }
     public List<ItemPrefabPair> itemPrefabs = new List<ItemPrefabPair>();
 
     [System.Serializable]
-    public class ItemData
-    {
-        public string itemName;
-        public Sprite icon;
-    }
-
-    [Header("ƒAƒCƒeƒ€ƒf[ƒ^ˆê——iƒAƒCƒRƒ“—pj")]
+    public class ItemData { public string itemName; public Sprite icon; }
     public List<ItemData> itemDataList = new List<ItemData>();
 
-    // ‰Šú‰»FƒV[ƒ“ŠJn‚É«‘‚ğÄ\’z‚·‚é‚İ
+    // -----------------------------------------------------------
+    // â˜…ã“ã“ãŒå¤‰ã‚ã‚Šã¾ã—ãŸï¼
+    // -----------------------------------------------------------
+    [Header("UIå‚ç…§ï¼šã‚¤ãƒ³ãƒ™ãƒ³ãƒˆãƒªç”»é¢ï¼ˆãƒ¡ãƒ‹ãƒ¥ãƒ¼å†…ï¼‰")]
+    [Tooltip("InventoryUIå†…ã®å…¨ã‚¹ãƒ­ãƒƒãƒˆï¼ˆMain1,2,3 -> Backpack1~9 ã®é †ï¼‰")]
+    public InventorySlot[] allSlots;
+
+    [Header("UIå‚ç…§ï¼šã‚²ãƒ¼ãƒ ç”»é¢ï¼ˆHUDï¼‰")]
+    [Tooltip("ã‚²ãƒ¼ãƒ ç”»é¢ã«å¸¸æ™‚è¡¨ç¤ºã™ã‚‹ãƒ›ãƒƒãƒˆãƒãƒ¼ã®ã‚¢ã‚¤ã‚³ãƒ³ç”»åƒï¼ˆä¸Šã‹ã‚‰1,2,3ã®é †ï¼‰")]
+    public Image[] hudHotbarIcons;
+
+    [Tooltip("ã‚²ãƒ¼ãƒ ç”»é¢ã«å¸¸æ™‚è¡¨ç¤ºã™ã‚‹ãƒ›ãƒƒãƒˆãƒãƒ¼ã®é¸æŠæ ï¼ˆä¸Šã‹ã‚‰1,2,3ã®é †ï¼‰")]
+    public Image[] hudHotbarFrames;
+
+    [Header("UIå‚ç…§ï¼šã‚«ãƒ¼ã‚½ãƒ«ãƒ»æ¼”å‡º")]
+    public RectTransform cursorRect;
+    public GameObject swapPromptPanel;
+
+    [Header("HUDé€æ˜åº¦è¨­å®š")]
+    [Range(0, 255)] public float selectedAlpha = 255f; // é¸æŠä¸­ã¯ãã£ãã‚Š
+    [Range(0, 255)] public float unselectedAlpha = 100f; // éé¸æŠã¯è–„ã
+
+    // å†…éƒ¨å¤‰æ•°
+    private int currentCursorIndex = 3;
+    private bool isSwapMode = false;
+
     private void Start()
     {
-        // ‚à‚µ‚·‚Å‚ÉƒAƒCƒeƒ€‚ğ‚Á‚Ä‚¢‚é‚È‚çA”O‚Ì‚½‚ßƒ^ƒOî•ñ‚ğ•œŒ³‚µ‚Ä‚¨‚­
-        foreach (var item in currentItems)
-        {
-            GetItemTag(item); // ŒÄ‚Ô‚¾‚¯‚Å«‘‚É“o˜^‚³‚ê‚é
-        }
+        if (playerController == null) playerController = FindAnyObjectByType<PlayerController>();
+
+        while (currentItems.Count < maxSlots) currentItems.Add("");
+
+        InitializeInventorySlots();
+
+        UpdateInventoryUI();       // ã‚¤ãƒ³ãƒ™ãƒ³ãƒˆãƒªç”»é¢ã®æ›´æ–°
+        UpdateHUDSlotSelection();  // ã‚²ãƒ¼ãƒ ç”»é¢ã®æ è‰²æ›´æ–°
+        UpdateCursorPosition();
+
+        if (swapPromptPanel != null) swapPromptPanel.SetActive(false);
     }
 
-    public Sprite GetItemIcon(string itemName)
+    private void Update()
     {
-        foreach (var data in itemDataList)
+        if (playerController != null && !playerController.isInventoryOpen)
         {
-            // •”•ªˆê’vŒŸõ‚Åƒqƒbƒg‚µ‚â‚·‚­‚·‚é
-            if (itemName.Contains(data.itemName) || data.itemName.Contains(itemName))
-                return data.icon;
-        }
-        return null;
-    }
-
-    // ƒAƒCƒeƒ€‚ğE‚¤ˆ—
-    public void PickUpItem(GameObject itemObj)
-    {
-        string cleanName = itemObj.name.Replace("(Clone)", "").Trim();
-        string tag = itemObj.tag;
-
-        currentItems.Add(cleanName);
-
-        // «‘‚É’Ç‰Á
-        if (!itemTagDatabase.ContainsKey(cleanName))
-        {
-            itemTagDatabase.Add(cleanName, tag);
+            // â˜…ã‚¤ãƒ³ãƒ™ãƒ³ãƒˆãƒªãŒé–‰ã˜ã¦ã„ã¦ã‚‚ã€1,2,3ã‚­ãƒ¼ã§æ­¦å™¨åˆ‡æ›¿ã¯ã§ãã‚‹ã‚ˆã†ã«ã™ã‚‹ãªã‚‰ã‚³ã‚³ã§å‡¦ç†
+            // ï¼ˆã‚‚ã—ã‚¤ãƒ³ãƒ™ãƒ³ãƒˆãƒªã‚’é–‹ã„ã¦ã„ã‚‹æ™‚ã ã‘åˆ‡ã‚Šæ›¿ãˆãŸã„ãªã‚‰ã€ã“ã®ãƒ–ãƒ­ãƒƒã‚¯ã®ä¸‹ã«ç§»å‹•ã—ã¦ãã ã•ã„ï¼‰
+            HandleWeaponSwitchInput();
+            return;
         }
 
-        Destroy(itemObj);
-
-        Debug.Log($"{cleanName} ‚ğƒCƒ“ƒxƒ“ƒgƒŠ‚É’Ç‰Á‚µ‚Ü‚µ‚½iƒ^ƒO: {tag}j");
-    }
-
-    public bool HasItem(string itemName)
-    {
-        return currentItems.Contains(itemName);
-    }
-
-    public List<string> GetItemDataForSave()
-    {
-        return currentItems;
-    }
-
-    public void LoadItemData(List<string> loadedItems)
-    {
-        currentItems = loadedItems;
-        ReflectInventoryToScene();
-
-        // šd—vFƒ[ƒh‚µ‚½’¼Œã‚àƒ^ƒOî•ñ‚ğ•œŒ³‚·‚é
-        itemTagDatabase.Clear();
-        foreach (var item in currentItems)
+        if (isSwapMode)
         {
-            GetItemTag(item);
+            HandleSwapInput();
+            return;
         }
-    }
 
-    private void ReflectInventoryToScene()
-    {
-        foreach (string itemName in currentItems)
+        // --- ã‚¤ãƒ³ãƒ™ãƒ³ãƒˆãƒªæ“ä½œä¸­ ---
+
+        HandleCursorMovement();
+        HandleWeaponSwitchInput(); // ã‚¤ãƒ³ãƒ™ãƒ³ãƒˆãƒªã‚’é–‹ã„ã¦ã„ã‚‹æ™‚ã‚‚åˆ‡ã‚Šæ›¿ãˆå¯èƒ½
+
+        if (Input.GetKeyDown(KeyCode.Space))
         {
-            GameObject obj = GameObject.Find(itemName);
-            if (obj != null)
+            if (currentCursorIndex < currentItems.Count && !string.IsNullOrEmpty(currentItems[currentCursorIndex]))
             {
-                obj.SetActive(false);
+                isSwapMode = true;
+                if (swapPromptPanel != null) swapPromptPanel.SetActive(true);
+                if (playerController != null) playerController.SetBlurState(true);
             }
         }
     }
 
-    public void RemoveItem(string itemName)
+    // æ­¦å™¨åˆ‡ã‚Šæ›¿ãˆå…¥åŠ›ï¼ˆå…±é€šåŒ–ï¼‰
+    void HandleWeaponSwitchInput()
     {
-        if (currentItems.Contains(itemName))
+        if (Input.GetKeyDown(KeyCode.Alpha1)) ChangeSelectedSlot(0);
+        if (Input.GetKeyDown(KeyCode.Alpha2)) ChangeSelectedSlot(1);
+        if (Input.GetKeyDown(KeyCode.Alpha3)) ChangeSelectedSlot(2);
+    }
+
+    // --- ã‚«ãƒ¼ã‚½ãƒ«ç§»å‹• ---
+    void HandleCursorMovement()
+    {
+        int prevIndex = currentCursorIndex;
+
+        if (Input.GetKeyDown(KeyCode.W)) { if (currentCursorIndex >= 6) currentCursorIndex -= backpackColumns; }
+        if (Input.GetKeyDown(KeyCode.S)) { if (currentCursorIndex <= 8) currentCursorIndex += backpackColumns; }
+        if (Input.GetKeyDown(KeyCode.A)) { if (currentCursorIndex % backpackColumns != 0) currentCursorIndex -= 1; }
+        if (Input.GetKeyDown(KeyCode.D)) { if ((currentCursorIndex + 1) % backpackColumns != 0) currentCursorIndex += 1; }
+
+        if (prevIndex != currentCursorIndex) UpdateCursorPosition();
+    }
+
+    // --- å…¥ã‚Œæ›¿ãˆé¸æŠ ---
+    void HandleSwapInput()
+    {
+        int targetSlot = -1;
+        if (Input.GetKeyDown(KeyCode.Alpha1)) targetSlot = 0;
+        if (Input.GetKeyDown(KeyCode.Alpha2)) targetSlot = 1;
+        if (Input.GetKeyDown(KeyCode.Alpha3)) targetSlot = 2;
+
+        if (Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.Escape)) { EndSwapMode(); return; }
+
+        if (targetSlot != -1)
         {
-            currentItems.Remove(itemName);
-            Debug.Log(itemName + "‚ğƒCƒ“ƒxƒ“ƒgƒŠ‚©‚çíœ‚µ‚Ü‚µ‚½");
+            SwapItems(currentCursorIndex, targetSlot);
+            EndSwapMode();
+        }
+    }
+
+    void EndSwapMode()
+    {
+        isSwapMode = false;
+        if (swapPromptPanel != null) swapPromptPanel.SetActive(false);
+    }
+
+    // --- UIæ›´æ–°é–¢é€£ ---
+
+    void UpdateCursorPosition()
+    {
+        if (cursorRect == null || allSlots == null || currentCursorIndex >= allSlots.Length) return;
+        cursorRect.position = allSlots[currentCursorIndex].transform.position;
+    }
+
+    // â˜…ã‚²ãƒ¼ãƒ ç”»é¢ï¼ˆHUDï¼‰ã®é¸æŠæ ã®è‰²ã ã‘ã‚’å¤‰ãˆã‚‹
+    void UpdateHUDSlotSelection()
+    {
+        if (hudHotbarFrames == null) return;
+
+        for (int i = 0; i < hudHotbarFrames.Length; i++)
+        {
+            if (hudHotbarFrames[i] == null) continue;
+
+            Color c = hudHotbarFrames[i].color;
+            // è£…å‚™ä¸­ã®ç•ªå·ãªã‚‰æ˜ã‚‹ã(selectedAlpha)ã€ãã‚Œä»¥å¤–ã¯æš—ã(unselectedAlpha)
+            float alpha = (i == equippedIndex) ? selectedAlpha : unselectedAlpha;
+            c.a = alpha / 255f;
+            hudHotbarFrames[i].color = c;
+        }
+    }
+
+    public void SwapItems(int indexA, int indexB)
+    {
+        if (indexA < 0 || indexA >= currentItems.Count || indexB < 0 || indexB >= currentItems.Count) return;
+
+        string temp = currentItems[indexA];
+        currentItems[indexA] = currentItems[indexB];
+        currentItems[indexB] = temp;
+
+        UpdateInventoryUI();
+        if (playerController != null) playerController.UpdateItemModel();
+    }
+
+    private void InitializeInventorySlots()
+    {
+        if (allSlots == null) return;
+        for (int i = 0; i < allSlots.Length; i++)
+        {
+            allSlots[i].slotIndex = i;
+            allSlots[i].manager = this;
+        }
+    }
+
+    // â˜…ã‚¤ãƒ³ãƒ™ãƒ³ãƒˆãƒªç”»é¢ã¨HUDç”»é¢ã®ä¸¡æ–¹ã‚’æ›´æ–°ã™ã‚‹
+    public void UpdateInventoryUI()
+    {
+        // 1. ã‚¤ãƒ³ãƒ™ãƒ³ãƒˆãƒªç”»é¢ï¼ˆãƒ¡ãƒ‹ãƒ¥ãƒ¼ï¼‰ã®æ›´æ–°
+        if (allSlots != null)
+        {
+            for (int i = 0; i < allSlots.Length; i++)
+            {
+                if (i < currentItems.Count && !string.IsNullOrEmpty(currentItems[i]))
+                    allSlots[i].SetItem(GetItemIcon(currentItems[i]));
+                else
+                    allSlots[i].ClearSlot();
+            }
+        }
+
+        // 2. ã‚²ãƒ¼ãƒ ç”»é¢ï¼ˆHUDï¼‰ã®æ›´æ–°ï¼ˆMainSlot 0,1,2 ã®ã¿åŒæœŸï¼‰
+        if (hudHotbarIcons != null)
+        {
+            for (int i = 0; i < hudHotbarIcons.Length; i++) // 0, 1, 2
+            {
+                // ãƒªã‚¹ãƒˆã®ç¯„å›²å¤–ãªã‚‰ã‚¹ã‚­ãƒƒãƒ—
+                if (i >= currentItems.Count) break;
+
+                // ã‚¢ã‚¤ãƒ†ãƒ ãŒã‚ã‚‹ã‹ãƒã‚§ãƒƒã‚¯
+                if (!string.IsNullOrEmpty(currentItems[i]))
+                {
+                    hudHotbarIcons[i].sprite = GetItemIcon(currentItems[i]);
+                    hudHotbarIcons[i].enabled = true;
+                }
+                else
+                {
+                    hudHotbarIcons[i].sprite = null;
+                    hudHotbarIcons[i].enabled = false;
+                }
+            }
+        }
+    }
+
+    // è£…å‚™å¤‰æ›´ï¼ˆHUDã®è‰²ã‚‚æ›´æ–°ï¼‰
+    public void ChangeSelectedSlot(int slotIndex)
+    {
+        equippedIndex = slotIndex;
+        if (playerController != null) playerController.UpdateItemModel();
+        UpdateHUDSlotSelection(); // â˜…HUDã®è‰²ã‚’å¤‰ãˆã‚‹
+    }
+
+    // --- ãã®ä»–æ©Ÿèƒ½ï¼ˆå¤‰æ›´ãªã—ï¼‰ ---
+    public void PickUpItem(GameObject itemObj)
+    {
+        string cleanName = itemObj.name.Replace("(Clone)", "").Trim();
+        string tag = itemObj.tag;
+        int emptyIndex = currentItems.IndexOf("");
+        if (emptyIndex != -1)
+        {
+            currentItems[emptyIndex] = cleanName;
+            if (!itemTagDatabase.ContainsKey(cleanName)) itemTagDatabase.Add(cleanName, tag);
+            Destroy(itemObj);
+            UpdateInventoryUI();
+            if (emptyIndex == equippedIndex && playerController != null) playerController.UpdateItemModel();
         }
     }
 
     public GameObject DropItem(string itemName, Vector3 position)
     {
-        if (!currentItems.Contains(itemName))
-            return null;
-
-        currentItems.Remove(itemName);
-
+        int index = currentItems.IndexOf(itemName);
+        if (index == -1) return null;
+        currentItems[index] = "";
+        UpdateInventoryUI();
         foreach (var pair in itemPrefabs)
         {
             if (pair.itemName == itemName || itemName.Contains(pair.itemName))
-            {
                 return Instantiate(pair.prefab, position, Quaternion.identity);
-            }
         }
-
-        Debug.LogWarning("‘Î‰‚·‚éƒvƒŒƒnƒu‚ªŒ©‚Â‚©‚è‚Ü‚¹‚ñF" + itemName);
         return null;
     }
 
-    // ššš ˆê”Ôd—v‚ÈC³‰ÓŠ ššš
-    // ƒAƒCƒeƒ€–¼‚©‚çƒ^ƒO‚ğæ“¾‚·‚éiƒŠƒXƒ|[ƒ“‘Î‰”Åj
-    public string GetItemTag(string itemName)
+    public Sprite GetItemIcon(string itemName) { foreach (var d in itemDataList) if (itemName.Contains(d.itemName)) return d.icon; return null; }
+    public string GetItemTag(string itemName) { if (itemTagDatabase.ContainsKey(itemName)) return itemTagDatabase[itemName]; return "Untagged"; }
+    public bool HasItem(string itemName) { return currentItems.Contains(itemName); }
+    public string GetEquippedItem() { if (currentItems != null && equippedIndex >= 0 && equippedIndex < currentItems.Count) return currentItems[equippedIndex]; return ""; }
+    public List<string> GetItemDataForSave() { return currentItems; }
+    public void LoadItemData(List<string> loadedItems)
     {
-        // 1. ‚Ü‚¸«‘iƒLƒƒƒbƒVƒ…j‚ğ’T‚·
-        if (itemTagDatabase.ContainsKey(itemName))
-        {
-            return itemTagDatabase[itemName];
-        }
-
-        // 2. «‘‚É‚È‚¢ê‡iƒŠƒXƒ|[ƒ“’¼Œã‚È‚ÇjA“o˜^ƒŠƒXƒg‚©‚ç’T‚·I
-        // ¦‚±‚ê‚ªuƒŠƒXƒ|[ƒ“Œã‚Éƒ‚ƒfƒ‹‚ªo‚È‚¢v‚ğ’¼‚·“ÁŒø–ò‚Å‚·
-        foreach (var pair in itemPrefabs)
-        {
-            // –¼‘O‚ªˆê’v‚·‚é‚©ƒ`ƒFƒbƒNi(Clone)‘Îô‚Å•”•ªˆê’v‚àl—¶j
-            if (pair.itemName == itemName || itemName.Contains(pair.itemName))
-            {
-                // ƒvƒŒƒnƒu‚É‚Â‚¢‚Ä‚¢‚éƒ^ƒO‚ğæ“¾
-                string tagFromPrefab = pair.prefab.tag;
-
-                // Ÿ‰ñ‚©‚ç‘‚­Œ©‚Â‚©‚é‚æ‚¤‚É«‘‚É“o˜^‚µ‚Ä‚¨‚­
-                itemTagDatabase.Add(itemName, tagFromPrefab);
-
-                return tagFromPrefab;
-            }
-        }
-
-        // 3. ‚»‚ê‚Å‚àŒ©‚Â‚©‚ç‚È‚¢ê‡
-        Debug.LogWarning($"ƒAƒCƒeƒ€ '{itemName}' ‚Ìƒ^ƒO‚ªŒ©‚Â‚©‚è‚Ü‚¹‚ñBInspector‚ÌItem PrefabsƒŠƒXƒg‚É“o˜^‚³‚ê‚Ä‚¢‚Ü‚·‚©H");
-        return "Untagged";
+        currentItems = loadedItems;
+        while (currentItems.Count < maxSlots) currentItems.Add("");
+        itemTagDatabase.Clear();
+        foreach (var item in currentItems) if (!string.IsNullOrEmpty(item)) GetItemTag(item);
+        ReflectInventoryToScene();
+        UpdateInventoryUI();
+        UpdateHUDSlotSelection();
     }
-
-    public string GetEquippedItem()
-    {
-        if (currentItems.Count > 0 && equippedIndex < currentItems.Count)
-        {
-            return currentItems[equippedIndex];
-        }
-        return "";
-    }
-
-    public void SwapItems(int slotA, int slotB)
-    {
-        if (slotA < currentItems.Count && slotB < currentItems.Count)
-        {
-            string temp = currentItems[slotA];
-            currentItems[slotA] = currentItems[slotB];
-            currentItems[slotB] = temp;
-        }
-    }
+    private void ReflectInventoryToScene() { foreach (string itemName in currentItems) { if (string.IsNullOrEmpty(itemName)) continue; GameObject obj = GameObject.Find(itemName); if (obj != null) obj.SetActive(false); } }
 }

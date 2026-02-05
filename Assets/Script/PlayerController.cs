@@ -1,9 +1,9 @@
 ﻿using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
-using System.Collections.Generic;
 using System.Collections;
-using UnityEngine.UIElements;
+using UnityEngine.UI;
+using UnityEngine.Rendering.PostProcessing;
 
 [RequireComponent(typeof(Rigidbody))]
 [RequireComponent(typeof(AudioSource))]
@@ -23,34 +23,35 @@ public class PlayerController : MonoBehaviour
     [Header("InventoryManagerを参照")]
     public InventoryManager inventoryManager;
 
+    [Tooltip("インベントリ用のBlurVolume")]
+    public GameObject inventoryBlurVolume;
+
     [Header("プレイヤーが操作可能かどうか")]
     public bool canControl = true;
 
-    [Header("感度設定(x軸)")]
+    [Header("感度設定")]
     public float Xsensityvity = 3f;
-
-    [Header("感度設定(y軸)")]
     public float Ysensityvity = 3f;
 
-    [Header("拾うアイテムのすべてのLayer")]
-    public LayerMask itemLayer;
-
-    [Header("ポーズ画面関連")]
+    [Header("UI関連")]
     [SerializeField] private GameObject pauseMenu;
     [SerializeField] private GameObject option;
-    [SerializeField] private UnityEngine.UI.Image backGround;
-    [SerializeField] private UnityEngine.UI.Image panel;
-    private bool save;
-
-    [Header("拾うUI")]
+    [SerializeField] private Image backGround;
+    [SerializeField] private Image panel;
     public TMP_Text pickUpText;
     public float pickUpDistance = 3f;
+
+    [Header("インベントリ開閉設定")]
+    [Tooltip("インベントリ画面の親オブジェクト")]
+    public GameObject inventoryUIPanel;
+    [Tooltip("インベントリを開いている間、隠したいオブジェクト")]
+    public GameObject uiToHideWhenInventoryOpen;
 
     [Header("デコイ")]
     [SerializeField] private GameObject decoy;
     [SerializeField] private float decoySpawnDistance;
 
-    [Header("--- 視点の揺れ（Head Bob） ---")]
+    [Header("視点の揺れ")]
     public float walkBobFrequency = 10.0f;
     public Vector2 walkBobAmount = new Vector2(0.05f, 0.05f);
     public float runBobFrequency = 15.0f;
@@ -60,93 +61,41 @@ public class PlayerController : MonoBehaviour
     [Header("共通設定")]
     public float groundCheckDistance = 0.5f;
 
-    [Header("SortStoneスクリプト")]
+    [Header("他スクリプト")]
     [SerializeField] SortStone[] sortStones;
-
-    [Header("SortPictureスクリプト")]
     [SerializeField] SortPicture[] sortPictures;
-
-    [Header("BugSpawnerスクリプト")]
     [SerializeField] BugSpawner bugSpawner;
 
     [Header("--- アイテムモデル設定 ---")]
-    [Header("鍵モデル")]
     public GameObject KeyModel;
-
-    [Header("アイテムモデル")]
     public GameObject ItemModel;
-
-    [Header("懐中電灯モデル")]
     public GameObject FlashlightModel;
-
-    [Header("ライターモデル")]
     public GameObject LighterModel;
 
-    [Header("アイテムの揺れる速さ")]
+    [Header("アイテムアニメーション")]
     public float itemBobSpeed = 6f;
-
-    [Header("アイテムの揺れる幅")]
     public float itemBobAmount = 0.05f;
-
-    [Header("振った際のz軸の深さ")]
     public float swingAmount = 0.1f;
-
-    [Header("振るスピード")]
     public float swingSpeed = 1f;
-
-    [Header("振り上げ位置")]
     public float SwingUpAmount = 0.1f;
-
-    [Header("振り下ろし位置")]
     public float SwingDownAmount = -0.25f;
-
-    [Header("振り上げ角度")]
     public float SwingUpRotation = -20f;
-
-    [Header("振り下ろし角度")]
     public float SwingDownRotation = 60f;
-
-    [Header("カメラの追従速度")]
     public float cameraSwingSpeed = 0.01f;
-
-    [Header("振り上げ時のカメラ角度")]
     public float cameraSwingUpAngle = -6f;
-
-    [Header("振り下ろし時のカメラ角度")]
     public float cameraSwingDownAngle = 2f;
 
     [Header("--- オーディオ設定 ---")]
-    [Header("足音用AudioSource")]
     public AudioSource footstepAudioSource;
-
-    [Header("歩く際のAudio")]
     public AudioClip walkSoundLoop;
-
-    [Header("走る際のAudio")]
     public AudioClip runSoundLoop;
-
-    [Header("吐息用AudioSource")]
     public AudioSource breathingAudioSource;
-
-    [Header("吐息のAudio")]
     public AudioClip breathingSoundLoop;
-
-    [Header("歩いてるときの吐息音量")]
-    [Range(0f, 1f)]
-    public float breathingWalkVolume = 0.3f;
-
-    [Header("走ってるときの吐息音量")]
-    [Range(0f, 1f)]
-    public float breathingRunVolume = 0.5f;
-
-    [Header("共通オーディオフェード速度")]
+    [Range(0f, 1f)] public float breathingWalkVolume = 0.3f;
+    [Range(0f, 1f)] public float breathingRunVolume = 0.5f;
     public float audioFadeSpeed = 5.0f;
 
-
-    // =================================================================
-    // 内部変数エリア
-    // =================================================================
-
+    // 内部変数
     private Vector3 defaultCamPos;
     private float camBobTimer = 0f;
     Quaternion cameraRot, characterRot;
@@ -171,21 +120,23 @@ public class PlayerController : MonoBehaviour
     private float cameraSwingTimer = -2f;
     private Quaternion cameraSwingStartRot;
 
-
-    // =================================================================
-    // Unity イベント関数
-    // =================================================================
-
     private void Start()
     {
-        // ------------------------
-        // 基本コンポーネント取得
-        // ------------------------
         rb = GetComponent<Rigidbody>();
         rb.freezeRotation = true;
 
+        if (inventoryBlurVolume != null)
+        {
+            inventoryBlurVolume.SetActive(false);
+        }
+
         if (inventoryManager == null)
             inventoryManager = FindAnyObjectByType<InventoryManager>();
+
+        if (inventoryUIPanel != null)
+        {
+            inventoryUIPanel.SetActive(false);
+        }
 
         if (cam != null)
         {
@@ -194,9 +145,7 @@ public class PlayerController : MonoBehaviour
             defaultCamPos = cam.transform.localPosition;
         }
 
-        if (footstepAudioSource == null)
-            footstepAudioSource = GetComponent<AudioSource>();
-
+        if (footstepAudioSource == null) footstepAudioSource = GetComponent<AudioSource>();
         if (footstepAudioSource != null)
         {
             footstepAudioSource.loop = true;
@@ -220,8 +169,6 @@ public class PlayerController : MonoBehaviour
         if (FlashlightModel != null) flashlightModelDefaultPos = FlashlightModel.transform.localPosition;
         if (LighterModel != null) lighterModelDefaultPos = LighterModel.transform.localPosition;
 
-        // ★修正ポイント：0.1秒待ってからモデルを表示する
-        // これにより、データの読み込み待ちによる表示ミスを防ぎます
         Invoke(nameof(UpdateItemModel), 0.1f);
     }
 
@@ -233,12 +180,30 @@ public class PlayerController : MonoBehaviour
 
     private void Update()
     {
+        if (Input.GetKeyDown(KeyCode.Tab))
+        {
+            // デバッグ用ログ：今の状態を表示
+            Debug.Log($"Tabキーが押されました。操作可能か: {canControl} / インベントリが開いているか: {isInventoryOpen}");
+
+            // 条件チェック：
+            // 「インベントリが閉じている」かつ「操作禁止」なら、絶対に開かせない
+            if (!isInventoryOpen && !canControl)
+            {
+                Debug.Log("❌ 操作禁止中なので、インベントリを開くのをブロックしました。");
+                return; // ここで処理終了！
+            }
+
+            // ここまで来たら開閉OK
+            ToggleInventory();
+        }
+
         if (!canControl)
         {
             FadeOutAudio();
             return;
         }
 
+        // インベントリ開閉時のカーソル制御
         if (isInventoryOpen)
         {
             UnityEngine.Cursor.lockState = CursorLockMode.None;
@@ -250,7 +215,7 @@ public class PlayerController : MonoBehaviour
         {
             canControl = false;
             FadeOutAudio();
-            panelAlpha(90);
+            panelAlpha(1f); // 90ではなく1.0fがマックスです
             pauseMenu.SetActive(true);
         }
 
@@ -272,6 +237,11 @@ public class PlayerController : MonoBehaviour
         {
             CheckPickUp();
             if (Input.GetKeyDown(KeyCode.Q)) DropCurrentItem();
+
+            // ★キー入力でスロット切り替え
+            if (Input.GetKeyDown(KeyCode.Alpha1)) inventoryManager.ChangeSelectedSlot(0);
+            if (Input.GetKeyDown(KeyCode.Alpha2)) inventoryManager.ChangeSelectedSlot(1);
+            if (Input.GetKeyDown(KeyCode.Alpha3)) inventoryManager.ChangeSelectedSlot(2);
         }
 
         bool isGrounded = Physics.Raycast(transform.position + Vector3.up * 0.1f, Vector3.down, groundCheckDistance);
@@ -305,6 +275,106 @@ public class PlayerController : MonoBehaviour
         }
     }
 
+    void ToggleInventory()
+    {
+        // 「今閉じている」かつ「操作禁止（寝ている/イベント中）」なら、ここで強制終了！
+        if (!isInventoryOpen && !canControl)
+        {
+            return;
+        }
+
+        isInventoryOpen = !isInventoryOpen;
+
+        if (inventoryBlurVolume != null)
+        {
+            inventoryBlurVolume.SetActive(isInventoryOpen);
+
+            // Volume ではなく PostProcessVolume を使う
+            PostProcessVolume vol = inventoryBlurVolume.GetComponent<PostProcessVolume>();
+            if (vol != null)
+            {
+                vol.weight = isInventoryOpen ? 1f : 0f;
+            }
+        }
+
+        // インベントリ画面の表示/非表示
+        if (inventoryUIPanel != null)
+        {
+            inventoryUIPanel.SetActive(isInventoryOpen);
+        }
+
+        // 隠したいオブジェクト（真ん中の点など）の表示/非表示
+        if (uiToHideWhenInventoryOpen != null)
+        {
+            uiToHideWhenInventoryOpen.SetActive(!isInventoryOpen);
+        }
+
+        // カーソル制御
+        if (isInventoryOpen)
+        {
+            UnityEngine.Cursor.lockState = CursorLockMode.None;
+            UnityEngine.Cursor.visible = true;
+        }
+        else
+        {
+            UnityEngine.Cursor.lockState = CursorLockMode.Locked;
+            UnityEngine.Cursor.visible = false;
+        }
+
+        /*isInventoryOpen = !isInventoryOpen;
+
+        // インベントリ画面の表示/非表示
+        if (inventoryUIPanel != null)
+        {
+            inventoryUIPanel.SetActive(isInventoryOpen);
+        }
+
+        // 隠したいオブジェクトの表示/非表示
+        if (uiToHideWhenInventoryOpen != null)
+        {
+            // インベントリが開いているなら隠す、閉じてるなら出す
+            uiToHideWhenInventoryOpen.SetActive(!isInventoryOpen);
+        }
+
+        // カーソル制御
+        if (isInventoryOpen)
+        {
+            UnityEngine.Cursor.lockState = CursorLockMode.None;
+            UnityEngine.Cursor.visible = true;
+        }
+        else
+        {
+            UnityEngine.Cursor.lockState = CursorLockMode.Locked;
+            UnityEngine.Cursor.visible = false;
+        }*/
+    }
+
+    public void SetBlurState(bool isActive)
+    {
+        if (inventoryBlurVolume != null)
+        {
+            inventoryBlurVolume.SetActive(isActive);
+
+            // ▼▼▼ パターンA：PostProcessVolumeを使っている場合 ▼▼▼
+            var vol = inventoryBlurVolume.GetComponent<UnityEngine.Rendering.PostProcessing.PostProcessVolume>();
+            if (vol != null)
+            {
+                vol.weight = isActive ? 1f : 0f;
+            }
+            // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+
+            // ▼▼▼ パターンB：Volumeを使っている場合（URPなど） ▼▼▼
+            /*
+            var vol = inventoryBlurVolume.GetComponent<UnityEngine.Rendering.Volume>();
+            if (vol != null)
+            {
+                vol.weight = isActive ? 1f : 0f;
+            }
+            */
+            // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+        }
+    }
+
     private void FixedUpdate()
     {
         if (!canControl)
@@ -312,21 +382,15 @@ public class PlayerController : MonoBehaviour
             rb.velocity = new Vector3(0, rb.velocity.y, 0);
             return;
         }
-
         MoveCharacter();
-
         if (isInventoryOpen)
         {
             rb.velocity = new Vector3(0, rb.velocity.y, 0);
             return;
         }
-        x = Input.GetAxisRaw("Horizontal") * walkSpeed;
-        z = Input.GetAxisRaw("Vertical") * walkSpeed;
     }
 
-    // =================================================================
-    // 以下、変更なしのメソッド群
-    // =================================================================
+    // --- メソッド群 ---
 
     void MoveCharacter()
     {
@@ -408,26 +472,25 @@ public class PlayerController : MonoBehaviour
 
     public void pause(string command)
     {
+        bool saveState = false;
         switch (command)
         {
-            case "Title": if (save) SceneManager.LoadScene("TitleScene"); else Debug.Log("NoSave"); break;
+            case "Title": SceneManager.LoadScene("TitleScene"); break;
             case "Option": option.SetActive(true); pauseMenu.SetActive(false); backGround.fillAmount = 0; break;
-            case "Save": save = true; Debug.Log("SaveGame"); break;
-            case "Return": save = false; canControl = true; pauseMenu.SetActive(false); backGround.fillAmount = 0; panelAlpha(0); break;
+            case "Save": saveState = true; Debug.Log("SaveGame"); break;
+            case "Return": canControl = true; pauseMenu.SetActive(false); backGround.fillAmount = 0; panelAlpha(0); break;
             case "Pause": option.SetActive(false); pauseMenu.SetActive(true); break;
         }
     }
 
     public void backgroundTrue(float pos)
     {
-        Debug.Log("backgroundTrue");
         backGround.gameObject.transform.position = new Vector3(960, pos + 540, 0);
         StartCoroutine(animBackGround());
     }
 
     public void backgroundFalse()
     {
-        Debug.Log("backgroundFalse");
         backGround.fillAmount = 0;
     }
 
@@ -444,9 +507,12 @@ public class PlayerController : MonoBehaviour
 
     private void panelAlpha(float alpha)
     {
-        Color c = panel.color;
-        c.a = alpha;
-        panel.color = c;
+        if (panel != null)
+        {
+            Color c = panel.color;
+            c.a = Mathf.Clamp01(alpha);
+            panel.color = c;
+        }
     }
 
     void CheckPickUp()
@@ -454,8 +520,6 @@ public class PlayerController : MonoBehaviour
         if (isInventoryOpen) return;
         Ray ray = new Ray(cam.transform.position, cam.transform.forward);
         RaycastHit hit;
-
-        Debug.DrawRay(ray.origin, ray.direction, Color.red);
 
         pickUpText.enabled = false;
         string[] pickableTags = { "Item", "Key", "Flashlight", "Lighter", "Crowber" };
@@ -467,7 +531,6 @@ public class PlayerController : MonoBehaviour
                 if (hit.collider.CompareTag(t))
                 {
                     pickUpText.enabled = true;
-
                     if (Input.GetKeyDown(KeyCode.E))
                     {
                         inventoryManager.PickUpItem(hit.collider.gameObject);
@@ -481,10 +544,7 @@ public class PlayerController : MonoBehaviour
                 if (Input.GetMouseButtonDown(0))
                 {
                     foreach (SortStone sortStone in sortStones)
-                    {
-                        if (ObjectInArray(hit.collider.gameObject, sortStone.stones))
-                            sortStone.Stone(hit.collider.gameObject);
-                    }
+                        if (ObjectInArray(hit.collider.gameObject, sortStone.stones)) sortStone.Stone(hit.collider.gameObject);
                 }
             }
             if (hit.collider.CompareTag("Picture"))
@@ -492,10 +552,7 @@ public class PlayerController : MonoBehaviour
                 if (Input.GetMouseButtonDown(0))
                 {
                     foreach (SortPicture sortPicture in sortPictures)
-                    {
-                        if (ObjectInArray(hit.collider.gameObject, sortPicture.pictures))
-                            sortPicture.Picture(hit.collider.gameObject);
-                    }
+                        if (ObjectInArray(hit.collider.gameObject, sortPicture.pictures)) sortPicture.Picture(hit.collider.gameObject);
                 }
             }
         }
@@ -505,8 +562,7 @@ public class PlayerController : MonoBehaviour
     {
         for (int i = 0; i < array.Length; i++)
         {
-            if (array[i] == obj)
-                return true;
+            if (array[i] == obj) return true;
         }
         return false;
     }
@@ -518,17 +574,13 @@ public class PlayerController : MonoBehaviour
         if (isMoving)
         {
             AudioClip targetClip = isRunning ? runSoundLoop : walkSoundLoop;
-
             if (footstepAudioSource.clip != targetClip)
             {
                 footstepAudioSource.clip = targetClip;
                 footstepAudioSource.time = 0;
                 footstepAudioSource.Play();
             }
-            else
-            {
-                if (!footstepAudioSource.isPlaying) footstepAudioSource.Play();
-            }
+            else if (!footstepAudioSource.isPlaying) footstepAudioSource.Play();
             footstepAudioSource.volume = Mathf.Lerp(footstepAudioSource.volume, 1.0f, Time.deltaTime * audioFadeSpeed);
         }
         else
@@ -548,11 +600,9 @@ public class PlayerController : MonoBehaviour
     void HandleBreathing(bool isMoving, bool isRunning)
     {
         if (breathingAudioSource == null) return;
-
         if (isMoving)
         {
             if (!breathingAudioSource.isPlaying) breathingAudioSource.Play();
-
             float targetVolume = isRunning ? breathingRunVolume : breathingWalkVolume;
             breathingAudioSource.volume = Mathf.Lerp(breathingAudioSource.volume, targetVolume, Time.deltaTime * audioFadeSpeed);
         }
@@ -567,33 +617,23 @@ public class PlayerController : MonoBehaviour
         if (footstepAudioSource != null && footstepAudioSource.isPlaying)
         {
             footstepAudioSource.volume = Mathf.Lerp(footstepAudioSource.volume, 0.0f, Time.deltaTime * audioFadeSpeed);
-            if (footstepAudioSource.volume < 0.01f)
-            {
-                footstepAudioSource.Pause();
-                footstepAudioSource.volume = 0;
-            }
+            if (footstepAudioSource.volume < 0.01f) footstepAudioSource.Pause();
         }
         if (breathingAudioSource != null && breathingAudioSource.isPlaying)
-        {
             breathingAudioSource.volume = Mathf.Lerp(breathingAudioSource.volume, 0.0f, Time.deltaTime * audioFadeSpeed);
-        }
     }
 
     public void DropCurrentItem()
     {
         if (inventoryManager == null || inventoryManager.currentItems.Count == 0) return;
-
         string itemName = inventoryManager.currentItems[0];
         Vector3 dropPos = transform.position + transform.forward * 1f;
         inventoryManager.DropItem(itemName, dropPos);
-
         UpdateItemModel();
     }
 
-    // ★重要：モデルの表示更新処理
     public void UpdateItemModel()
     {
-        // 一旦全部消す
         if (KeyModel != null) KeyModel.SetActive(false);
         if (ItemModel != null) ItemModel.SetActive(false);
         if (FlashlightModel != null) FlashlightModel.SetActive(false);
@@ -602,33 +642,22 @@ public class PlayerController : MonoBehaviour
         if (inventoryManager == null || inventoryManager.currentItems.Count == 0) return;
 
         int targetIndex = inventoryManager.equippedIndex;
-        if (targetIndex >= inventoryManager.currentItems.Count) targetIndex = 0;
+        if (targetIndex >= inventoryManager.currentItems.Count) return;
 
         string itemName = inventoryManager.currentItems[targetIndex];
-        string tag = inventoryManager.GetItemTag(itemName);
 
-        Debug.Log($"[モデル更新] アイテム: {itemName}, タグ: {tag}");
+        if (string.IsNullOrEmpty(itemName)) return;
+
+        string tag = inventoryManager.GetItemTag(itemName);
 
         switch (tag)
         {
-            case "Key":
-                if (KeyModel != null) KeyModel.SetActive(true);
-                break;
-            case "Crowbar":
-                if (ItemModel != null) ItemModel.SetActive(true);
-                break;
-            case "Flashlight":
-                if (FlashlightModel != null) FlashlightModel.SetActive(true);
-                break;
-            case "Lighter":
-                if (LighterModel != null) LighterModel.SetActive(true);
-                break;
-            case "Item":
-                if (ItemModel != null) ItemModel.SetActive(true);
-                break;
-            default:
-                Debug.LogWarning($"【注意】タグ '{tag}' に対応するモデルが見つかりませんでした。");
-                break;
+            case "Key": if (KeyModel != null) KeyModel.SetActive(true); break;
+            case "Crowbar": if (ItemModel != null) ItemModel.SetActive(true); break;
+            case "Flashlight": if (FlashlightModel != null) FlashlightModel.SetActive(true); break;
+            case "Lighter": if (LighterModel != null) LighterModel.SetActive(true); break;
+            case "Item": if (ItemModel != null) ItemModel.SetActive(true); break;
+            default: Debug.LogWarning($"タグ '{tag}' に対応するモデルなし"); break;
         }
     }
 
@@ -685,7 +714,6 @@ public class PlayerController : MonoBehaviour
     void UpdateItemSwing()
     {
         if (!isItemSwing || ItemModel == null) return;
-
         itemSwingTimer += Time.deltaTime * swingSpeed;
         if (itemSwingTimer < 0.3f)
         {
@@ -716,32 +744,23 @@ public class PlayerController : MonoBehaviour
 
     public void PlayKeySwing()
     {
-        isSwinging = true;
-        swingTimer = 0f;
-        isCameraSwing = false;
-        cameraSwingTimer = 0f;
+        isSwinging = true; swingTimer = 0f; isCameraSwing = false; cameraSwingTimer = 0f;
     }
-
     public void PlayItemSwing()
     {
-        isItemSwing = true;
-        itemSwingTimer = 0f;
-        isCameraSwing = true;
-        cameraSwingTimer = 0f;
+        isItemSwing = true; itemSwingTimer = 0f; isCameraSwing = true; cameraSwingTimer = 0f;
         if (cam != null) cameraSwingStartRot = cam.transform.localRotation;
     }
 
     void UpdateCameraSwing()
     {
         if (!isCameraSwing || cam == null) return;
-
         cameraSwingTimer += Time.deltaTime * swingSpeed;
         float currentX = cam.transform.localEulerAngles.x;
         if (currentX > 180f) currentX -= 360f;
-
         float downLimit = -85f;
         float allowedDownAngle = cameraSwingDownAngle;
-        if (currentX <= downLimit) { allowedDownAngle = 0f; }
+        if (currentX <= downLimit) allowedDownAngle = 0f;
         else { float margin = Mathf.InverseLerp(-90f, downLimit, currentX); allowedDownAngle *= margin; }
 
         float angle = 0f;
@@ -749,7 +768,6 @@ public class PlayerController : MonoBehaviour
         else if (cameraSwingTimer < 0.9f) { float t = (cameraSwingTimer - 0.3f) / 0.6f; t = Mathf.SmoothStep(0f, 1f, t); angle = Mathf.Lerp(cameraSwingUpAngle, allowedDownAngle, t); }
         else if (cameraSwingTimer < 1.5f) { float t = (cameraSwingTimer - 1f) / 0.6f; t = Mathf.SmoothStep(0f, 1f, t); angle = Mathf.Lerp(allowedDownAngle, 0, t); }
         else { cam.transform.localRotation = cameraSwingStartRot; isCameraSwing = false; cameraSwingTimer = 0f; return; }
-
         cam.transform.localRotation = cameraSwingStartRot * Quaternion.Euler(angle, 0, 0);
     }
 }

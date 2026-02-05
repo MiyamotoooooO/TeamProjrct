@@ -74,7 +74,7 @@ public class ItemUse : MonoBehaviour
                         // 停止
                         await Task.Delay(TimeSpan.FromSeconds(0.9));
                         // 使用したらインベントリから削除
-                        player.inventoryManager.RemoveItem(requiredKeyName);
+                        //player.inventoryManager.RemoveItem(requiredKeyName);
                         // 壁を消す
                         Destroy(hit.collider.gameObject);
                     }

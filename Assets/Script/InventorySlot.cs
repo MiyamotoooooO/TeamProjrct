@@ -1,40 +1,16 @@
-using UnityEngine;
+ï»¿using UnityEngine;
 using UnityEngine.UI;
 
 public class InventorySlot : MonoBehaviour
 {
-    [Header("ƒAƒCƒeƒ€ƒAƒCƒRƒ“‚ğ•\¦‚·‚éImage")]
-    public Image iconImage;
+    [Header("UIå‚ç…§")]
+    public Image iconImage;   // ä¸­èº«ã®ã‚¢ã‚¤ã‚³ãƒ³
+    public Image frameImage;  // å¤–æ 
 
-    [Header("Item‚Ì˜g‚Ì‰æ‘œ")]
-    public Image frameImage;
+    // è‡ªå‹•è¨­å®šã•ã‚Œã‚‹å¤‰æ•°
+    [HideInInspector] public int slotIndex;
+    [HideInInspector] public InventoryManager manager;
 
-    [Header("ƒ{ƒ^ƒ“ƒRƒ“ƒ|[ƒlƒ“ƒg‚ğ’Ç‰Á")]
-    public Button button;
-
-    [Header(" ---˜g‚ÌƒfƒUƒCƒ“İ’è---")]
-    [Header("’Êí‚Ì˜g‰æ‘œ")]
-    public Sprite normalSprite;
-
-    [Header("‘I‘ğ‚³‚ê‚Ä‚¢‚é‚Ì˜g‰æ‘œ")]
-    public Sprite selectedSprite;
-
-    void Awake()
-    {
-        // ©“®‚ÅƒRƒ“ƒ|[ƒlƒ“ƒg‚ğæ“¾
-        if (frameImage == null) frameImage = GetComponent<Image>();
-        if (button == null) button = GetComponent<Button>();
-
-        // ƒQ[ƒ€ŠJnA”O‚Ì‚½‚ßÅ‰‚Íu’Êí‰æ‘œv‚É‚µ‚Ä‚¨‚­
-        if (frameImage != null && normalSprite != null)
-        {
-            frameImage.sprite = normalSprite;
-            // F‚É‚æ‚é’…F‚ÍƒŠƒZƒbƒg‚µ‚ÄA‰æ‘œ–{—ˆ‚ÌF‚Å•\¦‚·‚é
-            frameImage.color = Color.white;
-        }
-    }
-
-    // ƒAƒCƒeƒ€‚ğƒZƒbƒg‚µ‚Ä•\¦‚·‚é
     public void SetItem(Sprite itemSprite)
     {
         if (iconImage == null) return;
@@ -42,7 +18,53 @@ public class InventorySlot : MonoBehaviour
         iconImage.enabled = true;
     }
 
-    // ƒAƒCƒeƒ€‚ğƒNƒŠƒA‚µ‚Ä”ñ•\¦‚É‚·‚é
+    public void ClearSlot()
+    {
+        if (iconImage == null) return;
+        iconImage.sprite = null;
+        iconImage.enabled = false;
+    }
+}
+
+
+
+
+
+/*using UnityEngine;
+using UnityEngine.UI;
+using UnityEngine.EventSystems;
+
+public class InventorySlot : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler, IDropHandler
+{
+    [Header("UIå‚ç…§")]
+    public Image iconImage;
+    public Image frameImage;
+    public Button button;
+
+    [Header("ãƒ‡ã‚¶ã‚¤ãƒ³")]
+    public Sprite normalSprite;
+    public Sprite selectedSprite;
+
+    [HideInInspector] public int slotIndex;
+    [HideInInspector] public InventoryManager manager;
+
+    private GameObject dragIconObject;
+    private Canvas parentCanvas;
+
+    void Awake()
+    {
+        if (frameImage == null) frameImage = GetComponent<Image>();
+        if (button == null) button = GetComponent<Button>();
+        parentCanvas = GetComponentInParent<Canvas>();
+    }
+
+    public void SetItem(Sprite itemSprite)
+    {
+        if (iconImage == null) return;
+        iconImage.sprite = itemSprite;
+        iconImage.enabled = true;
+    }
+
     public void ClearSlot()
     {
         if (iconImage == null) return;
@@ -50,29 +72,73 @@ public class InventorySlot : MonoBehaviour
         iconImage.enabled = false;
     }
 
-    // ‘I‘ğó‘Ô‚É‡‚í‚¹‚Ä‰æ‘œ‚ğØ‚è‘Ö‚¦‚é
-    public void SetSelected(bool isSelected)
+    // â˜…ãƒ‰ãƒ©ãƒƒã‚°é–‹å§‹ã®åˆå›³
+    public void OnBeginDrag(PointerEventData eventData)
     {
-        if (frameImage == null) return;
+        // ãƒ­ã‚°ãŒå‡ºãªã‘ã‚Œã°ã€ã‚¯ãƒªãƒƒã‚¯è‡ªä½“ãŒåå¿œã—ã¦ã„ã¾ã›ã‚“ï¼ˆRaycast Targetã‚’ç¢ºèªï¼ï¼‰
+        Debug.Log($"[Slot {slotIndex}] ãƒ‰ãƒ©ãƒƒã‚°é–‹å§‹ã—ã‚ˆã†ã¨ã—ã¦ã„ã¾ã™...");
 
-        // ‰æ‘œ‚ğ‚«‚ê‚¢‚É•\¦‚·‚é‚½‚ß‚ÉAF‚Íí‚É”’i“§–¾j‚É‚µ‚Ä‚¨‚­
-        frameImage.color = Color.white;
-
-        if (isSelected)
+        if (iconImage.sprite == null || !iconImage.enabled)
         {
-            // ƒƒCƒ“‚É‘I‚Î‚ê‚½
-            if (selectedSprite != null)
-            {
-                frameImage.sprite = selectedSprite;
-            }
+            Debug.Log("â†’ ã‚¢ã‚¤ãƒ†ãƒ ãŒãªã„ã®ã§ä¸­æ­¢ã—ã¾ã—ãŸ");
+            return;
         }
-        else
+        if (parentCanvas == null) return;
+
+        dragIconObject = new GameObject("DragIcon");
+        dragIconObject.transform.SetParent(parentCanvas.transform);
+        dragIconObject.transform.SetAsLastSibling();
+        dragIconObject.transform.position = transform.position;
+
+        Image img = dragIconObject.AddComponent<Image>();
+        img.sprite = iconImage.sprite;
+        img.raycastTarget = false;
+        img.preserveAspect = true;
+
+        RectTransform rt = dragIconObject.GetComponent<RectTransform>();
+        RectTransform originalRt = GetComponent<RectTransform>();
+        rt.sizeDelta = originalRt.sizeDelta;
+
+        Color c = iconImage.color;
+        c.a = 0.3f;
+        iconImage.color = c;
+
+        Debug.Log("â†’ ãƒ‰ãƒ©ãƒƒã‚°æˆåŠŸï¼ä»®ã‚¢ã‚¤ã‚³ãƒ³ç”Ÿæˆå®Œäº†");
+    }
+
+    // â˜…ãƒ‰ãƒ©ãƒƒã‚°ä¸­
+    public void OnDrag(PointerEventData eventData)
+    {
+        if (dragIconObject != null)
         {
-            // ’Êí‚É–ß‚Á‚½
-            if (normalSprite != null)
-            {
-                frameImage.sprite = normalSprite;
-            }
+            dragIconObject.transform.position = eventData.position;
         }
     }
-}
+
+    // â˜…ãƒ‰ãƒ­ãƒƒãƒ—ï¼ˆé›¢ã—ãŸæ™‚ï¼‰
+    public void OnDrop(PointerEventData eventData)
+    {
+        Debug.Log($"[Slot {slotIndex}] ä½•ã‹ãŒãƒ‰ãƒ­ãƒƒãƒ—ã•ã‚Œã¾ã—ãŸï¼");
+
+        if (eventData.pointerDrag == null) return;
+
+        InventorySlot droppedSlot = eventData.pointerDrag.GetComponent<InventorySlot>();
+
+        if (droppedSlot != null && manager != null)
+        {
+            Debug.Log($"â†’ Slot {droppedSlot.slotIndex} ã‹ã‚‰ Slot {this.slotIndex} ã¸å…¥ã‚Œæ›¿ãˆã‚’å®Ÿè¡Œã—ã¾ã™");
+            manager.SwapItems(droppedSlot.slotIndex, this.slotIndex);
+        }
+    }
+
+    public void OnEndDrag(PointerEventData eventData)
+    {
+        if (dragIconObject != null) Destroy(dragIconObject);
+        if (iconImage != null)
+        {
+            Color c = iconImage.color;
+            c.a = 1f;
+            iconImage.color = c;
+        }
+    }
+}*/
