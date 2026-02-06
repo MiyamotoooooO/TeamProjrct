@@ -3,9 +3,6 @@ using UnityEngine;
 public class ItemPickup : MonoBehaviour
 {
     [Header("アイテム設定")]
-    [Tooltip("インベントリに登録される名前（空欄ならオブジェクト名が使われます）")]
-    public string itemName;
-
     [Tooltip("近づいた時に表示させる名前のオブジェクト（SpriteやText）")]
     public GameObject nameLabelObject;
 
@@ -14,18 +11,12 @@ public class ItemPickup : MonoBehaviour
 
     // 内部変数
     private bool isPlayerNearby = false;
-    private InventoryManager inventoryManager;
+    //private InventoryManager inventoryManager;
     private Transform mainCameraTransform;
 
     void Start()
     {
-        inventoryManager = FindAnyObjectByType<InventoryManager>();
-
-        // もし名前が設定されていなければ、オブジェクト名をそのまま使う
-        if (string.IsNullOrEmpty(itemName))
-        {
-            itemName = gameObject.name.Replace("(Clone)", "").Trim();
-        }
+        //inventoryManager = FindAnyObjectByType<InventoryManager>();
 
         // 最初は名前ラベルを隠す
         if (nameLabelObject != null)
@@ -33,7 +24,7 @@ public class ItemPickup : MonoBehaviour
             nameLabelObject.SetActive(false);
         }
 
-        // カメラを取得（ラベルを常にカメラに向けるため）
+        // カメラを取得
         if (Camera.main != null)
         {
             mainCameraTransform = Camera.main.transform;
@@ -45,7 +36,7 @@ public class ItemPickup : MonoBehaviour
         // プレイヤーが近くにいないなら何もしない
         if (!isPlayerNearby) return;
 
-        // ★ラベルを常にカメラの方向に向ける（ビルボード処理）
+        // ラベルを常にカメラの方向に向ける
         if (nameLabelObject != null && mainCameraTransform != null)
         {
             nameLabelObject.transform.LookAt(
@@ -54,30 +45,7 @@ public class ItemPickup : MonoBehaviour
             );
         }
 
-        // 拾うボタンが押されたら
-        if (Input.GetKeyDown(pickupKey))
-        {
-            PickUp();
-        }
-    }
-
-    void PickUp()
-    {
-        if (inventoryManager != null)
-        {
-            // InventoryManagerのPickUpItem機能を呼ぶ
-            // （このオブジェクト自体を渡して、削除や登録を任せる）
-
-            // 名前を確実に渡すためにオブジェクト名を変更しておく（InventoryManagerが名前で判定しているため）
-            this.gameObject.name = itemName;
-
-            inventoryManager.PickUpItem(this.gameObject);
-        }
-        else
-        {
-            // 万が一InventoryManagerがない場合でも消えるようにしておく
-            Destroy(gameObject);
-        }
+        
     }
 
     // 範囲に入ったら表示
