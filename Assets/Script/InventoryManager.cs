@@ -266,6 +266,16 @@ public class InventoryManager : MonoBehaviour
         return null;
     }
 
+    public void RemoveItem(string itemName)
+    {
+        if (currentItems.Contains(itemName))
+        {
+            currentItems.Remove(itemName);
+            Debug.Log(itemName + "をインベントリから削除しました");
+        }
+    }
+
+
     public void AddItem(string itemName)
     {
         // アイテムリストの空きを探す

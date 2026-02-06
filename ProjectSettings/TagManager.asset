@@ -13,6 +13,7 @@ TagManager:
   - Stone
   - Crowber
   - Picture
+  - Crowbar
   layers:
   - Default
   - TransparentFX
