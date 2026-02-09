@@ -16,6 +16,7 @@ TagManager:
   - Crowbar
   - PuzzleButton
   - RotateObject
+  - Bloodlump
   layers:
   - Default
   - TransparentFX
