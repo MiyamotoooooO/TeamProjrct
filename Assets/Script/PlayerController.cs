@@ -593,12 +593,81 @@ public class PlayerController : MonoBehaviour
 
     public void DropCurrentItem()
     {
+        // 1. マネージャーのチェック
+        if (inventoryManager == null) return;
+
+        // 2. 装備スロットのチェック
+        int targetIndex = inventoryManager.equippedIndex;
+        if (targetIndex < 0 || targetIndex >= inventoryManager.currentItems.Count) return;
+
+        // 3. アイテム名の取得
+        string itemName = inventoryManager.currentItems[targetIndex];
+        if (string.IsNullOrEmpty(itemName)) return;
+
+        // 4. 手持ちモデルを消す
+        if (KeyModel) KeyModel.SetActive(false);
+        if (ItemModel) ItemModel.SetActive(false);
+        if (CrowbarModel) CrowbarModel.SetActive(false);
+        if (FlashlightModel) FlashlightModel.SetActive(false);
+        if (LighterModel) LighterModel.SetActive(false);
+
+        // transform.position (足元) + 上に1.3m (胸の高さ) + 前に1.0m (体から離す)
+        Vector3 dropPos = transform.position + (transform.up * 1.3f) + (transform.forward * 2.0f);
+
+        // 6. 生成実行
+        GameObject droppedItem = inventoryManager.DropItem(itemName, dropPos);
+
+        if (droppedItem)
+        {
+            Rigidbody rb = droppedItem.GetComponent<Rigidbody>();
+            if (rb != null)
+            {
+                // 物理挙動の調整
+                rb.velocity = Vector3.zero; // 慣性をリセット
+
+                // 「体の前方向」に少し投げつつ、「下方向」に強く叩きつける
+                Vector3 throwForce = (transform.forward * 2f) + (Vector3.down * 5f);
+
+                rb.AddForce(throwForce, ForceMode.Impulse);
+
+                // ランダムな回転（落ちた時のリアル感）
+                rb.AddTorque(Random.insideUnitSphere * 5f, ForceMode.Impulse);
+            }
+
+            // 念の為、プレイヤー自身とアイテムの当たり判定を一時的に無視させる（衝突防止の保険）
+            Collider playerCollider = GetComponent<Collider>();
+            Collider itemCollider = droppedItem.GetComponent<Collider>();
+            if (playerCollider != null && itemCollider != null)
+            {
+                Physics.IgnoreCollision(playerCollider, itemCollider, true);
+                // 1秒後には当たり判定を復活させる（足で蹴れるようにするため）
+                StartCoroutine(ReenableCollision(playerCollider, itemCollider));
+            }
+
+            Debug.Log($"ドロップ成功: {droppedItem.name}");
+        }
+
+        // 7. モデル状態更新
+        UpdateItemModel();
+    }
+
+    private IEnumerator ReenableCollision(Collider pCol, Collider iCol)
+    {
+        yield return new WaitForSeconds(1.0f);
+        if (pCol != null && iCol != null)
+        {
+            Physics.IgnoreCollision(pCol, iCol, false);
+        }
+    }
+
+    /*public void DropCurrentItem()
+    {
         if (inventoryManager == null || inventoryManager.currentItems.Count == 0) return;
         string itemName = inventoryManager.currentItems[0];
         Vector3 dropPos = transform.position + transform.forward * 1f;
         inventoryManager.DropItem(itemName, dropPos);
         UpdateItemModel();
-    }
+    }*/
 
     public void UpdateItemModel()
     {
@@ -882,6 +951,6 @@ public class PlayerController : MonoBehaviour
         else if (cameraSwingTimer < 0.9f) { float t = (cameraSwingTimer - 0.3f) / 0.6f; t = Mathf.SmoothStep(0f, 1f, t); angle = Mathf.Lerp(cameraSwingUpAngle, allowedDownAngle, t); }
         else if (cameraSwingTimer < 1.5f) { float t = (cameraSwingTimer - 1f) / 0.6f; t = Mathf.SmoothStep(0f, 1f, t); angle = Mathf.Lerp(allowedDownAngle, 0, t); }
         else { cam.transform.localRotation = cameraSwingStartRot; isCameraSwing = false; cameraSwingTimer = 0f; return; }
-        cam.transform.localRotation = cameraSwingStartRot * Quaternion.Euler(angle, 0, 0);
+        cam.transform.localRotation = cameraRot * Quaternion.Euler(angle, 0, 0);
     }
 }
