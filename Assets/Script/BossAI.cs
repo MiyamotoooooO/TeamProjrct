@@ -1,4 +1,5 @@
 using System.Collections;
+using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.AI;
 
@@ -21,55 +22,98 @@ public class BossAI : MonoBehaviour
     Animator anim;
 
     [Header("距離設定")]
-    public float detectDistance = 8f;
-    public float attackDistance = 1.8f;
+    public float detectDistance = 8.0f; //索敵距離
 
     [Header("攻撃設定")]
- 
-    public float appearDelay = 0.6f;
-  
+    public float appearDelay = 0.3f;　//ワープしてから姿を見せるまでの時間
 
     [Header("逃走ポイント")]
     public Transform[] escapePoints;
 
     [Header("接触判定")]
     public float contactEscapeTime = 3f;
-    float contactTimer = 0f;
+    float contactTimer = 0.0f;
 
     [Header("背後出現位置調整（待機）")]
-    public float backDistance = 0.0f;   // プレイヤーからの距離（小さいほど近い）
+    public float backDistance = 1.2f;   // プレイヤーからの距離（小さいほど近い）
     public float backHeightOffset = 0.0f; // 高さ調整（目線に合わせる）
     public float backSideOffset = 0.0f; // 左右ズレ（0で真後ろ）
-    public float backWaitTime = 0.0f;
+    public float backWaitTime = 1.0f;
 
-    int damageCount = 0;
+
     [Header("プレイヤー死亡処理")]
     public PlayerHealth playerHealth;
 
     [Header("ギミック用")]
     public int lookBackAttackCount = 3; // この攻撃回数のときだけ振り向き必須
     public int killAttackCount = 4;     // この回数でボス撃破
-
-    [Header("HP")]
-    public int hitCount = 0;
+    int damageCount = 0;
 
     State state = State.Idle;
     bool isProcessingAttack = false;
+
     [Header("Attack演出待ち時間")]
-    public float attackHoldTime = 0f;
-    public float attackwait = 0f;
+    public float attackHoldTime = 1.0f;
+    public float attackwait = 1.5f;
+
+    [Header("プレイヤー位置固定")]
+    public bool lockPlayerPosition = false;
+    Vector3 lockedPlayerPosition;
+
+    [Header("ジャンプスケア演出(視界強奪)")]
+    public float hijackFOV = 50f;      // 顔ドアップ時のFOV
+    public float hijackDistance = 0.3f; // 顔との距離（かなり近く）
+    public float hijackTime = 0.2f;    // 奪う速さ
+    public Transform faceTarget; // ボスの顔（Headボーン推奨）
+    bool isCameraHijacked = false;
+    [Header("ジャンプスケア後の待ち時間")]
+    public float deathDelayAfterHijack = 0.1f;
+
+    [Header("ジャンプスケア用固定カメラ位置")]
+    public Transform cameraFacePoint; // ★追加
+    [Header("カメラ制御")]
+    public MonoBehaviour playerCameraController;
+
+    [Header("ジャンプスケア時カメラ揺れ")]
+    public float shakePosAmount = 0.03f;   // 位置揺れ（かなり大きめOK）
+    public float shakeRotAmount = 5f;      // 回転揺れ（超重要）
+    public float shakeFrequency = 8f;     // 揺れの速さ
+
+    [Header("3回目猶予時間")]
+    public float finalAttackGraceTime = 2f;
+    
+    Coroutine finalGraceCoroutine = null;
+    bool isFinalGraceActive = false;
+    bool canTakeDamage = true; //演出中でもダメージを受けられるか
+    
+    [Header("音の設定")]
+    [Tooltip("ボスの音（ここに音源を入れる）")]
+    public AudioClip bosuSound;
+    private AudioSource audioSource;
     void Start()
     {
         agent = GetComponent<NavMeshAgent>();
         col = GetComponent<CapsuleCollider>();
         anim = GetComponent<Animator>();
+        audioSource = GetComponent<AudioSource>();
 
+        if (audioSource != null)
+        {
+            audioSource.playOnAwake = false; // 勝手に鳴らないように
+            audioSource.loop = false;        // ループしないように
+        }
         ResetToIdle();
     }
 
     void Update()
     {
         if (state == State.Dead) return;
+
+        //プレイヤー座標固定
+        if (lockPlayerPosition)
+        {
+            player.position = lockedPlayerPosition;
+        }
 
         //宣言
         float dist = Vector3.Distance(transform.position, player.position);
@@ -89,21 +133,43 @@ public class BossAI : MonoBehaviour
             agent.SetDestination(player.position);
         }
 
-        // ===== 接触判定 =====
-        if (dist < attackDistance)
+
+    }
+    void OnCollisionStay(Collision collision)
+    {
+        if (state == State.Dead) return;
+        if (isProcessingAttack) return;
+
+        if (collision.transform == player)
         {
+            //// 接触中は押さない
+            //agent.isStopped = true;
+            //agent.velocity = Vector3.zero;
+
             contactTimer += Time.deltaTime;
 
-            if (contactTimer >= contactEscapeTime && !isProcessingAttack)
+            if (contactTimer >= contactEscapeTime)
             {
+                Debug.Log("接触維持 → エスケープワープ");
                 StartCoroutine(EscapeWarp());
             }
         }
-        else
+    }
+
+    void OnCollisionExit(Collision collision)
+    {
+        if (collision.transform == player)
         {
             contactTimer = 0f;
+
+            // 追跡状態なら再開
+            if (state == State.Chase)
+            {
+                agent.isStopped = false;
+            }
         }
     }
+
 
     void FreezeBoss()
     {
@@ -143,6 +209,9 @@ public class BossAI : MonoBehaviour
     {
         state = State.Chase;
         agent.isStopped = false;
+
+        //プレイヤーに「今回の遭遇で一回だけ攻撃OK」を与える
+        player.GetComponent<PlayerAttack>().EnbleAttack();
     }
     IEnumerator EscapeWarp()
     {
@@ -166,12 +235,16 @@ public class BossAI : MonoBehaviour
         col.enabled = true;
         GetComponentInChildren<Renderer>().enabled = true;
 
-        //初期化
+        player.GetComponent<PlayerAttack>().DisableAttack();
+        ResumeBoss();
         ResetToIdle();
+
+        canTakeDamage = true;
     }
     IEnumerator BackAttackFlow()
     {
         isProcessingAttack = true;
+        canTakeDamage = true;        // ★待ち時間中でも殴れる
         state = State.Attacking;
         agent.isStopped = true;
 
@@ -181,7 +254,7 @@ public class BossAI : MonoBehaviour
         yield return new WaitForSeconds(attackHoldTime);
 
         // 消失
-        col.enabled = false;
+        col.enabled = true;
         GetComponentInChildren<Renderer>().enabled = false;
 
         // 背後ワープ
@@ -210,89 +283,246 @@ public class BossAI : MonoBehaviour
         GetComponentInChildren<Renderer>().enabled = true;
 
         // ===== 背後待機 =====
+        player.GetComponent<PlayerAttack>().EnbleAttack(); // ★ここで攻撃許可
+        canTakeDamage = true;
+
         float timer = 0f;
         bool lookedBack = false;
         while (timer < backWaitTime)
         {
-            // プレイヤーが振り向いたか
-            Vector3 dir = (transform.position - player.position).normalized;
-            float dot = Vector3.Dot(player.forward, dir);
+            Vector3 toBoss = (transform.position - player.position).normalized;
 
-            if (dot > 0.7f)
+            // 水平成分だけで判定（上下視点ブレ防止）
+            toBoss.y = 0;
+            Vector3 playerForward = player.forward;
+            playerForward.y = 0;
+
+            float dot = Vector3.Dot(playerForward.normalized, toBoss.normalized);
+
+            // ★ 半分以上振り向いたら即拉致
+            if (dot > 0.0f)
             {
                 lookedBack = true;
+                if (damageCount != lookBackAttackCount)
+                {
+                    if (isCameraHijacked) yield break;
+
+                    isCameraHijacked = true;
+                    FreezeBoss();
+                    yield return StartCoroutine(CameraHijackHoldAndKill());
+                    yield break;
+
+                }
+                //3回目は助かる
                 break;
             }
 
             timer += Time.deltaTime;
             yield return null;
         }
-
-        // ▼ 3回目：振り向かないと死亡
+        player.GetComponent<PlayerAttack>().DisableAttack(); // 攻撃NG
+        //  3回目：振り向かないと死亡
         if (damageCount == lookBackAttackCount)
         {
             if (!lookedBack)
             {
                 Debug.Log("プレイヤー死亡（3回目で振り向かなかった）");
                 FreezeBoss();
-                playerHealth.Die();
+                yield return StartCoroutine(CameraHijackHoldAndKill());
                 yield break;
             }
 
             // 正解：振り向いた → 生存して次の攻撃へ
             Debug.Log("正解！振り向いたので次で倒せる");
             anim.SetBool("IsAttacking", false);
-            ResetToIdle();
+
+
+            state = State.Chase;
+            //攻撃許可
+            player.GetComponent<PlayerAttack>().EnbleAttack();
+
+            isProcessingAttack = false;
+            lockPlayerPosition = false;
+            //最終猶予スタ-ト
+            if (finalGraceCoroutine != null)
+                StopCoroutine(finalGraceCoroutine);
+
+            finalGraceCoroutine = StartCoroutine(FinalAttackGraceTimer());
             yield break;
+
         }
 
-
-        if (damageCount < lookBackAttackCount)
-        {
-            if (lookedBack)
-            {
-                Debug.Log("プレイヤー死亡（早く振り向いた）");
-                FreezeBoss();
-                playerHealth.Die();
-                yield break;
-            }
-        
-        }
         // 振り向かなかった → 逃走
         anim.SetBool("IsAttacking", false);
+        lockPlayerPosition = false;
         StartCoroutine(EscapeWarp());
     }
+    IEnumerator FinalAttackGraceTimer()
+    {
+        isFinalGraceActive = true;
 
+        float timer = 0f;
+        while (timer < finalAttackGraceTime)
+        {
+            timer += Time.deltaTime;
+            yield return null;
+        }
+
+        // 3秒間攻撃されなかった → 死亡
+        Debug.Log("3秒以内に攻撃しなかった → プレイヤー死亡");
+        FreezeBoss();
+        yield return StartCoroutine(CameraHijackHoldAndKill());
+    }
+
+
+    IEnumerator CameraHijackToFace()
+    {
+        if (audioSource != null && bosuSound != null)
+        {
+            Debug.Log("音再生");
+            audioSource.clip = bosuSound; // 音をセット
+            audioSource.Play();           // 再生！
+        }
+        col.enabled = true;
+        GetComponentInChildren<Renderer>().enabled = true;
+
+        Camera camComp = Camera.main;
+        Transform cam = camComp.transform;
+
+        float startFOV = camComp.fieldOfView;
+        Vector3 startPos = cam.position;
+        Quaternion startRot = cam.rotation;
+
+        Vector3 targetPos = cameraFacePoint.position;
+        Quaternion targetRot = cameraFacePoint.rotation;
+
+
+        float t = 0f;
+
+        while (t < 1f)
+        {
+            t += Time.deltaTime / hijackTime;
+
+            cam.position = Vector3.Lerp(startPos, targetPos, t);
+            cam.rotation = Quaternion.Slerp(startRot, targetRot, t);
+            camComp.fieldOfView = Mathf.Lerp(startFOV, hijackFOV, t);
+
+            yield return null;
+        }
+
+        // 完全固定
+        cam.position = targetPos;
+        cam.rotation = targetRot;
+        camComp.fieldOfView = hijackFOV;
+        if (audioSource != null)
+        {
+            audioSource.Stop();
+        }
+    }
+    IEnumerator CameraHijackHoldAndKill()
+    {
+        // ★ プレイヤーカメラ操作を無効化
+        if (playerCameraController != null)
+            playerCameraController.enabled = false;
+        // ① 顔まで寄る
+        yield return StartCoroutine(CameraHijackToFace());
+
+        // ② 顔ドアップのまま揺らし停止
+        StartCoroutine(CameraShakeHold(deathDelayAfterHijack));
+
+        // ★ ③「死ぬ前の硬直時間」
+        yield return new WaitForSeconds(deathDelayAfterHijack);
+
+        // ③ そのまま死亡
+        playerHealth.Die();
+    }
+    IEnumerator CameraShakeHold(float duration)
+    {
+        Camera cam = Camera.main;
+        Transform camTransform = cam.transform;
+
+        Vector3 basePos = camTransform.position;
+        Quaternion baseRot = camTransform.rotation;
+
+        float timer = 0f;
+
+        // ランダムシード（毎回違う揺れ）
+        float seed = Random.Range(0f, 100f);
+
+        while (timer < duration)
+        {
+            timer += Time.deltaTime;
+
+            float t = Time.time * shakeFrequency;
+
+            float noiseX = Mathf.PerlinNoise(seed, t) * 2f - 1f;
+            float noiseY = Mathf.PerlinNoise(seed + 10f, t) * 2f - 1f;
+            float noiseRot = Mathf.PerlinNoise(seed + 20f, t) * 2f - 1f;
+
+            // ★ 追加：最初強く → 徐々に弱く
+            float strength = 1f - (timer / duration);
+
+            Vector3 posOffset =
+                new Vector3(noiseX, noiseY, 0f) * shakePosAmount * strength;
+
+            Quaternion rotOffset =
+                Quaternion.Euler(0f, 0f, noiseRot * shakeRotAmount * strength);
+
+            camTransform.position = basePos + posOffset;
+            camTransform.rotation = baseRot * rotOffset;
+
+            yield return null;
+        }
+
+
+        camTransform.position = basePos;
+        camTransform.rotation = baseRot;
+    }
     public void TakeDamage()
     {
-        if (state == State.Dead) return;
+        //最終猶予中なら解除
+        if (isFinalGraceActive)
+        {
+            isFinalGraceActive = false;
+            if (finalGraceCoroutine != null)
+                StopCoroutine(finalGraceCoroutine);
+        }
+        //プレイヤ―位置固定ON
+        lockedPlayerPosition = player.position;
+        lockPlayerPosition = true;
+
+        if (state == State.Dead)
+        {
+            return;
+        }
+        if (!canTakeDamage)
+        {
+            return;
+        }
+
+
+
+        isProcessingAttack = false;
+        canTakeDamage = false;
 
         damageCount++;
         Debug.Log("ボス被弾 残り:" + damageCount);
 
-        if (hitCount <= 0)
-        {
-            Die();
-            return;
-        }
-        //3回目は背後を見る必要あり
-        //被弾した時だけ
         // 4回目で撃破
         if (damageCount >= killAttackCount)
         {
             Die();
             return;
         }
-        if (!isProcessingAttack)
-        {
-            StartCoroutine(BackAttackFlow());
-        }
+        StartCoroutine(BackAttackFlow());
     }
 
     void Die()
     {
         state = State.Dead;
         agent.isStopped = true;
+
+        player.GetComponent<PlayerAttack>().DisableAttack();
 
         anim.SetFloat("Speed", 0f);
         anim.SetBool("IsAttacking", false);
@@ -303,7 +533,7 @@ public class BossAI : MonoBehaviour
         Destroy(gameObject, 1.2f);
     }
 
-  void ResetToIdle()
+    void ResetToIdle()
     {
         //攻撃
         state = State.Idle;
@@ -319,5 +549,9 @@ public class BossAI : MonoBehaviour
         anim.Play("Idle", 0, 0f);
         anim.SetBool("IsAttacking", false);
         anim.SetFloat("Speed", 0f);
+
+        canTakeDamage = true;
     }
+
 }
+
