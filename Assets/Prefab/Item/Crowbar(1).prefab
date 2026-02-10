@@ -106,12 +106,14 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 7700409656415010696}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f6c5ce1f16ad5074ea6e4f8519214ea3, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
   nameLabelObject: {fileID: 0}
+  displayDistance: 3
+  labelOffset: {x: 0, y: 0.5, z: 0}
   pickupKey: 101
 --- !u!54 &1085215529563466903
 Rigidbody:

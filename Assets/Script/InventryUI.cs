@@ -58,12 +58,6 @@ public class InventryUI : MonoBehaviour
 
     void RefreshInventoryUI()
     {
-        // 既存のアイコンを全部削除
-        foreach (Transform child in itemGrid)
-        {
-            Destroy(child.gameObject);
-        }
-
         // アイテムをアイコンとして生成
         foreach (string itemName in inventoryManager.currentItems)
         {

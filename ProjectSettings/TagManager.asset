@@ -17,6 +17,7 @@ TagManager:
   - PuzzleButton
   - RotateObject
   - Bloodlump
+  - MouseToy
   layers:
   - Default
   - TransparentFX
