@@ -24,12 +24,22 @@ public class InventoryManager : MonoBehaviour
     public List<ItemPrefabPair> itemPrefabs = new List<ItemPrefabPair>();
 
     [System.Serializable]
-    public class ItemData { public string itemName; public Sprite icon; }
+    public class ItemData
+    {
+        public string itemName;
+        public Sprite icon;
+        [Tooltip("説明欄に表示する画像")]
+        public Sprite description;
+    }
     public List<ItemData> itemDataList = new List<ItemData>();
 
     [Header("UI参照：インベントリ画面")]
     [Tooltip("★重要★ 0~2:ホットバー(上中下), 3~11:バックパック(左上〜右下) の順で登録してください")]
     public InventorySlot[] allSlots;
+
+    [Header("UI参照：説明パネル")]
+    [Tooltip("右側の説明欄にあるImageコンポーネントを入れてください")]
+    public Image descriptionDisplayImage;
 
     [Header("UI参照：HUD")]
     public Image[] hudHotbarIcons;
@@ -62,6 +72,7 @@ public class InventoryManager : MonoBehaviour
         UpdateInventoryUI();
         UpdateHUDSlotSelection();
         UpdateCursorPosition();
+        UpdateDescriptionPanel();
 
         if (swapPromptPanel != null) swapPromptPanel.SetActive(false);
         if (fullMessageText != null) fullMessageText.gameObject.SetActive(false);
@@ -83,7 +94,7 @@ public class InventoryManager : MonoBehaviour
 
         // --- インベントリ操作中 ---
 
-        HandleCursorMovement(); // ★ここを修正しました
+        HandleCursorMovement();
         HandleWeaponSwitchInput();
 
         // Spaceキー：決定 / 移動
@@ -93,7 +104,6 @@ public class InventoryManager : MonoBehaviour
         }
     }
 
-    // --- ★ここが修正ポイント：WASD移動ロジック ---
     void HandleCursorMovement()
     {
         int prevIndex = currentCursorIndex;
@@ -101,78 +111,95 @@ public class InventoryManager : MonoBehaviour
         // --- W (上) ---
         if (Input.GetKeyDown(KeyCode.W))
         {
-            // ホットバー (0,1,2) 内での移動
             if (currentCursorIndex == 1) currentCursorIndex = 0;
             else if (currentCursorIndex == 2) currentCursorIndex = 1;
-
-            // バックパック (3~11) 内での移動
-            else if (currentCursorIndex >= 6) currentCursorIndex -= 3; // 2段目以降なら1段上へ
-            // ※3,4,5 (バックパック最上段) はこれ以上上に行けない
+            else if (currentCursorIndex >= 6) currentCursorIndex -= 3;
         }
-
         // --- S (下) ---
         if (Input.GetKeyDown(KeyCode.S))
         {
-            // ホットバー (0,1,2) 内での移動
             if (currentCursorIndex == 0) currentCursorIndex = 1;
             else if (currentCursorIndex == 1) currentCursorIndex = 2;
-
-            // バックパック (3~11) 内での移動
-            else if (currentCursorIndex >= 3 && currentCursorIndex < 9) currentCursorIndex += 3; // 最下段(9,10,11)以外なら1段下へ
+            else if (currentCursorIndex >= 3 && currentCursorIndex < 9) currentCursorIndex += 3;
         }
-
         // --- A (左) ---
         if (Input.GetKeyDown(KeyCode.A))
         {
-            // ホットバー (0,1,2) にいる時はこれ以上左はないので何もしない
-
-            // バックパック (3~11) にいる時
             if (currentCursorIndex >= 3)
             {
-                // バックパックの左列 (3, 6, 9) なら、ホットバーの対応する位置へジャンプ！
                 if (currentCursorIndex == 3) currentCursorIndex = 0;
                 else if (currentCursorIndex == 6) currentCursorIndex = 1;
                 else if (currentCursorIndex == 9) currentCursorIndex = 2;
-
-                // それ以外（中・右列）なら普通に左へ
                 else currentCursorIndex -= 1;
             }
         }
-
         // --- D (右) ---
         if (Input.GetKeyDown(KeyCode.D))
         {
-            // ホットバー (0,1,2) -> バックパックの左列へジャンプ！
             if (currentCursorIndex == 0) currentCursorIndex = 3;
             else if (currentCursorIndex == 1) currentCursorIndex = 6;
             else if (currentCursorIndex == 2) currentCursorIndex = 9;
-
-            // バックパック (3~11) にいる時
             else if (currentCursorIndex >= 3)
             {
-                // 右列 (5, 8, 11) でなければ右へ
                 if (currentCursorIndex != 5 && currentCursorIndex != 8 && currentCursorIndex != 11)
-                {
                     currentCursorIndex += 1;
-                }
             }
         }
 
-        // 変化があったらカーソル位置更新
-        if (prevIndex != currentCursorIndex) UpdateCursorPosition();
+        // 変化があったらカーソル位置と説明パネルを更新
+        if (prevIndex != currentCursorIndex)
+        {
+            UpdateCursorPosition();
+            UpdateDescriptionPanel(); // ★追加：カーソル移動時に説明を更新
+        }
     }
 
-    // --- Spaceキーのアクション（前回と同じ） ---
+    // --- ★追加：説明パネルの更新処理 ---
+    public void UpdateDescriptionPanel()
+    {
+        // UIが設定されていない場合は無視
+        if (descriptionDisplayImage == null) return;
+
+        // カーソル位置が範囲外なら非表示
+        if (currentCursorIndex < 0 || currentCursorIndex >= currentItems.Count)
+        {
+            descriptionDisplayImage.enabled = false;
+            return;
+        }
+
+        // 現在のカーソル位置にあるアイテム名を取得
+        string itemName = currentItems[currentCursorIndex];
+
+        // アイテムがない場合は非表示
+        if (string.IsNullOrEmpty(itemName))
+        {
+            descriptionDisplayImage.enabled = false;
+            return;
+        }
+
+        // アイテム名から説明画像を取得
+        Sprite descSprite = GetItemDescription(itemName);
+
+        // 画像があれば表示、なければ非表示
+        if (descSprite != null)
+        {
+            descriptionDisplayImage.sprite = descSprite;
+            descriptionDisplayImage.enabled = true;
+        }
+        else
+        {
+            descriptionDisplayImage.enabled = false;
+        }
+    }
+
     void HandleSpaceKeyAction()
     {
         if (currentCursorIndex >= currentItems.Count || string.IsNullOrEmpty(currentItems[currentCursorIndex])) return;
 
-        // ホットバー(0-2)ならバックパックへ移動
         if (currentCursorIndex < 3)
         {
             MoveItemToBackpack(currentCursorIndex);
         }
-        // バックパック(3以降)ならSwapパネルを開く
         else
         {
             isSwapMode = true;
@@ -184,7 +211,6 @@ public class InventoryManager : MonoBehaviour
     void MoveItemToBackpack(int fromIndex)
     {
         int emptySlot = -1;
-        // 3番以降から空きを探す
         for (int i = 3; i < currentItems.Count; i++)
         {
             if (string.IsNullOrEmpty(currentItems[i]))
@@ -232,7 +258,6 @@ public class InventoryManager : MonoBehaviour
         fullMessageText.gameObject.SetActive(false);
     }
 
-    // --- その他UI・システム周り ---
     void HandleWeaponSwitchInput()
     {
         if (Input.GetKeyDown(KeyCode.Alpha1)) ChangeSelectedSlot(0);
@@ -315,6 +340,8 @@ public class InventoryManager : MonoBehaviour
             }
         }
 
+        UpdateDescriptionPanel(); // ★追加：アイテムの移動や削除があった時も説明を更新
+
         if (hudHotbarIcons != null)
         {
             for (int i = 0; i < hudHotbarIcons.Length; i++)
@@ -396,6 +423,18 @@ public class InventoryManager : MonoBehaviour
     }
 
     public Sprite GetItemIcon(string itemName) { foreach (var d in itemDataList) if (itemName.Contains(d.itemName)) return d.icon; return null; }
+
+    // ★追加：アイテム名から説明画像を取得する関数
+    public Sprite GetItemDescription(string itemName)
+    {
+        foreach (var d in itemDataList)
+        {
+            if (itemName.Contains(d.itemName))
+                return d.description;
+        }
+        return null;
+    }
+
     public string GetItemTag(string itemName) { if (itemTagDatabase.ContainsKey(itemName)) return itemTagDatabase[itemName]; return "Untagged"; }
     public bool HasItem(string itemName) { return currentItems.Contains(itemName); }
     public string GetEquippedItem() { if (currentItems != null && equippedIndex >= 0 && equippedIndex < currentItems.Count) return currentItems[equippedIndex]; return ""; }

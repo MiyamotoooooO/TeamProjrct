@@ -102238,12 +102238,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 40492247743399a459bf9e03c54b6b8b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  spawnPosition: {x: 150, y: 47, z: 60}
+  spawnPosition: {x: 136.3, y: 48, z: -126.874}
   bedRotationY: 90
   wakeUpDuration: 2
   playerTransform: {fileID: 1443479526}
   playerCamera: {fileID: 329624368}
   playerMovementScript: {fileID: 1443479527}
+  inventoryUI: {fileID: 665805350}
   lighterSystem: {fileID: 2130089584}
   flashlightSystem: {fileID: 2111599503}
 --- !u!114 &879497208
@@ -108863,6 +108864,81 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 0a252d80add0348439615bc02e74781d, type: 3}
+--- !u!1 &938300839
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 938300840}
+  - component: {fileID: 938300842}
+  - component: {fileID: 938300841}
+  m_Layer: 5
+  m_Name: DescriptionImage
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!224 &938300840
+RectTransform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 938300839}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 0.3, y: 0.45, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1635477567}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 0.5, y: 0.5}
+  m_AnchorMax: {x: 0.5, y: 0.5}
+  m_AnchoredPosition: {x: 61, y: 0}
+  m_SizeDelta: {x: 100, y: 100}
+  m_Pivot: {x: 0.5, y: 0.5}
+--- !u!114 &938300841
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 938300839}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_Material: {fileID: 0}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_RaycastTarget: 1
+  m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
+  m_Maskable: 1
+  m_OnCullStateChanged:
+    m_PersistentCalls:
+      m_Calls: []
+  m_Sprite: {fileID: 0}
+  m_Type: 0
+  m_PreserveAspect: 0
+  m_FillCenter: 1
+  m_FillMethod: 4
+  m_FillAmount: 1
+  m_FillClockwise: 1
+  m_FillOrigin: 0
+  m_UseSpriteMesh: 0
+  m_PixelsPerUnitMultiplier: 1
+--- !u!222 &938300842
+CanvasRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 938300839}
+  m_CullTransparentMesh: 1
 --- !u!1001 &938372595
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -130434,14 +130510,19 @@ MonoBehaviour:
   itemDataList:
   - itemName: Key
     icon: {fileID: -1196803692, guid: 351b34d37d83fef4e89f3fef8e1baab9, type: 3}
+    description: {fileID: 21300000, guid: e948734fe4129d746a80714282dd1f6c, type: 3}
   - itemName: Item
     icon: {fileID: 21300000, guid: 0b7513ee6cfa7914c9337e738c45b3fc, type: 3}
+    description: {fileID: 21300000, guid: e069ae957e616794e8a907371f2134f7, type: 3}
   - itemName: Lighter
     icon: {fileID: -241611720, guid: 93c39124366d5c04a8f369728626f4fa, type: 3}
+    description: {fileID: 21300000, guid: cbdc3b8169c884344857aa4b558c6bd7, type: 3}
   - itemName: Flashlight
     icon: {fileID: -1462291311, guid: b30fa011257e9a349b1dcbd816cbd50a, type: 3}
+    description: {fileID: 21300000, guid: ac92fc50086d6a245b003da545b01ae7, type: 3}
   - itemName: Crowbar(1)
     icon: {fileID: 2090137287, guid: 51e2ce3c8d9211d4990603037654c463, type: 3}
+    description: {fileID: 21300000, guid: af1f1b45fa6b5e64894c04ceb8a592f7, type: 3}
   allSlots:
   - {fileID: 1331856786}
   - {fileID: 990204691}
@@ -130455,6 +130536,7 @@ MonoBehaviour:
   - {fileID: 637509833}
   - {fileID: 1224769066}
   - {fileID: 1285770505}
+  descriptionDisplayImage: {fileID: 938300841}
   hudHotbarIcons:
   - {fileID: 1238889115}
   - {fileID: 1871259571}
@@ -133135,7 +133217,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4493914613880827488, guid: 6dc4cf4496348884d8ee27743ae38562, type: 3}
       propertyPath: m_IsActive
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 4493914613880827488, guid: 6dc4cf4496348884d8ee27743ae38562, type: 3}
       propertyPath: m_TagString
@@ -188726,6 +188808,7 @@ RectTransform:
   - {fileID: 1285770502}
   - {fileID: 1734043846}
   - {fileID: 1074824860}
+  - {fileID: 938300840}
   m_Father: {fileID: 811994521}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
