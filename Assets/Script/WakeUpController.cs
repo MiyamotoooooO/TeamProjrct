@@ -18,6 +18,7 @@ public class WakeUpController : MonoBehaviour
     public Transform playerTransform;
     public Transform playerCamera;
     public MonoBehaviour playerMovementScript;
+    public InventryUI inventoryUI;
     public LighterSystem lighterSystem;
     public FlashlightSystem flashlightSystem;
 
@@ -105,11 +106,16 @@ public class WakeUpController : MonoBehaviour
                 flashlightSystem.ApplyState();
             }
 
-            if(lighterSystem != null)
+            if (lighterSystem != null)
             {
                 lighterSystem.isLighterOn = false;
 
                 lighterSystem.ApplyState();
+            }
+
+            if (inventoryUI != null)
+            {
+                inventoryUI.enabled = false;
             }
 
             isSleeping = true;
@@ -183,6 +189,11 @@ public class WakeUpController : MonoBehaviour
             Debug.Log("ライターが使用可能になりました");
         }
         // ★★★★★★★★★★★★★★★★★★★★★★★★★
+
+        if (inventoryUI != null)
+        {
+            inventoryUI.enabled = true;
+        }
 
         isSleeping = false;
         Debug.Log("おはようございます！操作可能です。");
