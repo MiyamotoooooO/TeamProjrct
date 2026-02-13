@@ -286,9 +286,18 @@ public class PlayerController : MonoBehaviour
             bugSpawner.SpawnBugs();
         }
 
+        if (Input.GetMouseButtonDown(0))
+        {
+            // インベントリが開いていない時だけ振れるようにする
+            if (!isInventoryOpen)
+            {
+                HandleAttackInput();
+            }
+        }
+
         //if (Input.GetKeyDown(KeyCode.E))
         //{
-        //    HandleAttackInput();
+        //  HandleAttackInput();
         //}
     }
 
