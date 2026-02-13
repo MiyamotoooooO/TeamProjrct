@@ -23,6 +23,8 @@ public class DoubleDoorController : MonoBehaviour
     public float moveDuration = 1.0f;
     [Header("鍵で開く設定")]
     public bool doubleDoorPair1 = false;
+    [Header("ドアを開けるための鍵名")]
+    public string requiredKeyName = "";
 
     [Header("音の設定")]
     [Tooltip("ドアの開閉音（ここに音源を入れる）")]
@@ -77,7 +79,8 @@ public class DoubleDoorController : MonoBehaviour
         // プレイヤーが近くにいて、Eキーを押したら
         if (isPlayerInside && !isAnimating && Input.GetKeyDown(KeyCode.E))
         {
-            StartCoroutine(OperateDoors());
+            ForceOpen();
+            //player.DropCurrentItem();
         }
     }
 
@@ -163,10 +166,25 @@ public class DoubleDoorController : MonoBehaviour
         }
     }
 
-    public void ForceOpen()
+    public async Task ForceOpen()
     {
+        // 鍵が必要な場合はチェック
+        if (!string.IsNullOrEmpty(requiredKeyName))
+        {
+            if (!player.inventoryManager.HasItem(requiredKeyName))
+            {
+                Debug.Log("鍵が違うため開きません" + requiredKeyName);
+                return;
+            }
+        }
+
         if (!isAnimating && !isOpen)
         {
+            player.HandleAttackInput();
+            await Task.Delay(900);
+            player.inventoryManager.RemoveItem(requiredKeyName);
+            player.inventoryManager.UpdateInventoryUI();
+            Debug.Log("UpdateInventoryUI");
             StartCoroutine(OperateDoors());
         }
     }

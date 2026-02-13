@@ -7,8 +7,14 @@ using TMPro;
 public class InventoryManager : MonoBehaviour
 {
     [Header("インベントリ設定")]
-    public int maxSlots = 12;
+    [Tooltip("アイテムの最大所持数（例: 21ならホットバー3 + 9×2ページ）")]
+    public int maxSlots = 21;
     public int backpackColumns = 3;
+    private int backpackPageSize = 9;
+
+    [Header("ページ設定")]
+    public int currentPage = 0;
+    public int maxPages = 2;
 
     [Header("アイテムデータ")]
     public List<string> currentItems = new List<string>();
@@ -23,22 +29,42 @@ public class InventoryManager : MonoBehaviour
     public class ItemPrefabPair { public string itemName; public GameObject prefab; }
     public List<ItemPrefabPair> itemPrefabs = new List<ItemPrefabPair>();
 
+    // ★★★ 変更点：ItemDataに位置とサイズの設定を追加 ★★★
     [System.Serializable]
     public class ItemData
     {
         public string itemName;
         public Sprite icon;
+
+        [Header("説明パネル設定")]
         [Tooltip("説明欄に表示する画像")]
         public Sprite description;
+
+        [Tooltip("画像の表示位置 (X, Y)")]
+        public Vector2 descriptionPosition = Vector2.zero;
+
+        [Tooltip("画像の大きさ (1,1 が標準)")]
+        public Vector3 descriptionScale = Vector3.one;
     }
     public List<ItemData> itemDataList = new List<ItemData>();
 
     [Header("UI参照：インベントリ画面")]
-    [Tooltip("★重要★ 0~2:ホットバー(上中下), 3~11:バックパック(左上〜右下) の順で登録してください")]
+    [Tooltip("★重要★ 0~2:ホットバー, 3~11:バックパック表示用スロット")]
     public InventorySlot[] allSlots;
 
+    [Header("UI参照：ページアニメーション用")]
+    [Tooltip("バックパックの背景とスロットをまとめた親オブジェクトを指定してください")]
+    public RectTransform backpackUIContainer;
+    public float animationDuration = 0.3f;
+    [Tooltip("アニメーションの動き方をグラフで設定します")]
+    public AnimationCurve pageChangeCurve = AnimationCurve.EaseInOut(0, 0, 1, 1);
+
+    [Header("UI参照：ページ切り替えボタン")]
+    public Button nextPageButton;
+    public Button prevPageButton;
+    public TextMeshProUGUI pageNumberText;
+
     [Header("UI参照：説明パネル")]
-    [Tooltip("右側の説明欄にあるImageコンポーネントを入れてください")]
     public Image descriptionDisplayImage;
 
     [Header("UI参照：HUD")]
@@ -60,14 +86,22 @@ public class InventoryManager : MonoBehaviour
     // 内部変数
     private int currentCursorIndex = 0;
     private bool isSwapMode = false;
+    private bool isAnimatingPage = false;
     private Coroutine messageCoroutine;
+    private Vector2 originalContainerPosition;
 
     private void Start()
     {
         if (playerController == null) playerController = FindAnyObjectByType<PlayerController>();
+
         while (currentItems.Count < maxSlots) currentItems.Add("");
 
         InitializeInventorySlots();
+
+        if (backpackUIContainer != null)
+        {
+            originalContainerPosition = backpackUIContainer.anchoredPosition;
+        }
 
         UpdateInventoryUI();
         UpdateHUDSlotSelection();
@@ -92,255 +126,119 @@ public class InventoryManager : MonoBehaviour
             return;
         }
 
-        // --- インベントリ操作中 ---
+        if (isAnimatingPage) return;
 
         HandleCursorMovement();
         HandleWeaponSwitchInput();
 
-        // Spaceキー：決定 / 移動
         if (Input.GetKeyDown(KeyCode.Space))
         {
             HandleSpaceKeyAction();
         }
     }
 
-    void HandleCursorMovement()
+    public int GetRealDataIndex(int uiSlotIndex)
     {
-        int prevIndex = currentCursorIndex;
-
-        // --- W (上) ---
-        if (Input.GetKeyDown(KeyCode.W))
-        {
-            if (currentCursorIndex == 1) currentCursorIndex = 0;
-            else if (currentCursorIndex == 2) currentCursorIndex = 1;
-            else if (currentCursorIndex >= 6) currentCursorIndex -= 3;
-        }
-        // --- S (下) ---
-        if (Input.GetKeyDown(KeyCode.S))
-        {
-            if (currentCursorIndex == 0) currentCursorIndex = 1;
-            else if (currentCursorIndex == 1) currentCursorIndex = 2;
-            else if (currentCursorIndex >= 3 && currentCursorIndex < 9) currentCursorIndex += 3;
-        }
-        // --- A (左) ---
-        if (Input.GetKeyDown(KeyCode.A))
-        {
-            if (currentCursorIndex >= 3)
-            {
-                if (currentCursorIndex == 3) currentCursorIndex = 0;
-                else if (currentCursorIndex == 6) currentCursorIndex = 1;
-                else if (currentCursorIndex == 9) currentCursorIndex = 2;
-                else currentCursorIndex -= 1;
-            }
-        }
-        // --- D (右) ---
-        if (Input.GetKeyDown(KeyCode.D))
-        {
-            if (currentCursorIndex == 0) currentCursorIndex = 3;
-            else if (currentCursorIndex == 1) currentCursorIndex = 6;
-            else if (currentCursorIndex == 2) currentCursorIndex = 9;
-            else if (currentCursorIndex >= 3)
-            {
-                if (currentCursorIndex != 5 && currentCursorIndex != 8 && currentCursorIndex != 11)
-                    currentCursorIndex += 1;
-            }
-        }
-
-        // 変化があったらカーソル位置と説明パネルを更新
-        if (prevIndex != currentCursorIndex)
-        {
-            UpdateCursorPosition();
-            UpdateDescriptionPanel(); // ★追加：カーソル移動時に説明を更新
-        }
-    }
-
-    // --- ★追加：説明パネルの更新処理 ---
-    public void UpdateDescriptionPanel()
-    {
-        // UIが設定されていない場合は無視
-        if (descriptionDisplayImage == null) return;
-
-        // カーソル位置が範囲外なら非表示
-        if (currentCursorIndex < 0 || currentCursorIndex >= currentItems.Count)
-        {
-            descriptionDisplayImage.enabled = false;
-            return;
-        }
-
-        // 現在のカーソル位置にあるアイテム名を取得
-        string itemName = currentItems[currentCursorIndex];
-
-        // アイテムがない場合は非表示
-        if (string.IsNullOrEmpty(itemName))
-        {
-            descriptionDisplayImage.enabled = false;
-            return;
-        }
-
-        // アイテム名から説明画像を取得
-        Sprite descSprite = GetItemDescription(itemName);
-
-        // 画像があれば表示、なければ非表示
-        if (descSprite != null)
-        {
-            descriptionDisplayImage.sprite = descSprite;
-            descriptionDisplayImage.enabled = true;
-        }
+        if (uiSlotIndex < 3) return uiSlotIndex;
         else
         {
-            descriptionDisplayImage.enabled = false;
+            int backpackIndex = uiSlotIndex - 3;
+            return 3 + (currentPage * backpackPageSize) + backpackIndex;
         }
     }
 
-    void HandleSpaceKeyAction()
+    public void OnNextPageButton()
     {
-        if (currentCursorIndex >= currentItems.Count || string.IsNullOrEmpty(currentItems[currentCursorIndex])) return;
-
-        if (currentCursorIndex < 3)
+        if (isAnimatingPage) return;
+        if (currentPage < maxPages - 1)
         {
-            MoveItemToBackpack(currentCursorIndex);
-        }
-        else
-        {
-            isSwapMode = true;
-            if (swapPromptPanel != null) swapPromptPanel.SetActive(true);
-            if (playerController != null) playerController.SetBlurState(true);
+            StartCoroutine(ChangePageRoutine(1));
         }
     }
 
-    void MoveItemToBackpack(int fromIndex)
+    public void OnPrevPageButton()
     {
-        int emptySlot = -1;
-        for (int i = 3; i < currentItems.Count; i++)
+        if (isAnimatingPage) return;
+        if (currentPage > 0)
         {
-            if (string.IsNullOrEmpty(currentItems[i]))
+            StartCoroutine(ChangePageRoutine(-1));
+        }
+    }
+
+    IEnumerator ChangePageRoutine(int direction)
+    {
+        isAnimatingPage = true;
+
+        if (backpackUIContainer != null)
+        {
+            float timer = 0f;
+            float halfDuration = animationDuration / 2f;
+
+            // 【前半】今のページを閉じる（0度 → 90度へ）
+            Quaternion startRot = Quaternion.identity;
+            Quaternion endRot = Quaternion.Euler(0, 90f * direction, 0);
+
+            while (timer < halfDuration)
             {
-                emptySlot = i;
-                break;
+                timer += Time.unscaledDeltaTime;
+                float t = timer / halfDuration;
+                t = t * t;
+                backpackUIContainer.localRotation = Quaternion.Slerp(startRot, endRot, t);
+                yield return null;
             }
-        }
+            backpackUIContainer.localRotation = endRot;
 
-        if (emptySlot != -1)
-        {
-            currentItems[emptySlot] = currentItems[fromIndex];
-            currentItems[fromIndex] = "";
+            // 【中盤】
+            currentPage += direction;
             UpdateInventoryUI();
-            if (playerController != null) playerController.UpdateItemModel();
+            UpdateDescriptionPanel();
+
+            // 【後半】新しいページを開く（反対側の角度 → 0度へ）
+            timer = 0f;
+            startRot = Quaternion.Euler(0, -90f * direction, 0);
+            endRot = Quaternion.identity;
+
+            while (timer < halfDuration)
+            {
+                timer += Time.unscaledDeltaTime;
+                float t = timer / halfDuration;
+                t = 1f - (1f - t) * (1f - t);
+                backpackUIContainer.localRotation = Quaternion.Slerp(startRot, endRot, t);
+                yield return null;
+            }
+            backpackUIContainer.localRotation = Quaternion.identity;
         }
         else
         {
-            ShowFullMessage();
+            currentPage += direction;
+            UpdateInventoryUI();
+            UpdateDescriptionPanel();
         }
+
+        isAnimatingPage = false;
     }
 
-    void ShowFullMessage()
-    {
-        if (fullMessageText == null) return;
-        if (messageCoroutine != null) StopCoroutine(messageCoroutine);
-        messageCoroutine = StartCoroutine(FadeOutMessageRoutine());
-    }
-
-    IEnumerator FadeOutMessageRoutine()
-    {
-        fullMessageText.gameObject.SetActive(true);
-        if (fullMessageCanvasGroup != null) fullMessageCanvasGroup.alpha = 1f;
-        yield return new WaitForSecondsRealtime(2.0f);
-
-        float duration = 1.0f;
-        float timer = 0f;
-        while (timer < duration)
-        {
-            timer += Time.unscaledDeltaTime;
-            if (fullMessageCanvasGroup != null)
-                fullMessageCanvasGroup.alpha = Mathf.Lerp(1f, 0f, timer / duration);
-            yield return null;
-        }
-        fullMessageText.gameObject.SetActive(false);
-    }
-
-    void HandleWeaponSwitchInput()
-    {
-        if (Input.GetKeyDown(KeyCode.Alpha1)) ChangeSelectedSlot(0);
-        if (Input.GetKeyDown(KeyCode.Alpha2)) ChangeSelectedSlot(1);
-        if (Input.GetKeyDown(KeyCode.Alpha3)) ChangeSelectedSlot(2);
-    }
-
-    void HandleSwapInput()
-    {
-        int targetSlot = -1;
-        if (Input.GetKeyDown(KeyCode.Alpha1)) targetSlot = 0;
-        if (Input.GetKeyDown(KeyCode.Alpha2)) targetSlot = 1;
-        if (Input.GetKeyDown(KeyCode.Alpha3)) targetSlot = 2;
-
-        if (Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.Escape)) { EndSwapMode(); return; }
-
-        if (targetSlot != -1)
-        {
-            SwapItems(currentCursorIndex, targetSlot);
-            EndSwapMode();
-        }
-    }
-
-    void EndSwapMode()
-    {
-        isSwapMode = false;
-        if (swapPromptPanel != null) swapPromptPanel.SetActive(false);
-        if (playerController != null) playerController.SetBlurState(false);
-    }
-
-    void UpdateCursorPosition()
-    {
-        if (cursorRect == null || allSlots == null || currentCursorIndex >= allSlots.Length) return;
-        cursorRect.position = allSlots[currentCursorIndex].transform.position;
-    }
-
-    void UpdateHUDSlotSelection()
-    {
-        if (hudHotbarFrames == null) return;
-        for (int i = 0; i < hudHotbarFrames.Length; i++)
-        {
-            if (hudHotbarFrames[i] == null) continue;
-            Color c = hudHotbarFrames[i].color;
-            float alpha = (i == equippedIndex) ? selectedAlpha : unselectedAlpha;
-            c.a = alpha / 255f;
-            hudHotbarFrames[i].color = c;
-        }
-    }
-
-    public void SwapItems(int indexA, int indexB)
-    {
-        if (indexA < 0 || indexA >= currentItems.Count || indexB < 0 || indexB >= currentItems.Count) return;
-        string temp = currentItems[indexA];
-        currentItems[indexA] = currentItems[indexB];
-        currentItems[indexB] = temp;
-        UpdateInventoryUI();
-        if (playerController != null) playerController.UpdateItemModel();
-    }
-
-    private void InitializeInventorySlots()
-    {
-        if (allSlots == null) return;
-        for (int i = 0; i < allSlots.Length; i++)
-        {
-            allSlots[i].slotIndex = i;
-            allSlots[i].manager = this;
-        }
-    }
-
+    // --- UI更新 ---
     public void UpdateInventoryUI()
     {
         if (allSlots != null)
         {
             for (int i = 0; i < allSlots.Length; i++)
             {
-                if (i < currentItems.Count && !string.IsNullOrEmpty(currentItems[i]))
-                    allSlots[i].SetItem(GetItemIcon(currentItems[i]));
+                int realIndex = GetRealDataIndex(i);
+                if (realIndex < currentItems.Count && !string.IsNullOrEmpty(currentItems[realIndex]))
+                    allSlots[i].SetItem(GetItemIcon(currentItems[realIndex]));
                 else
                     allSlots[i].ClearSlot();
             }
         }
 
-        UpdateDescriptionPanel(); // ★追加：アイテムの移動や削除があった時も説明を更新
+        UpdateDescriptionPanel();
+
+        if (pageNumberText != null)
+        {
+            pageNumberText.text = (currentPage + 1) + " / " + maxPages;
+        }
 
         if (hudHotbarIcons != null)
         {
@@ -359,95 +257,83 @@ public class InventoryManager : MonoBehaviour
                 }
             }
         }
+
+        if (prevPageButton != null) prevPageButton.gameObject.SetActive(currentPage > 0);
+        if (nextPageButton != null) nextPageButton.gameObject.SetActive(currentPage < maxPages - 1);
     }
 
-    public void ChangeSelectedSlot(int slotIndex)
+    // ★★★ 変更点：ItemDataクラスを取得し、画像・位置・サイズを反映する ★★★
+    public void UpdateDescriptionPanel()
     {
-        equippedIndex = slotIndex;
-        if (playerController != null) playerController.UpdateItemModel();
-        UpdateHUDSlotSelection();
-    }
+        if (descriptionDisplayImage == null) return;
 
-    public void PickUpItem(GameObject itemObj)
-    {
-        string cleanName = itemObj.name.Replace("(Clone)", "").Trim();
-        string tag = itemObj.tag;
-        int emptyIndex = currentItems.IndexOf("");
-        if (emptyIndex != -1)
+        int realIndex = GetRealDataIndex(currentCursorIndex);
+        if (realIndex < 0 || realIndex >= currentItems.Count)
         {
-            currentItems[emptyIndex] = cleanName;
-            if (!itemTagDatabase.ContainsKey(cleanName)) itemTagDatabase.Add(cleanName, tag);
-            Destroy(itemObj);
-            UpdateInventoryUI();
-            if (emptyIndex == equippedIndex && playerController != null) playerController.UpdateItemModel();
+            descriptionDisplayImage.enabled = false;
+            return;
         }
-    }
 
-    public GameObject DropItem(string itemName, Vector3 position)
-    {
-        int index = currentItems.IndexOf(itemName);
-        if (index == -1) return null;
-        currentItems[index] = "";
-        UpdateInventoryUI();
-        foreach (var pair in itemPrefabs)
+        string itemName = currentItems[realIndex];
+        if (string.IsNullOrEmpty(itemName))
         {
-            if (pair.itemName == itemName || itemName.Contains(pair.itemName))
-                return Instantiate(pair.prefab, position, Quaternion.identity);
+            descriptionDisplayImage.enabled = false;
+            return;
         }
-        return null;
-    }
 
-    public void RemoveItem(string itemName)
-    {
-        if (currentItems.Contains(itemName))
-        {
-            currentItems.Remove(itemName);
-        }
-    }
+        // データを取得して反映
+        ItemData data = GetItemData(itemName);
 
-    public void AddItem(string itemName)
-    {
-        int emptyIndex = currentItems.IndexOf("");
-        if (emptyIndex != -1)
+        if (data != null && data.description != null)
         {
-            currentItems[emptyIndex] = itemName;
-            if (!itemTagDatabase.ContainsKey(itemName)) itemTagDatabase.Add(itemName, "Untagged");
-            UpdateInventoryUI();
-            UpdateHUDSlotSelection();
-            if (emptyIndex == equippedIndex && playerController != null) playerController.UpdateItemModel();
+            descriptionDisplayImage.sprite = data.description;
+
+            // 位置とサイズを適用
+            descriptionDisplayImage.rectTransform.anchoredPosition = data.descriptionPosition;
+            descriptionDisplayImage.rectTransform.localScale = data.descriptionScale;
+
+            descriptionDisplayImage.enabled = true;
         }
         else
         {
-            ShowFullMessage();
+            descriptionDisplayImage.enabled = false;
         }
     }
 
-    public Sprite GetItemIcon(string itemName) { foreach (var d in itemDataList) if (itemName.Contains(d.itemName)) return d.icon; return null; }
-
-    // ★追加：アイテム名から説明画像を取得する関数
-    public Sprite GetItemDescription(string itemName)
+    // ★★★ 変更点：アイテムデータ全体を取得する関数を追加 ★★★
+    public ItemData GetItemData(string itemName)
     {
         foreach (var d in itemDataList)
         {
             if (itemName.Contains(d.itemName))
-                return d.description;
+                return d;
         }
         return null;
     }
 
+    // --- 以下、変更なし ---
+    void HandleSpaceKeyAction() { int realCurrentIndex = GetRealDataIndex(currentCursorIndex); if (realCurrentIndex >= currentItems.Count || string.IsNullOrEmpty(currentItems[realCurrentIndex])) return; if (currentCursorIndex < 3) MoveItemToBackpack(realCurrentIndex); else { isSwapMode = true; if (swapPromptPanel != null) swapPromptPanel.SetActive(true); if (playerController != null) playerController.SetBlurState(true); } }
+    void MoveItemToBackpack(int fromIndex) { int emptySlot = -1; for (int i = 3; i < currentItems.Count; i++) { if (string.IsNullOrEmpty(currentItems[i])) { emptySlot = i; break; } } if (emptySlot != -1) { currentItems[emptySlot] = currentItems[fromIndex]; currentItems[fromIndex] = ""; UpdateInventoryUI(); if (playerController != null) playerController.UpdateItemModel(); } else ShowFullMessage(); }
+    public void SwapItems(int uiIndexA, int uiIndexB) { int realIndexA = GetRealDataIndex(uiIndexA); int realIndexB = GetRealDataIndex(uiIndexB); if (realIndexA >= currentItems.Count || realIndexB >= currentItems.Count) return; string temp = currentItems[realIndexA]; currentItems[realIndexA] = currentItems[realIndexB]; currentItems[realIndexB] = temp; UpdateInventoryUI(); if (playerController != null) playerController.UpdateItemModel(); }
+    void HandleCursorMovement() { int prevIndex = currentCursorIndex; if (Input.GetKeyDown(KeyCode.W)) { if (currentCursorIndex == 1) currentCursorIndex = 0; else if (currentCursorIndex == 2) currentCursorIndex = 1; else if (currentCursorIndex >= 6) currentCursorIndex -= 3; } if (Input.GetKeyDown(KeyCode.S)) { if (currentCursorIndex == 0) currentCursorIndex = 1; else if (currentCursorIndex == 1) currentCursorIndex = 2; else if (currentCursorIndex >= 3 && currentCursorIndex < 9) currentCursorIndex += 3; } if (Input.GetKeyDown(KeyCode.A)) { if (currentCursorIndex >= 3) { if (currentCursorIndex == 3) currentCursorIndex = 0; else if (currentCursorIndex == 6) currentCursorIndex = 1; else if (currentCursorIndex == 9) currentCursorIndex = 2; else currentCursorIndex -= 1; } } if (Input.GetKeyDown(KeyCode.D)) { if (currentCursorIndex == 0) currentCursorIndex = 3; else if (currentCursorIndex == 1) currentCursorIndex = 6; else if (currentCursorIndex == 2) currentCursorIndex = 9; else if (currentCursorIndex >= 3) { if (currentCursorIndex != 5 && currentCursorIndex != 8 && currentCursorIndex != 11) currentCursorIndex += 1; } } if (prevIndex != currentCursorIndex) { UpdateCursorPosition(); UpdateDescriptionPanel(); } }
+    void HandleSwapInput() { int targetUiSlot = -1; if (Input.GetKeyDown(KeyCode.Alpha1)) targetUiSlot = 0; if (Input.GetKeyDown(KeyCode.Alpha2)) targetUiSlot = 1; if (Input.GetKeyDown(KeyCode.Alpha3)) targetUiSlot = 2; if (Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.Escape)) { EndSwapMode(); return; } if (targetUiSlot != -1) { SwapItems(currentCursorIndex, targetUiSlot); EndSwapMode(); } }
+    void EndSwapMode() { isSwapMode = false; if (swapPromptPanel != null) swapPromptPanel.SetActive(false); if (playerController != null) playerController.SetBlurState(false); }
+    void ShowFullMessage() { if (fullMessageText == null) return; if (messageCoroutine != null) StopCoroutine(messageCoroutine); messageCoroutine = StartCoroutine(FadeOutMessageRoutine()); }
+    IEnumerator FadeOutMessageRoutine() { fullMessageText.gameObject.SetActive(true); if (fullMessageCanvasGroup != null) fullMessageCanvasGroup.alpha = 1f; yield return new WaitForSecondsRealtime(2.0f); float duration = 1.0f; float timer = 0f; while (timer < duration) { timer += Time.unscaledDeltaTime; if (fullMessageCanvasGroup != null) fullMessageCanvasGroup.alpha = Mathf.Lerp(1f, 0f, timer / duration); yield return null; } fullMessageText.gameObject.SetActive(false); }
+    void HandleWeaponSwitchInput() { if (Input.GetKeyDown(KeyCode.Alpha1)) ChangeSelectedSlot(0); if (Input.GetKeyDown(KeyCode.Alpha2)) ChangeSelectedSlot(1); if (Input.GetKeyDown(KeyCode.Alpha3)) ChangeSelectedSlot(2); }
+    void UpdateCursorPosition() { if (cursorRect == null || allSlots == null || currentCursorIndex >= allSlots.Length) return; cursorRect.position = allSlots[currentCursorIndex].transform.position; }
+    void UpdateHUDSlotSelection() { if (hudHotbarFrames == null) return; for (int i = 0; i < hudHotbarFrames.Length; i++) { if (hudHotbarFrames[i] == null) continue; Color c = hudHotbarFrames[i].color; float alpha = (i == equippedIndex) ? selectedAlpha : unselectedAlpha; c.a = alpha / 255f; hudHotbarFrames[i].color = c; } }
+    private void InitializeInventorySlots() { if (allSlots == null) return; for (int i = 0; i < allSlots.Length; i++) { allSlots[i].slotIndex = i; allSlots[i].manager = this; } }
+    public void ChangeSelectedSlot(int slotIndex) { equippedIndex = slotIndex; if (playerController != null) playerController.UpdateItemModel(); UpdateHUDSlotSelection(); }
+    public void PickUpItem(GameObject itemObj) { string cleanName = itemObj.name.Replace("(Clone)", "").Trim(); string tag = itemObj.tag; int emptyIndex = currentItems.IndexOf(""); if (emptyIndex != -1) { currentItems[emptyIndex] = cleanName; if (!itemTagDatabase.ContainsKey(cleanName)) itemTagDatabase.Add(cleanName, tag); Destroy(itemObj); UpdateInventoryUI(); if (emptyIndex == equippedIndex && playerController != null) playerController.UpdateItemModel(); } else { ShowFullMessage(); } }
+    public void AddItem(string itemName) { int emptyIndex = currentItems.IndexOf(""); if (emptyIndex != -1) { currentItems[emptyIndex] = itemName; if (!itemTagDatabase.ContainsKey(itemName)) itemTagDatabase.Add(itemName, "Untagged"); UpdateInventoryUI(); UpdateHUDSlotSelection(); if (emptyIndex == equippedIndex && playerController != null) playerController.UpdateItemModel(); } else { ShowFullMessage(); } }
+    public GameObject DropItem(string itemName, Vector3 position) { int index = currentItems.IndexOf(itemName); if (index == -1) return null; currentItems[index] = ""; UpdateInventoryUI(); foreach (var pair in itemPrefabs) if (pair.itemName == itemName || itemName.Contains(pair.itemName)) return Instantiate(pair.prefab, position, Quaternion.identity); return null; }
+    public void RemoveItem(string itemName) { if (currentItems.Contains(itemName)) currentItems.Remove(itemName); }
+    public Sprite GetItemIcon(string itemName) { foreach (var d in itemDataList) if (itemName.Contains(d.itemName)) return d.icon; return null; }
     public string GetItemTag(string itemName) { if (itemTagDatabase.ContainsKey(itemName)) return itemTagDatabase[itemName]; return "Untagged"; }
     public bool HasItem(string itemName) { return currentItems.Contains(itemName); }
     public string GetEquippedItem() { if (currentItems != null && equippedIndex >= 0 && equippedIndex < currentItems.Count) return currentItems[equippedIndex]; return ""; }
     public List<string> GetItemDataForSave() { return currentItems; }
-    public void LoadItemData(List<string> loadedItems)
-    {
-        currentItems = loadedItems;
-        while (currentItems.Count < maxSlots) currentItems.Add("");
-        itemTagDatabase.Clear();
-        foreach (var item in currentItems) if (!string.IsNullOrEmpty(item)) GetItemTag(item);
-        ReflectInventoryToScene();
-        UpdateInventoryUI();
-        UpdateHUDSlotSelection();
-    }
+    public void LoadItemData(List<string> loadedItems) { currentItems = loadedItems; while (currentItems.Count < maxSlots) currentItems.Add(""); itemTagDatabase.Clear(); foreach (var item in currentItems) if (!string.IsNullOrEmpty(item)) GetItemTag(item); ReflectInventoryToScene(); UpdateInventoryUI(); UpdateHUDSlotSelection(); }
     private void ReflectInventoryToScene() { foreach (string itemName in currentItems) { if (string.IsNullOrEmpty(itemName)) continue; GameObject obj = GameObject.Find(itemName); if (obj != null) obj.SetActive(false); } }
 }

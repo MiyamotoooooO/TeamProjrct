@@ -4,6 +4,7 @@ using UnityEngine.SceneManagement;
 using System.Collections;
 using UnityEngine.UI;
 using UnityEngine.Rendering.PostProcessing;
+using System.Threading.Tasks;
 
 [RequireComponent(typeof(Rigidbody))]
 [RequireComponent(typeof(AudioSource))]
@@ -129,6 +130,8 @@ public class PlayerController : MonoBehaviour
     private bool isCameraSwing = false;
     private float cameraSwingTimer = -2f;
     private Quaternion cameraSwingStartRot;
+
+    public DoubleDoorController DoubleDoor;
 
     private void Start()
     {
@@ -267,7 +270,7 @@ public class PlayerController : MonoBehaviour
         HandleCameraShake();
 
         UpdateItemBob(isMoving);
-        UpdateKeySwing();
+        //UpdateKeySwing();
         UpdateItemSwing();
         UpdateCrowbarSwing(); // ★追加：バールの動き更新
         UpdateCameraSwing();
@@ -283,10 +286,10 @@ public class PlayerController : MonoBehaviour
             bugSpawner.SpawnBugs();
         }
 
-        if (Input.GetMouseButtonDown(0))
-        {
-            HandleAttackInput();
-        }
+        //if (Input.GetKeyDown(KeyCode.E))
+        //{
+        //    HandleAttackInput();
+        //}
     }
 
     void ToggleInventory()
@@ -905,7 +908,7 @@ public class PlayerController : MonoBehaviour
         else if (CrowbarModel != null && CrowbarModel.activeSelf) PlayCrowbarSwing(); // ★追加
     }
 
-    public void PlayKeySwing()
+    public async Task PlayKeySwing()
     {
         if (isSwinging) return;
         isSwinging = true;
@@ -915,6 +918,10 @@ public class PlayerController : MonoBehaviour
         rb.velocity = Vector3.zero;
         isCameraSwing = false;
         cameraSwingTimer = 0f;
+        await Task.Delay(2000);
+        if (KeyModel) KeyModel.SetActive(false);
+        // ここにインベントリの鍵アイテムを消す処理を入れる
+
     }
 
 

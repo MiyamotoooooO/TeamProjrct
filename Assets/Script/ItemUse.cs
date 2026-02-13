@@ -113,7 +113,9 @@ public class ItemUse : MonoBehaviour
         //player.UpdateKeySwing();
         await Task.Delay(1000);
 
+
         player.inventoryManager.RemoveItem(requiredKeyName);
+
 
         door.ForceOpen();
 
@@ -226,7 +228,7 @@ public class ItemUse : MonoBehaviour
             {
                 Debug.Log("Œ®(" + requiredKeyName + ")‚ğg—p‚µ‚Ä•Ç‚ğÁ‚µ‚Ü‚µ‚½F" + hit.collider.name);
 
-                string tag = player.inventoryManager.GetItemTag(requiredKeyName);
+               string tag = player.inventoryManager.GetItemTag(requiredKeyName);
 
                 if (tag == null)
                 {
