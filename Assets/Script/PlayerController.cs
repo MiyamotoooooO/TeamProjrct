@@ -21,6 +21,9 @@ public class PlayerController : MonoBehaviour
     [Header("メインカメラを参照")]
     public GameObject cam;
 
+    [Header("アイテム入手演出")]
+    public ItemGetDisplay itemGetDisplay;
+
     [Header("InventoryManagerを参照")]
     public InventoryManager inventoryManager;
 
@@ -498,6 +501,9 @@ public class PlayerController : MonoBehaviour
     void CheckPickUp()
     {
         if (isInventoryOpen) return;
+
+        if (itemGetDisplay != null && itemGetDisplay.isDisplaying) return;
+
         Ray ray = new Ray(cam.transform.position, cam.transform.forward);
         RaycastHit hit;
 
@@ -513,8 +519,15 @@ public class PlayerController : MonoBehaviour
                     pickUpText.enabled = true;
                     if (Input.GetKeyDown(KeyCode.E))
                     {
+                        string cleanName = hit.collider.gameObject.name.Replace("(Clone)", "").Trim();
+
                         inventoryManager.PickUpItem(hit.collider.gameObject);
                         UpdateItemModel();
+
+                        if (itemGetDisplay != null)
+                        {
+                            itemGetDisplay.ShowItemGet(cleanName);
+                        }
                     }
                     return;
                 }
