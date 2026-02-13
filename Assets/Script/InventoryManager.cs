@@ -12,6 +12,12 @@ public class InventoryManager : MonoBehaviour
     public int backpackColumns = 3;
     private int backpackPageSize = 9;
 
+    [Header("デコイ設定")]
+    [Tooltip("デコイのアイテム名（これと一致した時だけクールタイムが発生）")]
+    public string decoyItemName = "SpiderDecoy";
+    [Tooltip("クールダウン時間（秒）")]
+    public float decoyCooldownTime = 20.0f;
+
     [Header("ページ設定")]
     public int currentPage = 0;
     public int maxPages = 2;
@@ -29,7 +35,6 @@ public class InventoryManager : MonoBehaviour
     public class ItemPrefabPair { public string itemName; public GameObject prefab; }
     public List<ItemPrefabPair> itemPrefabs = new List<ItemPrefabPair>();
 
-    // ★★★ 変更点：ItemDataに位置とサイズの設定を追加 ★★★
     [System.Serializable]
     public class ItemData
     {
@@ -89,6 +94,7 @@ public class InventoryManager : MonoBehaviour
     private bool isAnimatingPage = false;
     private Coroutine messageCoroutine;
     private Vector2 originalContainerPosition;
+    private float currentDecoyCooldown = 0f;
 
     private void Start()
     {
@@ -135,6 +141,18 @@ public class InventoryManager : MonoBehaviour
         {
             HandleSpaceKeyAction();
         }
+
+        // --- クールダウンの処理 ---
+        if (currentDecoyCooldown > 0)
+        {
+            currentDecoyCooldown -= Time.unscaledDeltaTime;
+
+            // 0になった瞬間に0ぴったりにする
+            if (currentDecoyCooldown < 0) currentDecoyCooldown = 0;
+
+            // 毎フレームUIを更新（数字を表示するため）
+            UpdateCooldownUI();
+        }
     }
 
     public int GetRealDataIndex(int uiSlotIndex)
@@ -146,6 +164,65 @@ public class InventoryManager : MonoBehaviour
             return 3 + (currentPage * backpackPageSize) + backpackIndex;
         }
     }
+
+    // --- クールダウンUI更新 ---
+    void UpdateCooldownUI()
+    {
+        if (allSlots == null) return;
+
+        // 残り時間の割合（1.0 = 満タン、0.0 = 完了）
+        float fillValue = currentDecoyCooldown / decoyCooldownTime;
+
+        // 表示用の秒数（切り上げ）
+        int remainingSeconds = Mathf.CeilToInt(currentDecoyCooldown);
+        string textValue = (remainingSeconds > 0) ? remainingSeconds.ToString() : "";
+
+        for (int i = 0; i < allSlots.Length; i++)
+        {
+            // スロット番号から実際のアイテムデータを取得
+            int realIndex = GetRealDataIndex(allSlots[i].slotIndex);
+
+            // スロットに「デコイ」が入っているかチェック
+            if (realIndex < currentItems.Count && currentItems[realIndex] == decoyItemName)
+            {
+                // 画像（円グラフ）の更新
+                if (allSlots[i].cooldownImage != null)
+                {
+                    allSlots[i].cooldownImage.fillAmount = fillValue;
+                }
+
+                // テキスト（数字）の更新
+                if (allSlots[i].cooldownText != null)
+                {
+                    allSlots[i].cooldownText.text = textValue;
+
+                    // クールダウン中は文字を表示、終わったら消す
+                    allSlots[i].cooldownText.enabled = (remainingSeconds > 0);
+                }
+            }
+            else
+            {
+                // デコイ以外は表示を消す
+                if (allSlots[i].cooldownImage != null) allSlots[i].cooldownImage.fillAmount = 0;
+                if (allSlots[i].cooldownText != null) allSlots[i].cooldownText.text = "";
+            }
+        }
+    }
+
+    // デコイを使った時に呼ぶ関数
+    public void UseDecoy()
+    {
+        currentDecoyCooldown = decoyCooldownTime;
+        UpdateCooldownUI();
+    }
+
+    // デコイが使えるか確認する関数
+    public bool IsDecoyReady()
+    {
+        return currentDecoyCooldown <= 0;
+    }
+
+    // --- 以下、既存の関数（省略なし） ---
 
     public void OnNextPageButton()
     {
@@ -174,7 +251,6 @@ public class InventoryManager : MonoBehaviour
             float timer = 0f;
             float halfDuration = animationDuration / 2f;
 
-            // 【前半】今のページを閉じる（0度 → 90度へ）
             Quaternion startRot = Quaternion.identity;
             Quaternion endRot = Quaternion.Euler(0, 90f * direction, 0);
 
@@ -188,12 +264,10 @@ public class InventoryManager : MonoBehaviour
             }
             backpackUIContainer.localRotation = endRot;
 
-            // 【中盤】
             currentPage += direction;
             UpdateInventoryUI();
             UpdateDescriptionPanel();
 
-            // 【後半】新しいページを開く（反対側の角度 → 0度へ）
             timer = 0f;
             startRot = Quaternion.Euler(0, -90f * direction, 0);
             endRot = Quaternion.identity;
@@ -218,7 +292,6 @@ public class InventoryManager : MonoBehaviour
         isAnimatingPage = false;
     }
 
-    // --- UI更新 ---
     public void UpdateInventoryUI()
     {
         if (allSlots != null)
@@ -234,11 +307,9 @@ public class InventoryManager : MonoBehaviour
         }
 
         UpdateDescriptionPanel();
+        UpdateCooldownUI(); // ページ切り替え時にもクールダウン表示を更新
 
-        if (pageNumberText != null)
-        {
-            pageNumberText.text = (currentPage + 1) + " / " + maxPages;
-        }
+        if (pageNumberText != null) pageNumberText.text = (currentPage + 1) + " / " + maxPages;
 
         if (hudHotbarIcons != null)
         {
@@ -262,56 +333,30 @@ public class InventoryManager : MonoBehaviour
         if (nextPageButton != null) nextPageButton.gameObject.SetActive(currentPage < maxPages - 1);
     }
 
-    // ★★★ 変更点：ItemDataクラスを取得し、画像・位置・サイズを反映する ★★★
     public void UpdateDescriptionPanel()
     {
         if (descriptionDisplayImage == null) return;
-
         int realIndex = GetRealDataIndex(currentCursorIndex);
-        if (realIndex < 0 || realIndex >= currentItems.Count)
-        {
-            descriptionDisplayImage.enabled = false;
-            return;
-        }
-
+        if (realIndex < 0 || realIndex >= currentItems.Count) { descriptionDisplayImage.enabled = false; return; }
         string itemName = currentItems[realIndex];
-        if (string.IsNullOrEmpty(itemName))
-        {
-            descriptionDisplayImage.enabled = false;
-            return;
-        }
-
-        // データを取得して反映
+        if (string.IsNullOrEmpty(itemName)) { descriptionDisplayImage.enabled = false; return; }
         ItemData data = GetItemData(itemName);
-
         if (data != null && data.description != null)
         {
             descriptionDisplayImage.sprite = data.description;
-
-            // 位置とサイズを適用
             descriptionDisplayImage.rectTransform.anchoredPosition = data.descriptionPosition;
             descriptionDisplayImage.rectTransform.localScale = data.descriptionScale;
-
             descriptionDisplayImage.enabled = true;
         }
-        else
-        {
-            descriptionDisplayImage.enabled = false;
-        }
+        else { descriptionDisplayImage.enabled = false; }
     }
 
-    // ★★★ 変更点：アイテムデータ全体を取得する関数を追加 ★★★
     public ItemData GetItemData(string itemName)
     {
-        foreach (var d in itemDataList)
-        {
-            if (itemName.Contains(d.itemName))
-                return d;
-        }
+        foreach (var d in itemDataList) if (itemName.Contains(d.itemName)) return d;
         return null;
     }
 
-    // --- 以下、変更なし ---
     void HandleSpaceKeyAction() { int realCurrentIndex = GetRealDataIndex(currentCursorIndex); if (realCurrentIndex >= currentItems.Count || string.IsNullOrEmpty(currentItems[realCurrentIndex])) return; if (currentCursorIndex < 3) MoveItemToBackpack(realCurrentIndex); else { isSwapMode = true; if (swapPromptPanel != null) swapPromptPanel.SetActive(true); if (playerController != null) playerController.SetBlurState(true); } }
     void MoveItemToBackpack(int fromIndex) { int emptySlot = -1; for (int i = 3; i < currentItems.Count; i++) { if (string.IsNullOrEmpty(currentItems[i])) { emptySlot = i; break; } } if (emptySlot != -1) { currentItems[emptySlot] = currentItems[fromIndex]; currentItems[fromIndex] = ""; UpdateInventoryUI(); if (playerController != null) playerController.UpdateItemModel(); } else ShowFullMessage(); }
     public void SwapItems(int uiIndexA, int uiIndexB) { int realIndexA = GetRealDataIndex(uiIndexA); int realIndexB = GetRealDataIndex(uiIndexB); if (realIndexA >= currentItems.Count || realIndexB >= currentItems.Count) return; string temp = currentItems[realIndexA]; currentItems[realIndexA] = currentItems[realIndexB]; currentItems[realIndexB] = temp; UpdateInventoryUI(); if (playerController != null) playerController.UpdateItemModel(); }

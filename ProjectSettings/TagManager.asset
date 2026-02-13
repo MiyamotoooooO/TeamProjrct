@@ -18,6 +18,7 @@ TagManager:
   - RotateObject
   - Bloodlump
   - MouseToy
+  - Spider
   layers:
   - Default
   - TransparentFX

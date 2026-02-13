@@ -1,4 +1,6 @@
 ﻿using TMPro;
+using UnityEngine.SceneManagement;
+using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using System.Collections;
@@ -53,7 +55,7 @@ public class PlayerController : MonoBehaviour
 
     [Header("デコイ")]
     [SerializeField] private GameObject decoy;
-    [SerializeField] private float decoySpawnDistance;
+    [SerializeField] private float decoySpawnDistance = 2f;
 
     [Header("視点の揺れ")]
     public float walkBobFrequency = 10.0f;
@@ -73,9 +75,10 @@ public class PlayerController : MonoBehaviour
     [Header("--- アイテムモデル設定 ---")]
     public GameObject KeyModel;
     public GameObject ItemModel; // 汎用アイテム
-    public GameObject CrowbarModel; // ★追加：バール専用モデル
+    public GameObject CrowbarModel; // バール専用モデル
     public GameObject FlashlightModel;
     public GameObject LighterModel;
+    public GameObject SpiderModel; // ★追加：クモの手持ちモデル
 
     [Header("アイテムアニメーション")]
     public float itemBobSpeed = 6f;
@@ -112,12 +115,13 @@ public class PlayerController : MonoBehaviour
 
     private Vector3 KeyModelDefaultPos;
     private Vector3 itemModelDefaultPos;
-    private Vector3 crowbarModelDefaultPos; // ★追加
+    private Vector3 crowbarModelDefaultPos;
     private Vector3 flashlightModelDefaultPos;
     private Vector3 lighterModelDefaultPos;
+    private Vector3 spiderModelDefaultPos; // ★追加
 
     private Quaternion itemDefaultRot;
-    private Quaternion crowbarDefaultRot; // ★追加
+    private Quaternion crowbarDefaultRot;
     private Quaternion defaultRot;
 
     private float itemBobTimer = 0f;
@@ -127,8 +131,8 @@ public class PlayerController : MonoBehaviour
     private bool isItemSwing = false; // 汎用アイテム用
     private float itemSwingTimer = 0f;
 
-    private bool isCrowbarSwing = false; // ★追加：バール用
-    private float crowbarSwingTimer = 0f; // ★追加
+    private bool isCrowbarSwing = false; // バール用
+    private float crowbarSwingTimer = 0f;
 
     private bool isCameraSwing = false;
     private float cameraSwingTimer = -2f;
@@ -141,18 +145,9 @@ public class PlayerController : MonoBehaviour
         rb = GetComponent<Rigidbody>();
         rb.freezeRotation = true;
 
-        if (inventoryBlurVolume != null)
-        {
-            inventoryBlurVolume.SetActive(false);
-        }
-
-        if (inventoryManager == null)
-            inventoryManager = FindAnyObjectByType<InventoryManager>();
-
-        if (inventoryUIPanel != null)
-        {
-            inventoryUIPanel.SetActive(false);
-        }
+        if (inventoryBlurVolume != null) inventoryBlurVolume.SetActive(false);
+        if (inventoryManager == null) inventoryManager = FindAnyObjectByType<InventoryManager>();
+        if (inventoryUIPanel != null) inventoryUIPanel.SetActive(false);
 
         if (cam != null)
         {
@@ -176,24 +171,23 @@ public class PlayerController : MonoBehaviour
             breathingAudioSource.Play();
         }
 
-        // 初期位置と回転の保存
+        // 初期位置保存
         if (KeyModel != null) KeyModelDefaultPos = KeyModel.transform.localPosition;
-
         if (ItemModel != null)
         {
             itemModelDefaultPos = ItemModel.transform.localPosition;
             itemDefaultRot = ItemModel.transform.localRotation;
         }
-
-        // ★追加：バールの初期位置保存
         if (CrowbarModel != null)
         {
             crowbarModelDefaultPos = CrowbarModel.transform.localPosition;
             crowbarDefaultRot = CrowbarModel.transform.localRotation;
         }
-
         if (FlashlightModel != null) flashlightModelDefaultPos = FlashlightModel.transform.localPosition;
         if (LighterModel != null) lighterModelDefaultPos = LighterModel.transform.localPosition;
+
+        // ★追加：クモモデル初期位置
+        if (SpiderModel != null) spiderModelDefaultPos = SpiderModel.transform.localPosition;
 
         Invoke(nameof(UpdateItemModel), 0.1f);
     }
@@ -208,13 +202,7 @@ public class PlayerController : MonoBehaviour
     {
         if (Input.GetKeyDown(KeyCode.Tab))
         {
-            Debug.Log($"Tabキーが押されました。操作可能か: {canControl} / インベントリが開いているか: {isInventoryOpen}");
-
-            if (!isInventoryOpen && !canControl)
-            {
-                Debug.Log("❌ 操作禁止中なので、インベントリを開くのをブロックしました。");
-                return;
-            }
+            if (!isInventoryOpen && !canControl) return;
             ToggleInventory();
         }
 
@@ -273,67 +261,76 @@ public class PlayerController : MonoBehaviour
         HandleCameraShake();
 
         UpdateItemBob(isMoving);
-        //UpdateKeySwing();
         UpdateItemSwing();
-        UpdateCrowbarSwing(); // ★追加：バールの動き更新
+        UpdateCrowbarSwing();
         UpdateCameraSwing();
-
-        if (Input.GetKeyDown(KeyCode.G))
-        {
-            Vector3 spawnPos = transform.position + transform.forward * decoySpawnDistance;
-            Instantiate(decoy, spawnPos, Quaternion.identity);
-        }
 
         if (Input.GetKeyDown(KeyCode.O))
         {
             bugSpawner.SpawnBugs();
         }
 
+        // ★修正：左クリックでアイテム使用（攻撃または設置）
         if (Input.GetMouseButtonDown(0))
         {
-            // インベントリが開いていない時だけ振れるようにする
             if (!isInventoryOpen)
             {
                 HandleAttackInput();
             }
         }
+    }
 
-        //if (Input.GetKeyDown(KeyCode.E))
-        //{
-        //  HandleAttackInput();
-        //}
+    // ★修正：攻撃入力ハンドラーでクモの使用も分岐させる
+    public void HandleAttackInput()
+    {
+        if (KeyModel != null && KeyModel.activeSelf) PlayKeySwing();
+        else if (ItemModel != null && ItemModel.activeSelf) PlayItemSwing();
+        else if (CrowbarModel != null && CrowbarModel.activeSelf) PlayCrowbarSwing();
+
+        // ★追加：クモを持っていたら設置処理へ
+        else if (SpiderModel != null && SpiderModel.activeSelf) UseSpiderDecoy();
+    }
+
+    public void UseSpiderDecoy()
+    {
+        // 0. マネージャーとクールダウン状態のチェック
+        if (inventoryManager == null) return;
+
+        // まだクールダウン中なら何もしない（使えない）
+        if (!inventoryManager.IsDecoyReady())
+        {
+            Debug.Log("まだ使えません！クールダウン中");
+            return;
+        }
+
+        // 1. デコイを生成
+        if (decoy != null)
+        {
+            Vector3 spawnPos = transform.position + transform.forward * decoySpawnDistance;
+            Instantiate(decoy, spawnPos, Quaternion.identity);
+            Debug.Log("🕷 クモを設置しました！");
+        }
+
+        // 2. クールダウン開始（タイマーをリセットするだけ）
+        // ★重要：RemoveItem() は呼ばない！
+        inventoryManager.UseDecoy();
     }
 
     void ToggleInventory()
     {
-        if (!isInventoryOpen && !canControl)
-        {
-            return;
-        }
+        if (!isInventoryOpen && !canControl) return;
 
         isInventoryOpen = !isInventoryOpen;
 
         if (inventoryBlurVolume != null)
         {
             inventoryBlurVolume.SetActive(isInventoryOpen);
-
-            // 環境に合わせて PostProcessVolume か Volume を選んでください
             var vol = inventoryBlurVolume.GetComponent<UnityEngine.Rendering.PostProcessing.PostProcessVolume>();
-            if (vol != null)
-            {
-                vol.weight = isInventoryOpen ? 1f : 0f;
-            }
+            if (vol != null) vol.weight = isInventoryOpen ? 1f : 0f;
         }
 
-        if (inventoryUIPanel != null)
-        {
-            inventoryUIPanel.SetActive(isInventoryOpen);
-        }
-
-        if (uiToHideWhenInventoryOpen != null)
-        {
-            uiToHideWhenInventoryOpen.SetActive(!isInventoryOpen);
-        }
+        if (inventoryUIPanel != null) inventoryUIPanel.SetActive(isInventoryOpen);
+        if (uiToHideWhenInventoryOpen != null) uiToHideWhenInventoryOpen.SetActive(!isInventoryOpen);
 
         if (isInventoryOpen)
         {
@@ -353,10 +350,7 @@ public class PlayerController : MonoBehaviour
         {
             inventoryBlurVolume.SetActive(isActive);
             var vol = inventoryBlurVolume.GetComponent<UnityEngine.Rendering.PostProcessing.PostProcessVolume>();
-            if (vol != null)
-            {
-                vol.weight = isActive ? 1f : 0f;
-            }
+            if (vol != null) vol.weight = isActive ? 1f : 0f;
         }
     }
 
@@ -455,12 +449,11 @@ public class PlayerController : MonoBehaviour
 
     public void pause(string command)
     {
-        bool saveState = false;
         switch (command)
         {
             case "Title": SceneManager.LoadScene("TitleScene"); break;
             case "Option": option.SetActive(true); pauseMenu.SetActive(false); backGround.fillAmount = 0; break;
-            case "Save": saveState = true; Debug.Log("SaveGame"); break;
+            case "Save": Debug.Log("SaveGame"); break;
             case "Return": canControl = true; pauseMenu.SetActive(false); backGround.fillAmount = 0; panelAlpha(0); break;
             case "Pause": option.SetActive(false); pauseMenu.SetActive(true); break;
         }
@@ -501,14 +494,13 @@ public class PlayerController : MonoBehaviour
     void CheckPickUp()
     {
         if (isInventoryOpen) return;
-
         if (itemGetDisplay != null && itemGetDisplay.isDisplaying) return;
 
         Ray ray = new Ray(cam.transform.position, cam.transform.forward);
         RaycastHit hit;
 
         pickUpText.enabled = false;
-        string[] pickableTags = { "Item", "Key", "Flashlight", "Lighter", "Crowbar" };
+        string[] pickableTags = { "Item", "Key", "Flashlight", "Lighter", "Crowbar", "Spider" }; // ★追加：Spiderタグも拾えるように
 
         if (Physics.Raycast(ray, out hit, pickUpDistance))
         {
@@ -517,7 +509,7 @@ public class PlayerController : MonoBehaviour
                 if (hit.collider.CompareTag(t))
                 {
                     pickUpText.enabled = true;
-                    if (Input.GetKeyDown(KeyCode.E))
+                    if (Input.GetKeyDown(KeyCode.E) || Input.GetMouseButtonDown(0)) // 修正：左クリックでも拾えるように
                     {
                         string cleanName = hit.collider.gameObject.name.Replace("(Clone)", "").Trim();
 
@@ -563,7 +555,6 @@ public class PlayerController : MonoBehaviour
     void HandleFootsteps(bool isMoving, bool isRunning)
     {
         if (footstepAudioSource == null) return;
-
         if (isMoving)
         {
             AudioClip targetClip = isRunning ? runSoundLoop : walkSoundLoop;
@@ -618,28 +609,20 @@ public class PlayerController : MonoBehaviour
 
     public void DropCurrentItem()
     {
-        // 1. マネージャーのチェック
         if (inventoryManager == null) return;
-
-        // 2. 装備スロットのチェック
         int targetIndex = inventoryManager.equippedIndex;
         if (targetIndex < 0 || targetIndex >= inventoryManager.currentItems.Count) return;
 
-        // 3. アイテム名の取得
         string itemName = inventoryManager.currentItems[targetIndex];
         if (string.IsNullOrEmpty(itemName)) return;
 
-        // 4. 手持ちモデルを消す
         if (KeyModel) KeyModel.SetActive(false);
         if (ItemModel) ItemModel.SetActive(false);
         if (CrowbarModel) CrowbarModel.SetActive(false);
         if (FlashlightModel) FlashlightModel.SetActive(false);
         if (LighterModel) LighterModel.SetActive(false);
-
-        // transform.position (足元) + 上に1.3m (胸の高さ) + 前に1.0m (体から離す)
+        if (SpiderModel) SpiderModel.SetActive(false);
         Vector3 dropPos = transform.position + (transform.up * 1.3f) + (transform.forward * 2.0f);
-
-        // 6. 生成実行
         GameObject droppedItem = inventoryManager.DropItem(itemName, dropPos);
 
         if (droppedItem)
@@ -647,32 +630,20 @@ public class PlayerController : MonoBehaviour
             Rigidbody rb = droppedItem.GetComponent<Rigidbody>();
             if (rb != null)
             {
-                // 物理挙動の調整
-                rb.velocity = Vector3.zero; // 慣性をリセット
-
-                // 「体の前方向」に少し投げつつ、「下方向」に強く叩きつける
+                rb.velocity = Vector3.zero;
                 Vector3 throwForce = (transform.forward * 2f) + (Vector3.down * 5f);
-
                 rb.AddForce(throwForce, ForceMode.Impulse);
-
-                // ランダムな回転（落ちた時のリアル感）
                 rb.AddTorque(Random.insideUnitSphere * 5f, ForceMode.Impulse);
             }
 
-            // 念の為、プレイヤー自身とアイテムの当たり判定を一時的に無視させる（衝突防止の保険）
             Collider playerCollider = GetComponent<Collider>();
             Collider itemCollider = droppedItem.GetComponent<Collider>();
             if (playerCollider != null && itemCollider != null)
             {
                 Physics.IgnoreCollision(playerCollider, itemCollider, true);
-                // 1秒後には当たり判定を復活させる（足で蹴れるようにするため）
                 StartCoroutine(ReenableCollision(playerCollider, itemCollider));
             }
-
-            Debug.Log($"ドロップ成功: {droppedItem.name}");
         }
-
-        // 7. モデル状態更新
         UpdateItemModel();
     }
 
@@ -685,22 +656,15 @@ public class PlayerController : MonoBehaviour
         }
     }
 
-    /*public void DropCurrentItem()
-    {
-        if (inventoryManager == null || inventoryManager.currentItems.Count == 0) return;
-        string itemName = inventoryManager.currentItems[0];
-        Vector3 dropPos = transform.position + transform.forward * 1f;
-        inventoryManager.DropItem(itemName, dropPos);
-        UpdateItemModel();
-    }*/
-
+    // ★修正：モデル更新ロジックにSpiderを追加
     public void UpdateItemModel()
     {
         if (KeyModel != null) KeyModel.SetActive(false);
         if (ItemModel != null) ItemModel.SetActive(false);
-        if (CrowbarModel != null) CrowbarModel.SetActive(false); // ★追加
+        if (CrowbarModel != null) CrowbarModel.SetActive(false);
         if (FlashlightModel != null) FlashlightModel.SetActive(false);
         if (LighterModel != null) LighterModel.SetActive(false);
+        if (SpiderModel != null) SpiderModel.SetActive(false);
 
         if (inventoryManager == null || inventoryManager.currentItems.Count == 0) return;
 
@@ -708,7 +672,6 @@ public class PlayerController : MonoBehaviour
         if (targetIndex >= inventoryManager.currentItems.Count) return;
 
         string itemName = inventoryManager.currentItems[targetIndex];
-
         if (string.IsNullOrEmpty(itemName)) return;
 
         string tag = inventoryManager.GetItemTag(itemName);
@@ -716,14 +679,16 @@ public class PlayerController : MonoBehaviour
         switch (tag)
         {
             case "Key": if (KeyModel != null) KeyModel.SetActive(true); break;
-            case "Crowbar": if (CrowbarModel != null) CrowbarModel.SetActive(true); break; // ★変更：バールなら専用モデルを表示
+            case "Crowbar": if (CrowbarModel != null) CrowbarModel.SetActive(true); break;
             case "Flashlight": if (FlashlightModel != null) FlashlightModel.SetActive(true); break;
             case "Lighter": if (LighterModel != null) LighterModel.SetActive(true); break;
             case "Item": if (ItemModel != null) ItemModel.SetActive(true); break;
+            case "Spider": if (SpiderModel != null) SpiderModel.SetActive(true); break; // ★追加
             default: Debug.LogWarning($"タグ '{tag}' に対応するモデルなし"); break;
         }
     }
 
+    // ★修正：SpiderModelの手揺れを追加
     void UpdateItemBob(bool isMoving)
     {
         if (isMoving)
@@ -734,23 +699,19 @@ public class PlayerController : MonoBehaviour
 
             if (KeyModel != null && KeyModel.activeSelf) KeyModel.transform.localPosition = KeyModelDefaultPos + new Vector3(bobOffsetX, bobOffsetY, 0);
             if (ItemModel != null && ItemModel.activeSelf) ItemModel.transform.localPosition = itemModelDefaultPos + new Vector3(bobOffsetX, bobOffsetY, 0);
-
-            // ★追加：バールのBob
             if (CrowbarModel != null && CrowbarModel.activeSelf) CrowbarModel.transform.localPosition = crowbarModelDefaultPos + new Vector3(bobOffsetX, bobOffsetY, 0);
-
             if (FlashlightModel != null && FlashlightModel.activeSelf) FlashlightModel.transform.localPosition = flashlightModelDefaultPos + new Vector3(bobOffsetX, bobOffsetY, 0);
             if (LighterModel != null && LighterModel.activeSelf) LighterModel.transform.localPosition = lighterModelDefaultPos + new Vector3(bobOffsetX, bobOffsetY, 0);
+            if (SpiderModel != null && SpiderModel.activeSelf) SpiderModel.transform.localPosition = spiderModelDefaultPos + new Vector3(bobOffsetX, bobOffsetY, 0);
         }
         else
         {
             if (KeyModel != null && KeyModel.activeSelf) KeyModel.transform.localPosition = Vector3.Lerp(KeyModel.transform.localPosition, KeyModelDefaultPos, Time.deltaTime * 10f);
             if (ItemModel != null && ItemModel.activeSelf) ItemModel.transform.localPosition = Vector3.Lerp(ItemModel.transform.localPosition, itemModelDefaultPos, Time.deltaTime * 10f);
-
-            // ★追加：バールの位置リセット
             if (CrowbarModel != null && CrowbarModel.activeSelf) CrowbarModel.transform.localPosition = Vector3.Lerp(CrowbarModel.transform.localPosition, crowbarModelDefaultPos, Time.deltaTime * 10f);
-
             if (FlashlightModel != null && FlashlightModel.activeSelf) FlashlightModel.transform.localPosition = Vector3.Lerp(FlashlightModel.transform.localPosition, flashlightModelDefaultPos, Time.deltaTime * 10f);
             if (LighterModel != null && LighterModel.activeSelf) LighterModel.transform.localPosition = Vector3.Lerp(LighterModel.transform.localPosition, lighterModelDefaultPos, Time.deltaTime * 10f);
+            if (SpiderModel != null && SpiderModel.activeSelf) SpiderModel.transform.localPosition = Vector3.Lerp(SpiderModel.transform.localPosition, spiderModelDefaultPos, Time.deltaTime * 10f);
             itemBobTimer = 0f;
         }
     }
@@ -758,52 +719,16 @@ public class PlayerController : MonoBehaviour
     public void UpdateKeySwing()
     {
         if (!isSwinging) return;
-
         swingTimer += Time.deltaTime * swingSpeed;
         float swingOffset = Mathf.Sin(swingTimer) * swingAmount;
-
         if (KeyModel.activeSelf) KeyModel.transform.localPosition = KeyModelDefaultPos + new Vector3(0, 0, swingOffset);
-        if (ItemModel.activeSelf) ItemModel.transform.localPosition = itemModelDefaultPos + new Vector3(0, 0, swingOffset);
-
         if (swingTimer >= Mathf.PI)
         {
             isSwinging = false;
-            if (KeyModel.activeSelf) KeyModel.transform.localPosition = KeyModelDefaultPos;
-            if (ItemModel.activeSelf) ItemModel.transform.localPosition = itemModelDefaultPos;
-
-            if (KeyModel.activeSelf)
-            {
-                KeyModel.SetActive(false);
-            }
+            KeyModel.transform.localPosition = KeyModelDefaultPos;
+            KeyModel.SetActive(false);
         }
     }
-
-    /*void UpdateKeySwing()
-    {
-        if (!isSwinging) return;
-        swingTimer += Time.deltaTime * swingSpeed;
-        float swingOffset = Mathf.Sin(swingTimer) * swingAmount;
-
-        if (KeyModel != null && KeyModel.activeSelf) KeyModel.transform.localPosition = KeyModelDefaultPos + new Vector3(0, 0, swingOffset);
-        if (ItemModel != null && ItemModel.activeSelf) ItemModel.transform.localPosition = itemModelDefaultPos + new Vector3(0, 0, swingOffset);
-
-        if (swingTimer >= Mathf.PI)
-        {
-            isSwinging = false;
-            if (KeyModel != null && KeyModel.activeSelf) KeyModel.transform.localPosition = KeyModelDefaultPos;
-            if (ItemModel != null && ItemModel.activeSelf) ItemModel.transform.localPosition = itemModelDefaultPos;
-
-            if (KeyModel != null && KeyModel.activeSelf)
-            {
-                KeyModel.SetActive(false);
-                if (inventoryManager != null && inventoryManager.currentItems.Count > 0)
-                {
-                    inventoryManager.currentItems.RemoveAt(0);
-                    UpdateItemModel();
-                }
-            }
-        }
-    }*/
 
     void UpdateItemSwing()
     {
@@ -830,92 +755,41 @@ public class PlayerController : MonoBehaviour
         }
     }
 
-    /*void UpdateItemSwing()
-    {
-        if (!isItemSwing || ItemModel == null) return;
-        itemSwingTimer += Time.deltaTime * swingSpeed;
-        if (itemSwingTimer < 0.3f)
-        {
-            float t = itemSwingTimer / 0.3f;
-            ItemModel.transform.localPosition = Vector3.Lerp(itemModelDefaultPos, itemModelDefaultPos + new Vector3(0, SwingUpAmount, 0), t);
-            ItemModel.transform.localRotation = Quaternion.Lerp(itemDefaultRot, Quaternion.Euler(SwingUpRotation, 0, 0), t);
-        }
-        else if (itemSwingTimer < 1f)
-        {
-            float t = (itemSwingTimer - 0.3f) / 0.7f;
-            ItemModel.transform.localPosition = Vector3.Lerp(itemModelDefaultPos + new Vector3(0, SwingUpAmount, 0), itemModelDefaultPos + new Vector3(0, SwingDownAmount, 0), t);
-            ItemModel.transform.localRotation = Quaternion.Lerp(Quaternion.Euler(SwingUpRotation, 0, 0), Quaternion.Euler(SwingDownRotation, 0, 0), t);
-        }
-        else
-        {
-            ItemModel.transform.localPosition = itemModelDefaultPos;
-            ItemModel.transform.localRotation = itemDefaultRot;
-            isItemSwing = false;
-            itemSwingTimer = 0f;
-        }
-    }*/
     void UpdateCrowbarSwing()
     {
         if (!isCrowbarSwing || CrowbarModel == null) return;
-
-        // スピード調整（数値を大きくすると早くなります）
         crowbarSwingTimer += Time.deltaTime * swingSpeed;
-
-        // アニメーションのフェーズ管理
-        // 0.0 ～ 0.25 : 振りかぶり（タメ）
-        // 0.25 ～ 0.4 : フルスイング（インパクト）
-        // 0.4 ～ 1.0 : 元に戻る（フォロースルー）
 
         if (crowbarSwingTimer < 0.25f)
         {
-            // --- ① 振りかぶり（Wind Up） ---
-            // 勢いをつけるために、手前に引いて上に持ち上げる
             float t = crowbarSwingTimer / 0.25f;
-            t = Mathf.SmoothStep(0f, 1f, t); // 滑らかに
-
-            // 位置：手前（-Z）かつ少し上（+Y）に引く
+            t = Mathf.SmoothStep(0f, 1f, t);
             Vector3 windUpPos = crowbarModelDefaultPos + new Vector3(0.2f, 0.2f, -0.3f);
             CrowbarModel.transform.localPosition = Vector3.Lerp(crowbarModelDefaultPos, windUpPos, t);
-
-            // 回転：X90度から、X0度（真上～後ろ）付近まで起こす
-            // デフォルト(90, -90, 90) → 振りかぶり(10, -80, 100) ※少しひねりを入れるとリアル
             Quaternion windUpRot = Quaternion.Euler(10f, -80f, 100f);
             CrowbarModel.transform.localRotation = Quaternion.Lerp(crowbarDefaultRot, windUpRot, t);
         }
         else if (crowbarSwingTimer < 0.4f)
         {
-            // --- ② フルスイング（Smash） ---
-            // 一気に振り下ろす（ここを一番速くする）
-            float t = (crowbarSwingTimer - 0.25f) / 0.15f; // 0.15秒で振り抜く
-            // t = t * t; // 加速させる（リニアより迫力が出る）
-
-            // 位置：前に突き出す（+Z）かつ下げる（-Y）
+            float t = (crowbarSwingTimer - 0.25f) / 0.15f;
             Vector3 windUpPos = crowbarModelDefaultPos + new Vector3(0.2f, 0.2f, -0.3f);
             Vector3 smashPos = crowbarModelDefaultPos + new Vector3(0f, -0.3f, 0.5f);
             CrowbarModel.transform.localPosition = Vector3.Lerp(windUpPos, smashPos, t);
-
-            // 回転：X0度から、X160度（地面側）まで一気に回す
-            // 振りかぶり(10, -80, 100) → 振り下ろし(170, -90, 90)
             Quaternion windUpRot = Quaternion.Euler(10f, -80f, 100f);
             Quaternion smashRot = Quaternion.Euler(170f, -90f, 90f);
             CrowbarModel.transform.localRotation = Quaternion.Lerp(windUpRot, smashRot, t);
         }
         else if (crowbarSwingTimer < 1f)
         {
-            // --- ③ 元に戻る（Recovery） ---
-            // 余韻を残しつつ元の位置へ
             float t = (crowbarSwingTimer - 0.4f) / 0.6f;
             t = Mathf.SmoothStep(0f, 1f, t);
-
             Vector3 smashPos = crowbarModelDefaultPos + new Vector3(0f, -0.3f, 0.5f);
             CrowbarModel.transform.localPosition = Vector3.Lerp(smashPos, crowbarModelDefaultPos, t);
-
             Quaternion smashRot = Quaternion.Euler(170f, -90f, 90f);
             CrowbarModel.transform.localRotation = Quaternion.Lerp(smashRot, crowbarDefaultRot, t);
         }
         else
         {
-            // 終了
             CrowbarModel.transform.localPosition = crowbarModelDefaultPos;
             CrowbarModel.transform.localRotation = crowbarDefaultRot;
             isCrowbarSwing = false;
@@ -923,41 +797,25 @@ public class PlayerController : MonoBehaviour
         }
     }
 
-    public void HandleAttackInput()
-    {
-        if (KeyModel != null && KeyModel.activeSelf) PlayKeySwing();
-        else if (ItemModel != null && ItemModel.activeSelf) PlayItemSwing();
-        else if (CrowbarModel != null && CrowbarModel.activeSelf) PlayCrowbarSwing(); // ★追加
-    }
-
     public async Task PlayKeySwing()
     {
         if (isSwinging) return;
         isSwinging = true;
         swingTimer = 0f;
-
         canLock = false;
         rb.velocity = Vector3.zero;
         isCameraSwing = false;
         cameraSwingTimer = 0f;
         await Task.Delay(2000);
         if (KeyModel) KeyModel.SetActive(false);
-        // ここにインベントリの鍵アイテムを消す処理を入れる
-
     }
 
-
-    /*public void PlayKeySwing()
-    {
-        isSwinging = true; swingTimer = 0f; isCameraSwing = false; cameraSwingTimer = 0f;
-    }*/
     public void PlayItemSwing()
     {
         isItemSwing = true; itemSwingTimer = 0f; isCameraSwing = true; cameraSwingTimer = 0f;
         if (cam != null) cameraSwingStartRot = cam.transform.localRotation;
     }
 
-    // ★追加：バール用スイング開始
     public void PlayCrowbarSwing()
     {
         isCrowbarSwing = true; crowbarSwingTimer = 0f; isCameraSwing = true; cameraSwingTimer = 0f;
