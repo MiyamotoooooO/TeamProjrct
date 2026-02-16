@@ -1,11 +1,8 @@
 ﻿using TMPro;
 using UnityEngine.SceneManagement;
-using TMPro;
 using UnityEngine;
-using UnityEngine.SceneManagement;
 using System.Collections;
 using UnityEngine.UI;
-using UnityEngine.Rendering.PostProcessing;
 using System.Threading.Tasks;
 
 [RequireComponent(typeof(Rigidbody))]
@@ -265,10 +262,10 @@ public class PlayerController : MonoBehaviour
         UpdateCrowbarSwing();
         UpdateCameraSwing();
 
-        if (Input.GetKeyDown(KeyCode.O))
-        {
-            bugSpawner.SpawnBugs();
-        }
+        //if (Input.GetKeyDown(KeyCode.O))
+        //{
+        //    bugSpawner.SpawnBugs(20);
+        //}
 
         // ★修正：左クリックでアイテム使用（攻撃または設置）
         if (Input.GetMouseButtonDown(0))

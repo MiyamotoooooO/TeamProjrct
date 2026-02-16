@@ -8,10 +8,11 @@ public class BugMove : MonoBehaviour
     private Vector2 target;
 
     [SerializeField] private float speed = 300f;
-    [SerializeField] private float lifeTime = 3f;
+    public float lifeTime = 3f;
 
     private Vector2 screenSize;
 
+    public PlayerController _playerController;
     private void Awake()
     {
         rect = GetComponent<RectTransform>();
@@ -30,15 +31,14 @@ public class BugMove : MonoBehaviour
 
     private IEnumerator MoveCoroutine()
     {
-        float timer = 0f;
 
-        while (timer < lifeTime)
+        while (true)
         {
             rect.anchoredPosition = Vector2.MoveTowards(
-                rect.anchoredPosition,
-                target,
-                speed * Time.deltaTime
-            );
+                    rect.anchoredPosition,
+                    target,
+                    speed * Time.deltaTime
+                );
 
             // 目的地に近づいたら次へ
             if (Vector2.Distance(rect.anchoredPosition, target) < 20f)
@@ -48,12 +48,8 @@ public class BugMove : MonoBehaviour
 
             // 羽虫特有のブレ
             rect.anchoredPosition += Random.insideUnitCircle * 5f;
-
-            timer += Time.deltaTime;
             yield return null;
         }
-
-        Destroy(gameObject);
     }
 
     private Vector2 GetRandomInsidePos()
