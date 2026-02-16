@@ -6,6 +6,7 @@ using TMPro;
 
 public class InventoryManager : MonoBehaviour
 {
+    // ... (設定変数はそのまま) ...
     [Header("インベントリ設定")]
     [Tooltip("アイテムの最大所持数（例: 21ならホットバー3 + 9×2ページ）")]
     public int maxSlots = 21;
@@ -94,7 +95,10 @@ public class InventoryManager : MonoBehaviour
     private bool isAnimatingPage = false;
     private Coroutine messageCoroutine;
     private Vector2 originalContainerPosition;
-    private float currentDecoyCooldown = 0f;
+
+    // ★重要：ここはpublicにしておくと、Inspectorで残り時間を確認できてデバッグしやすいです
+    [Header("デバッグ用")]
+    public float currentDecoyCooldown = 0f;
 
     private void Start()
     {
@@ -120,6 +124,19 @@ public class InventoryManager : MonoBehaviour
 
     private void Update()
     {
+        // ★重要：クールダウンの計算は、インベントリが開いているかどうかに関わらず常に行う
+        if (currentDecoyCooldown > 0)
+        {
+            currentDecoyCooldown -= Time.unscaledDeltaTime;
+
+            if (currentDecoyCooldown < 0) currentDecoyCooldown = 0;
+
+            // ★UI更新は「インベントリが開いている時」だけ行えば負荷が軽いですが、
+            // 閉じていても呼んで問題ありません（非表示のUIを更新するだけなので）
+            UpdateCooldownUI();
+        }
+
+        // ここから下はインベントリ操作など
         if (playerController != null && !playerController.isInventoryOpen)
         {
             HandleWeaponSwitchInput();
@@ -141,20 +158,9 @@ public class InventoryManager : MonoBehaviour
         {
             HandleSpaceKeyAction();
         }
-
-        // --- クールダウンの処理 ---
-        if (currentDecoyCooldown > 0)
-        {
-            currentDecoyCooldown -= Time.unscaledDeltaTime;
-
-            // 0になった瞬間に0ぴったりにする
-            if (currentDecoyCooldown < 0) currentDecoyCooldown = 0;
-
-            // 毎フレームUIを更新（数字を表示するため）
-            UpdateCooldownUI();
-        }
     }
 
+    // ... (GetRealDataIndexなどの関数はそのまま) ...
     public int GetRealDataIndex(int uiSlotIndex)
     {
         if (uiSlotIndex < 3) return uiSlotIndex;
@@ -166,64 +172,60 @@ public class InventoryManager : MonoBehaviour
     }
 
     // --- クールダウンUI更新 ---
+    // ここでUIへの反映を行う
     void UpdateCooldownUI()
     {
         if (allSlots == null) return;
 
-        // 残り時間の割合（1.0 = 満タン、0.0 = 完了）
-        float fillValue = currentDecoyCooldown / decoyCooldownTime;
+        // インベントリ画面（inventoryUIPanel）が非アクティブなら、UI操作をスキップしても良い
+        // ただし、UpdateInventoryUIが呼ばれた直後は強制的に更新したいので、ここではチェックしないでおく
 
-        // 表示用の秒数（切り上げ）
+        float fillValue = currentDecoyCooldown / decoyCooldownTime;
         int remainingSeconds = Mathf.CeilToInt(currentDecoyCooldown);
         string textValue = (remainingSeconds > 0) ? remainingSeconds.ToString() : "";
 
         for (int i = 0; i < allSlots.Length; i++)
         {
-            // スロット番号から実際のアイテムデータを取得
             int realIndex = GetRealDataIndex(allSlots[i].slotIndex);
 
-            // スロットに「デコイ」が入っているかチェック
+            // アイテム名の一致確認
             if (realIndex < currentItems.Count && currentItems[realIndex] == decoyItemName)
             {
-                // 画像（円グラフ）の更新
                 if (allSlots[i].cooldownImage != null)
                 {
                     allSlots[i].cooldownImage.fillAmount = fillValue;
                 }
-
-                // テキスト（数字）の更新
                 if (allSlots[i].cooldownText != null)
                 {
                     allSlots[i].cooldownText.text = textValue;
-
-                    // クールダウン中は文字を表示、終わったら消す
                     allSlots[i].cooldownText.enabled = (remainingSeconds > 0);
                 }
             }
             else
             {
-                // デコイ以外は表示を消す
                 if (allSlots[i].cooldownImage != null) allSlots[i].cooldownImage.fillAmount = 0;
-                if (allSlots[i].cooldownText != null) allSlots[i].cooldownText.text = "";
+                if (allSlots[i].cooldownText != null)
+                {
+                    allSlots[i].cooldownText.text = "";
+                    allSlots[i].cooldownText.enabled = false;
+                }
             }
         }
     }
 
-    // デコイを使った時に呼ぶ関数
+    // ... (UseDecoy, IsDecoyReadyはそのまま) ...
     public void UseDecoy()
     {
         currentDecoyCooldown = decoyCooldownTime;
         UpdateCooldownUI();
     }
 
-    // デコイが使えるか確認する関数
     public bool IsDecoyReady()
     {
         return currentDecoyCooldown <= 0;
     }
 
-    // --- 以下、既存の関数（省略なし） ---
-
+    // ... (以下、既存の関数群。変更なし) ...
     public void OnNextPageButton()
     {
         if (isAnimatingPage) return;
@@ -307,7 +309,7 @@ public class InventoryManager : MonoBehaviour
         }
 
         UpdateDescriptionPanel();
-        UpdateCooldownUI(); // ページ切り替え時にもクールダウン表示を更新
+        UpdateCooldownUI(); // ★重要：インベントリを開いた時やページ切り替え時に必ず呼び出して、最新の残り時間を反映する
 
         if (pageNumberText != null) pageNumberText.text = (currentPage + 1) + " / " + maxPages;
 
@@ -333,6 +335,8 @@ public class InventoryManager : MonoBehaviour
         if (nextPageButton != null) nextPageButton.gameObject.SetActive(currentPage < maxPages - 1);
     }
 
+    // ... (残りの関数群：UpdateDescriptionPanel, GetItemData, HandleSpaceKeyAction, MoveItemToBackpack, SwapItems, HandleCursorMovement, HandleSwapInput, EndSwapMode, ShowFullMessage, FadeOutMessageRoutine, HandleWeaponSwitchInput, UpdateCursorPosition, UpdateHUDSlotSelection, InitializeInventorySlots, ChangeSelectedSlot, PickUpItem, AddItem, DropItem, RemoveItem, GetItemIcon, GetItemTag, HasItem, GetEquippedItem, GetItemDataForSave, LoadItemData, ReflectInventoryToScene) ...
+    // これらは変更せず、そのまま記述してください（前回のコードと同じです）。
     public void UpdateDescriptionPanel()
     {
         if (descriptionDisplayImage == null) return;
