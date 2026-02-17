@@ -4,6 +4,7 @@ using UnityEngine;
 using System.Collections;
 using UnityEngine.UI;
 using System.Threading.Tasks;
+using UnityEngine.Rendering.PostProcessing; // PostProcessingを使うために必要
 
 [RequireComponent(typeof(Rigidbody))]
 [RequireComponent(typeof(AudioSource))]
@@ -17,6 +18,28 @@ public class PlayerController : MonoBehaviour
     [Header("走る速度")]
     public float dashSpeed = 10.0f;
 
+    // --- ダッシュ（スタミナ）設定 ---
+    [Header("ダッシュ設定")]
+    [Tooltip("ダッシュできる最大時間（秒）")]
+    public float maxDashDuration = 7.0f;
+    [Tooltip("ダッシュをやめた後の回復待機時間（秒）")]
+    public float dashRecoveryDelay = 2.0f;
+    [Tooltip("0から100まで回復するのにかかる時間（秒）")]
+    public float fullRecoveryDuration = 5.0f;
+
+    // --- Inspector表示用 ---
+    [Header("ダッシュ状態（デバッグ表示）")]
+    [SerializeField, Tooltip("現在のスタミナ残量（%）")]
+    private float currentStaminaPercent = 100f;
+    [SerializeField, Tooltip("現在ダッシュ継続している秒数")]
+    private float currentDashTime = 0f;
+    [SerializeField, Tooltip("回復開始までの残り待機秒数")]
+    private float recoveryDelayTimer = 0f;
+
+    // 内部計算用
+    private float currentStamina = 1.0f; // 0.0 ~ 1.0 で管理
+    private bool isDashing = false;
+
     [Header("メインカメラを参照")]
     public GameObject cam;
 
@@ -28,6 +51,10 @@ public class PlayerController : MonoBehaviour
 
     [Tooltip("インベントリ用のBlurVolume")]
     public GameObject inventoryBlurVolume;
+
+    [Header("疲労演出（視界のぼやけ）")]
+    [Tooltip("疲労時に適用するPostProcessVolume（DepthOfFieldなどを設定してください）")]
+    public PostProcessVolume fatigueBlurVolume;
 
     [Header("プレイヤーが操作可能かどうか")]
     public bool canControl = true;
@@ -75,7 +102,7 @@ public class PlayerController : MonoBehaviour
     public GameObject CrowbarModel; // バール専用モデル
     public GameObject FlashlightModel;
     public GameObject LighterModel;
-    public GameObject SpiderModel; // ★追加：クモの手持ちモデル
+    public GameObject SpiderModel; // クモの手持ちモデル
 
     [Header("アイテムアニメーション")]
     public float itemBobSpeed = 6f;
@@ -94,10 +121,19 @@ public class PlayerController : MonoBehaviour
     public AudioSource footstepAudioSource;
     public AudioClip walkSoundLoop;
     public AudioClip runSoundLoop;
+
+    [Header("吐息設定")]
     public AudioSource breathingAudioSource;
     public AudioClip breathingSoundLoop;
-    [Range(0f, 1f)] public float breathingWalkVolume = 0.3f;
-    [Range(0f, 1f)] public float breathingRunVolume = 0.5f;
+    [Range(0f, 1f)] public float breathingWalkVolume = 0.3f; // 通常歩行時の音量
+    [Range(0f, 1f)] public float breathingRunVolume = 0.5f;  // 走っている最中の音量（固定）
+
+    [Tooltip("走り終わった直後、最大まで疲労していた場合の音量")]
+    [Range(0f, 1f)] public float breathingMaxVolume = 1.0f;
+
+    [Tooltip("走り終わった後、元の音量に戻るまでにかかる時間（秒）")]
+    public float breathingRecoveryTime = 3.0f;
+
     public float audioFadeSpeed = 5.0f;
 
     // 内部変数
@@ -115,7 +151,7 @@ public class PlayerController : MonoBehaviour
     private Vector3 crowbarModelDefaultPos;
     private Vector3 flashlightModelDefaultPos;
     private Vector3 lighterModelDefaultPos;
-    private Vector3 spiderModelDefaultPos; // ★追加
+    private Vector3 spiderModelDefaultPos;
 
     private Quaternion itemDefaultRot;
     private Quaternion crowbarDefaultRot;
@@ -135,6 +171,9 @@ public class PlayerController : MonoBehaviour
     private float cameraSwingTimer = -2f;
     private Quaternion cameraSwingStartRot;
 
+    // 吐息の疲労度管理用（0.0〜1.0）
+    private float currentAudioFatigue = 0f;
+
     public DoubleDoorController DoubleDoor;
 
     private void Start()
@@ -145,6 +184,12 @@ public class PlayerController : MonoBehaviour
         if (inventoryBlurVolume != null) inventoryBlurVolume.SetActive(false);
         if (inventoryManager == null) inventoryManager = FindAnyObjectByType<InventoryManager>();
         if (inventoryUIPanel != null) inventoryUIPanel.SetActive(false);
+
+        // 疲労演出用ボリュームの初期化
+        if (fatigueBlurVolume != null)
+        {
+            fatigueBlurVolume.weight = 0f; // 最初はぼやけなし
+        }
 
         if (cam != null)
         {
@@ -183,7 +228,6 @@ public class PlayerController : MonoBehaviour
         if (FlashlightModel != null) flashlightModelDefaultPos = FlashlightModel.transform.localPosition;
         if (LighterModel != null) lighterModelDefaultPos = LighterModel.transform.localPosition;
 
-        // ★追加：クモモデル初期位置
         if (SpiderModel != null) spiderModelDefaultPos = SpiderModel.transform.localPosition;
 
         Invoke(nameof(UpdateItemModel), 0.1f);
@@ -251,10 +295,14 @@ public class PlayerController : MonoBehaviour
         bool isGrounded = Physics.Raycast(transform.position + Vector3.up * 0.1f, Vector3.down, groundCheckDistance);
         bool hasInput = (Input.GetAxisRaw("Horizontal") != 0 || Input.GetAxisRaw("Vertical") != 0);
         bool isMoving = isGrounded && hasInput;
-        bool isRunning = Input.GetKey(KeyCode.R);
 
-        HandleFootsteps(isMoving, isRunning);
-        HandleBreathing(isMoving, isRunning);
+        // スタミナ管理（isDashingの更新）
+        HandleDashStamina(hasInput);
+
+        // 疲労管理（音と視界のぼやけ）
+        HandleFatigueEffects(isMoving, isDashing);
+
+        HandleFootsteps(isMoving, isDashing);
         HandleCameraShake();
 
         UpdateItemBob(isMoving);
@@ -262,12 +310,6 @@ public class PlayerController : MonoBehaviour
         UpdateCrowbarSwing();
         UpdateCameraSwing();
 
-        //if (Input.GetKeyDown(KeyCode.O))
-        //{
-        //    bugSpawner.SpawnBugs(20);
-        //}
-
-        // ★修正：左クリックでアイテム使用（攻撃または設置）
         if (Input.GetMouseButtonDown(0))
         {
             if (!isInventoryOpen)
@@ -277,30 +319,98 @@ public class PlayerController : MonoBehaviour
         }
     }
 
-    // ★修正：攻撃入力ハンドラーでクモの使用も分岐させる
+    // ダッシュとスタミナの管理ロジック
+    void HandleDashStamina(bool hasInput)
+    {
+        bool wantsToDash = Input.GetKey(KeyCode.R) && hasInput;
+
+        if (wantsToDash && currentStamina > 0)
+        {
+            isDashing = true;
+
+            float drainRate = 1.0f / maxDashDuration;
+            currentStamina -= drainRate * Time.deltaTime;
+            if (currentStamina < 0) currentStamina = 0;
+
+            currentDashTime += Time.deltaTime;
+            recoveryDelayTimer = dashRecoveryDelay;
+        }
+        else
+        {
+            isDashing = false;
+            currentDashTime = 0f;
+
+            if (recoveryDelayTimer > 0)
+            {
+                recoveryDelayTimer -= Time.deltaTime;
+                if (recoveryDelayTimer < 0) recoveryDelayTimer = 0;
+            }
+            else
+            {
+                if (currentStamina < 1.0f)
+                {
+                    float recoveryRate = 1.0f / fullRecoveryDuration;
+                    currentStamina += recoveryRate * Time.deltaTime;
+                    if (currentStamina > 1.0f) currentStamina = 1.0f;
+                }
+            }
+        }
+
+        currentStaminaPercent = currentStamina * 100f;
+    }
+
+    private void FixedUpdate()
+    {
+        if (!canControl)
+        {
+            rb.velocity = new Vector3(0, rb.velocity.y, 0);
+            return;
+        }
+        MoveCharacter();
+        if (isInventoryOpen)
+        {
+            rb.velocity = new Vector3(0, rb.velocity.y, 0);
+            return;
+        }
+    }
+
+    void MoveCharacter()
+    {
+        float h = Input.GetAxisRaw("Horizontal");
+        float v = Input.GetAxisRaw("Vertical");
+
+        Vector3 forward = transform.forward;
+        forward.y = 0;
+        forward.Normalize();
+        Vector3 right = transform.right;
+        right.y = 0;
+        right.Normalize();
+
+        Vector3 moveDir = (forward * v + right * h).normalized;
+
+        float currentSpeed = isDashing ? dashSpeed : walkSpeed;
+
+        rb.velocity = new Vector3(moveDir.x * currentSpeed, rb.velocity.y, moveDir.z * currentSpeed);
+    }
+
     public void HandleAttackInput()
     {
         if (KeyModel != null && KeyModel.activeSelf) PlayKeySwing();
         else if (ItemModel != null && ItemModel.activeSelf) PlayItemSwing();
         else if (CrowbarModel != null && CrowbarModel.activeSelf) PlayCrowbarSwing();
-
-        // ★追加：クモを持っていたら設置処理へ
         else if (SpiderModel != null && SpiderModel.activeSelf) UseSpiderDecoy();
     }
 
     public void UseSpiderDecoy()
     {
-        // 0. マネージャーとクールダウン状態のチェック
         if (inventoryManager == null) return;
 
-        // まだクールダウン中なら何もしない（使えない）
         if (!inventoryManager.IsDecoyReady())
         {
             Debug.Log("まだ使えません！クールダウン中");
             return;
         }
 
-        // 1. デコイを生成
         if (decoy != null)
         {
             Vector3 spawnPos = transform.position + transform.forward * decoySpawnDistance;
@@ -308,8 +418,6 @@ public class PlayerController : MonoBehaviour
             Debug.Log("🕷 クモを設置しました！");
         }
 
-        // 2. クールダウン開始（タイマーをリセットするだけ）
-        // ★重要：RemoveItem() は呼ばない！
         inventoryManager.UseDecoy();
     }
 
@@ -351,39 +459,6 @@ public class PlayerController : MonoBehaviour
         }
     }
 
-    private void FixedUpdate()
-    {
-        if (!canControl)
-        {
-            rb.velocity = new Vector3(0, rb.velocity.y, 0);
-            return;
-        }
-        MoveCharacter();
-        if (isInventoryOpen)
-        {
-            rb.velocity = new Vector3(0, rb.velocity.y, 0);
-            return;
-        }
-    }
-
-    void MoveCharacter()
-    {
-        float h = Input.GetAxisRaw("Horizontal");
-        float v = Input.GetAxisRaw("Vertical");
-
-        Vector3 forward = transform.forward;
-        forward.y = 0;
-        forward.Normalize();
-        Vector3 right = transform.right;
-        right.y = 0;
-        right.Normalize();
-
-        Vector3 moveDir = (forward * v + right * h).normalized;
-        float currentSpeed = Input.GetKey(KeyCode.R) ? dashSpeed : walkSpeed;
-
-        rb.velocity = new Vector3(moveDir.x * currentSpeed, rb.velocity.y, moveDir.z * currentSpeed);
-    }
-
     void HandleCameraShake()
     {
         bool isGrounded = Physics.Raycast(transform.position + Vector3.up * 0.1f, Vector3.down, groundCheckDistance);
@@ -391,9 +466,8 @@ public class PlayerController : MonoBehaviour
 
         if (isGrounded && hasInput)
         {
-            bool isRunning = Input.GetKey(KeyCode.R);
-            float currentFrequency = isRunning ? runBobFrequency : walkBobFrequency;
-            Vector2 currentAmount = isRunning ? runBobAmount : walkBobAmount;
+            float currentFrequency = isDashing ? runBobFrequency : walkBobFrequency;
+            Vector2 currentAmount = isDashing ? runBobAmount : walkBobAmount;
 
             camBobTimer += Time.deltaTime * currentFrequency;
 
@@ -448,11 +522,39 @@ public class PlayerController : MonoBehaviour
     {
         switch (command)
         {
-            case "Title": SceneManager.LoadScene("TitleScene"); break;
-            case "Option": option.SetActive(true); pauseMenu.SetActive(false); backGround.fillAmount = 0; break;
-            case "Save": Debug.Log("SaveGame"); break;
-            case "Return": canControl = true; pauseMenu.SetActive(false); backGround.fillAmount = 0; panelAlpha(0); break;
-            case "Pause": option.SetActive(false); pauseMenu.SetActive(true); break;
+            case "Title":
+                SceneManager.LoadScene("TitleScene");
+                break;
+
+            case "Option":
+                option.SetActive(true);
+                pauseMenu.SetActive(false);
+                backGround.fillAmount = 0;
+                break;
+
+            case "Save":
+                if (SaveManager.Instance != null)
+                {
+                    SaveManager.Instance.SaveGame();
+                    Debug.Log("ゲームをセーブしました！");
+                }
+                else
+                {
+                    Debug.LogError("エラー: シーン上に SaveManager が見つかりません！");
+                }
+                break;
+
+            case "Return":
+                canControl = true;
+                pauseMenu.SetActive(false);
+                backGround.fillAmount = 0;
+                panelAlpha(0);
+                break;
+
+            case "Pause":
+                option.SetActive(false);
+                pauseMenu.SetActive(true);
+                break;
         }
     }
 
@@ -497,7 +599,7 @@ public class PlayerController : MonoBehaviour
         RaycastHit hit;
 
         pickUpText.enabled = false;
-        string[] pickableTags = { "Item", "Key", "Flashlight", "Lighter", "Crowbar", "Spider" }; // ★追加：Spiderタグも拾えるように
+        string[] pickableTags = { "Item", "Key", "Flashlight", "Lighter", "Crowbar", "Spider" };
 
         if (Physics.Raycast(ray, out hit, pickUpDistance))
         {
@@ -506,7 +608,7 @@ public class PlayerController : MonoBehaviour
                 if (hit.collider.CompareTag(t))
                 {
                     pickUpText.enabled = true;
-                    if (Input.GetKeyDown(KeyCode.E) || Input.GetMouseButtonDown(0)) // 修正：左クリックでも拾えるように
+                    if (Input.GetKeyDown(KeyCode.E) || Input.GetMouseButtonDown(0))
                     {
                         string cleanName = hit.collider.gameObject.name.Replace("(Clone)", "").Trim();
 
@@ -578,18 +680,53 @@ public class PlayerController : MonoBehaviour
         }
     }
 
-    void HandleBreathing(bool isMoving, bool isRunning)
+    // ★修正：疲労演出（音＋視界のぼやけ）をまとめて管理
+    void HandleFatigueEffects(bool isMoving, bool isDashing)
     {
-        if (breathingAudioSource == null) return;
-        if (isMoving)
+        // 1. 疲労度（currentAudioFatigue）の蓄積と回復計算
+        if (isDashing && isMoving)
         {
-            if (!breathingAudioSource.isPlaying) breathingAudioSource.Play();
-            float targetVolume = isRunning ? breathingRunVolume : breathingWalkVolume;
-            breathingAudioSource.volume = Mathf.Lerp(breathingAudioSource.volume, targetVolume, Time.deltaTime * audioFadeSpeed);
+            // ダッシュ中: 疲労度が上がる
+            if (maxDashDuration > 0)
+                currentAudioFatigue += Time.deltaTime / maxDashDuration;
         }
         else
         {
-            breathingAudioSource.volume = Mathf.Lerp(breathingAudioSource.volume, 0.0f, Time.deltaTime * audioFadeSpeed);
+            // ダッシュしていない時: 疲労度が下がる（回復）
+            if (breathingRecoveryTime > 0)
+                currentAudioFatigue -= Time.deltaTime / breathingRecoveryTime;
+            else
+                currentAudioFatigue = 0f;
+        }
+        currentAudioFatigue = Mathf.Clamp01(currentAudioFatigue);
+
+        // 2. 音量の適用
+        if (breathingAudioSource != null)
+        {
+            if (isMoving && !breathingAudioSource.isPlaying) breathingAudioSource.Play();
+
+            float targetVolume = 0f;
+            if (isDashing && isMoving)
+            {
+                // 走っている最中は固定音量
+                targetVolume = breathingRunVolume;
+            }
+            else
+            {
+                // 走り終わった後（または歩き中）は疲労度に応じた音量
+                float baseVolume = isMoving ? breathingWalkVolume : 0f;
+                targetVolume = Mathf.Lerp(baseVolume, breathingMaxVolume, currentAudioFatigue);
+            }
+
+            breathingAudioSource.volume = Mathf.Lerp(breathingAudioSource.volume, targetVolume, Time.deltaTime * audioFadeSpeed);
+        }
+
+        // 3. 視界のぼやけ（PostProcessVolume）の適用
+        if (fatigueBlurVolume != null)
+        {
+            // 疲労度（0.0〜1.0）をそのままWeightに適用
+            // 疲労度が高いほど強くぼやける
+            fatigueBlurVolume.weight = currentAudioFatigue;
         }
     }
 
@@ -653,7 +790,6 @@ public class PlayerController : MonoBehaviour
         }
     }
 
-    // ★修正：モデル更新ロジックにSpiderを追加
     public void UpdateItemModel()
     {
         if (KeyModel != null) KeyModel.SetActive(false);
@@ -680,12 +816,11 @@ public class PlayerController : MonoBehaviour
             case "Flashlight": if (FlashlightModel != null) FlashlightModel.SetActive(true); break;
             case "Lighter": if (LighterModel != null) LighterModel.SetActive(true); break;
             case "Item": if (ItemModel != null) ItemModel.SetActive(true); break;
-            case "Spider": if (SpiderModel != null) SpiderModel.SetActive(true); break; // ★追加
+            case "Spider": if (SpiderModel != null) SpiderModel.SetActive(true); break;
             default: Debug.LogWarning($"タグ '{tag}' に対応するモデルなし"); break;
         }
     }
 
-    // ★修正：SpiderModelの手揺れを追加
     void UpdateItemBob(bool isMoving)
     {
         if (isMoving)

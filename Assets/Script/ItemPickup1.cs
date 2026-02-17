@@ -6,8 +6,6 @@ public class ItemPickup1 : MonoBehaviour
     [Tooltip("常に表示させるオブジェクト（子オブジェクトのスプライトやテキスト）")]
     public GameObject nameLabelObject;
 
-    // 距離設定（displayDistance）は不要になったため削除しました
-
     [Header("位置調整")]
     [Tooltip("中心位置からの微調整 (X, Y, Z)")]
     public Vector3 labelOffset = new Vector3(0f, 0.5f, 0f);

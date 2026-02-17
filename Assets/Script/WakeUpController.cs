@@ -23,72 +23,56 @@ public class WakeUpController : MonoBehaviour
     public FlashlightSystem flashlightSystem;
 
     // private
-    private bool isSleeping = true;
+    private bool isSleeping = false;
     private bool isWakingUp = false;
 
-    IEnumerator Start()
+    void Awake()
     {
-        yield return null;
+        // プレイヤーのTransformが設定されていなければ、このオブジェクト自身を使う（保険）
+        if (playerTransform == null) playerTransform = transform;
+
+        // CharacterControllerがあると強制移動を邪魔することがあるので、一旦オフにする
+        CharacterController cc = playerTransform.GetComponent<CharacterController>();
+        if (cc != null) cc.enabled = false;
+
         // ロードデータがあるかチェック
         bool isLoadGame = IsLoadGame();
 
         if (isLoadGame)
         {
             // --- パターンA：セーブデータがある場合（続きから） ---
-
-            // SaveManagerのデータを使って位置を復元する
             if (SaveManager.Instance != null && SaveManager.Instance.currentData != null)
             {
-                // CharacterControllerが邪魔をして移動できない場合があるので、一瞬オフにする
-                CharacterController cc = playerTransform.GetComponent<CharacterController>();
-                if (cc != null) cc.enabled = false;
-
                 // 保存された位置と向きを適用
                 playerTransform.position = SaveManager.Instance.currentData.playerPosition;
                 playerTransform.rotation = SaveManager.Instance.currentData.playerRotation;
+                Physics.SyncTransforms(); // 物理位置を即座に同期
 
-                // 物理演算の位置合わせ
-                Physics.SyncTransforms();
-
-                // コントローラーをオンに戻す
-                if (cc != null) cc.enabled = true;
-
-                Debug.Log("セーブされた位置にスポーンしました: " + playerTransform.position);
+                Debug.Log("ロード地点にスポーン: " + playerTransform.position);
             }
 
-            // 寝ていない状態にする
-            isSleeping = false;
-
-            // カメラを正面に向ける（寝ている角度 -90 を 0 に直す）
+            // カメラを正面に向ける
             if (playerCamera != null)
             {
                 playerCamera.localRotation = Quaternion.Euler(0f, 0f, 0f);
             }
 
-            // 操作を許可する
-            EnableControls(true);
+            // 状態設定
+            isSleeping = false;
 
-            /*if (lighterSystem != null)
-            {
-                lighterSystem.canUseLighter = true;
-            }*/
+            // 操作許可などの初期化
+            InitializeControls(true);
         }
         else
         {
             // --- パターンB：ニューゲームの場合（最初から） ---
 
-            // 1. プレイヤーを強制的にベッドの位置へ移動
-            if (playerTransform != null)
-            {
-                CharacterController cc = playerTransform.GetComponent<CharacterController>();
-                if (cc != null) cc.enabled = false; // 移動のためにオフ
+            // 1. ベッドの位置へ強制移動
+            playerTransform.position = spawnPosition;
+            playerTransform.rotation = Quaternion.Euler(0, bedRotationY, 0);
+            Physics.SyncTransforms(); // 物理位置を即座に同期
 
-                playerTransform.position = spawnPosition;
-                playerTransform.rotation = Quaternion.Euler(0, bedRotationY, 0);
-
-                Physics.SyncTransforms();
-                if (cc != null) cc.enabled = true; // オンに戻す
-            }
+            Debug.Log("ニューゲーム地点(ベッド)にスポーン: " + playerTransform.position);
 
             // 2. カメラを真上に向ける（寝ている視点）
             if (playerCamera != null)
@@ -96,32 +80,33 @@ public class WakeUpController : MonoBehaviour
                 playerCamera.localRotation = Quaternion.Euler(-90f, 0f, 0f);
             }
 
-            // 3. 起きるまでは動けないように操作スクリプトを止める
-            EnableControls(false);
+            // 状態設定
+            isSleeping = true;
 
+            // 操作禁止などの初期化
+            InitializeControls(false);
+
+            // ニューゲーム特有のアイテム状態設定
             if (flashlightSystem != null)
             {
-                flashlightSystem.isFlashlightOn = true; // フラグをON
-
+                flashlightSystem.isFlashlightOn = true;
                 flashlightSystem.ApplyState();
             }
-
             if (lighterSystem != null)
             {
                 lighterSystem.isLighterOn = false;
-
                 lighterSystem.ApplyState();
             }
-
             if (inventoryUI != null)
             {
                 inventoryUI.enabled = false;
             }
-
-            isSleeping = true;
         }
 
-        // 共通設定：カーソルは消す
+        // 移動が終わったのでCharacterControllerをオンに戻す
+        if (cc != null) cc.enabled = true;
+
+        // カーソル設定（共通）
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
     }
@@ -138,6 +123,20 @@ public class WakeUpController : MonoBehaviour
         }
     }
 
+    // 操作の有効/無効を一括設定する関数
+    void InitializeControls(bool isEnabled)
+    {
+        if (playerMovementScript != null) playerMovementScript.enabled = isEnabled;
+
+        if (lighterSystem != null)
+        {
+            // ニューゲーム(false)の時は使用禁止、ロード(true)の時は使用許可
+            lighterSystem.canUseLighter = isEnabled;
+        }
+
+        // flashlightSystemのcanUseFlashlight制御が必要ならここに追加
+    }
+
     // 「セーブデータの続きかどうか」を判定する関数
     bool IsLoadGame()
     {
@@ -152,14 +151,6 @@ public class WakeUpController : MonoBehaviour
         return false;
     }
 
-    // 操作の有効/無効を切り替える便利関数
-    void EnableControls(bool isEnabled)
-    {
-        if (playerMovementScript != null) playerMovementScript.enabled = isEnabled;
-        if (lighterSystem != null) lighterSystem.canUseLighter = isEnabled;
-        //if (flashlightSystem != null) flashlightSystem.canUseFlashlight = isEnabled;
-    }
-
     // ゆっくり起き上がるコルーチン
     IEnumerator WakeUpSequence()
     {
@@ -167,28 +158,29 @@ public class WakeUpController : MonoBehaviour
         Debug.Log("起き上がります...");
 
         float elapsed = 0f;
-        Quaternion startRotation = playerCamera.localRotation; // 真上（-90度）
-        Quaternion endRotation = Quaternion.Euler(0f, 0f, 0f); // 正面（0度）
+        Quaternion startRot = playerCamera.localRotation; // 真上（-90度）
+        Quaternion endRot = Quaternion.Euler(0f, 0f, 0f); // 正面（0度）
 
         while (elapsed < wakeUpDuration)
         {
-            float t = elapsed / wakeUpDuration;
-            t = Mathf.SmoothStep(0f, 1f, t);
-            playerCamera.localRotation = Quaternion.Slerp(startRotation, endRotation, t);
             elapsed += Time.deltaTime;
+            float t = elapsed / wakeUpDuration;
+            // イージング（滑らかに）
+            t = Mathf.SmoothStep(0f, 1f, t);
+
+            playerCamera.localRotation = Quaternion.Slerp(startRot, endRot, t);
             yield return null;
         }
 
-        playerCamera.localRotation = endRotation;
-        EnableControls(true); // 操作許可
+        playerCamera.localRotation = endRot;
 
-        // ★★★ ここに追加：ライターの使用を許可する ★★★
+        // 起き上がった後の状態設定
+        if (playerMovementScript != null) playerMovementScript.enabled = true;
+
         if (lighterSystem != null)
         {
             lighterSystem.canUseLighter = true;
-            Debug.Log("ライターが使用可能になりました");
         }
-        // ★★★★★★★★★★★★★★★★★★★★★★★★★
 
         if (inventoryUI != null)
         {
