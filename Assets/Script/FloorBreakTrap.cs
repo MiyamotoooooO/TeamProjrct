@@ -40,6 +40,7 @@ public class FloorBreakTrap : MonoBehaviour
         if (isBroken) return;
         if (other.CompareTag("Player"))
         {
+            Debug.Log("プレイヤーが接触しました。床破壊プロセスを開始します。");
             BreakTheFloor();
         }
     }
@@ -49,7 +50,27 @@ public class FloorBreakTrap : MonoBehaviour
         isBroken = true;
 
         // 1. 普通の床を消す
-        foreach (var floor in intactFloors) { if (floor != null) floor.SetActive(false); }
+        //foreach (var floor in intactFloors) { if (floor != null) floor.SetActive(false); }
+
+        if (intactFloors.Length == 0)
+        {
+            Debug.LogWarning("【注意】Intact Floors（消す床）がInspectorに1つも登録されていません！");
+        }
+        else
+        {
+            foreach (var floor in intactFloors)
+            {
+                if (floor != null)
+                {
+                    floor.SetActive(false);
+                    Debug.Log($"床オブジェクト: {floor.name} を非表示にしました");
+                }
+                else
+                {
+                    Debug.LogWarning("Intact Floors のリストに 'None' (空欄) が含まれています");
+                }
+            }
+        }
 
         // 2. 壊れた床を表示する
         foreach (var floor in brokenFloors) { if (floor != null) floor.SetActive(true); }

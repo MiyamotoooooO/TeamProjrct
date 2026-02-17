@@ -157,6 +157,10 @@ public class PlayerController : MonoBehaviour
     private Quaternion crowbarDefaultRot;
     private Quaternion defaultRot;
 
+    private bool canCrowbarSwing = true; // 連続攻撃できないように
+    private float crowbarCooldown = 1.5f; // 攻撃できない時間
+
+
     private float itemBobTimer = 0f;
     private bool isSwinging = false; // Key用
     private float swingTimer = 0f;
@@ -948,11 +952,29 @@ public class PlayerController : MonoBehaviour
         if (cam != null) cameraSwingStartRot = cam.transform.localRotation;
     }
 
+    void ResetCrowbarCooldown()
+    {
+        canCrowbarSwing = true;
+    }
+
+
     public void PlayCrowbarSwing()
     {
+        if (!canCrowbarSwing) return;
+
+        canCrowbarSwing = false;
+        Invoke(nameof(ResetCrowbarCooldown), crowbarCooldown);
+
         isCrowbarSwing = true; crowbarSwingTimer = 0f; isCameraSwing = true; cameraSwingTimer = 0f;
         if (cam != null) cameraSwingStartRot = cam.transform.localRotation;
     }
+
+
+    /*public void PlayCrowbarSwing()
+    {
+        isCrowbarSwing = true; crowbarSwingTimer = 0f; isCameraSwing = true; cameraSwingTimer = 0f;
+        if (cam != null) cameraSwingStartRot = cam.transform.localRotation;
+    }*/
 
     void UpdateCameraSwing()
     {

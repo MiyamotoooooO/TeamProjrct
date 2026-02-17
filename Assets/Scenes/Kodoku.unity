@@ -13570,7 +13570,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!195 &756437440
 NavMeshAgent:
   m_ObjectHideFlags: 0
@@ -20577,6 +20577,7 @@ GameObject:
   - component: {fileID: 926349874}
   - component: {fileID: 926349873}
   - component: {fileID: 926349876}
+  - component: {fileID: 926349877}
   m_Layer: 0
   m_Name: TrapSystem
   m_TagString: Untagged
@@ -20666,6 +20667,27 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 3.884613, y: 5.92025, z: 4.0895615}
   m_Center: {x: -0.043777466, y: 2.460125, z: 5.098057}
+--- !u!65 &926349877
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 926349872}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 1
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 3.689499, y: 5.912815, z: 0.23603821}
+  m_Center: {x: 0.044303894, y: 2.4564075, z: 7.3519363}
 --- !u!1 &938300839
 GameObject:
   m_ObjectHideFlags: 0
@@ -28903,6 +28925,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Villa2_Floor_Mid_A (365)
       objectReference: {fileID: 0}
+    - target: {fileID: 180598, guid: 4743926f06b7fdc4c93033724c776cdc, type: 3}
+      propertyPath: m_IsActive
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 415016, guid: 4743926f06b7fdc4c93033724c776cdc, type: 3}
       propertyPath: m_RootOrder
       value: 2363
@@ -28913,7 +28939,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 415016, guid: 4743926f06b7fdc4c93033724c776cdc, type: 3}
       propertyPath: m_LocalPosition.y
-      value: -0.36999893
+      value: -0.37
       objectReference: {fileID: 0}
     - target: {fileID: 415016, guid: 4743926f06b7fdc4c93033724c776cdc, type: 3}
       propertyPath: m_LocalPosition.z
@@ -31068,9 +31094,17 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 219353047069942959, guid: 58fcaa17b87c9314eacab376a17551f3, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 2110815092646736985, guid: 58fcaa17b87c9314eacab376a17551f3, type: 3}
       propertyPath: m_LocalPosition.x
       value: -10.535
+      objectReference: {fileID: 0}
+    - target: {fileID: 2786277806124884881, guid: 58fcaa17b87c9314eacab376a17551f3, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 5201829169682121736, guid: 58fcaa17b87c9314eacab376a17551f3, type: 3}
       propertyPath: m_Name
