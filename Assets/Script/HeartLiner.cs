@@ -5,8 +5,7 @@ public class HeartLiner : MonoBehaviour
 {
     [SerializeField] private Image hpGuage;
     [SerializeField] private PlayerController playerController;
-    [SerializeField] private Color[] waveColors = { Color.green, Color.yellow, Color.red };
-    Vector3 spawnPos = new Vector3(581, 280, 0);
+    [SerializeField] private Color[] waveColors;
 
     private void FixedUpdate()
     {
@@ -14,18 +13,23 @@ public class HeartLiner : MonoBehaviour
             hpGuage.fillAmount -= 0.001f;
     }
 
-    public void SpawnWave(GameObject gameObject)
+    public void ColorChange(Image img)
     {
-        GameObject obj = Instantiate(gameObject, spawnPos, gameObject.transform.rotation, this.transform);
-        Image img = obj.GetComponent<Image>();
-        img.fillAmount = 0;
-        img.fillOrigin = 0;
         //スタミナ残量によって色を変える
-        //if (playerController.currentStaminaPercent <= 50)
-        //    img.color = waveColors[0];
-        //else if (playerController.currentStaminaPercent <= 80)
-        //    img.color = waveColors[1];
-        //else
-        //    img.color = waveColors[2];
+        if (playerController.currentStaminaPercent >= 50)
+        {
+            Debug.Log("ColorChangeGreen");
+            img.color = waveColors[0];
+        }
+        else if (playerController.currentStaminaPercent >= 25)
+        {
+            Debug.Log("ColorChangeYellow");
+            img.color = waveColors[1];
+        }
+        else
+        {
+            Debug.Log("ColorChangeGreen");
+            img.color = waveColors[2];
+        }
     }
 }

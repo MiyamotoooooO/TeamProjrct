@@ -6,13 +6,12 @@ public class WaveController : MonoBehaviour
     [SerializeField] private float waveSpeed;
     [SerializeField] private HeartLiner heartLiner;
     [SerializeField] private Transform canvas;
-    private Image image;
+    [SerializeField] private Image image;
     Vector3 pos;
 
     private void Start()
     {
         pos = transform.position;
-        image = GetComponent<Image>();
     }
 
 
@@ -28,8 +27,10 @@ public class WaveController : MonoBehaviour
             image.fillAmount -= waveSpeed * 0.003f;
             if (image.fillAmount == 0)
             {
-                heartLiner.SpawnWave(this.gameObject);
-                Destroy(this.gameObject);
+                pos.x = 581;
+                image.fillAmount = 0;
+                image.fillOrigin = 0;
+                heartLiner.ColorChange(image);
             }
         }
         else

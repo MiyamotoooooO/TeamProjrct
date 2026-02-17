@@ -27932,6 +27932,7 @@ MonoBehaviour:
   waveSpeed: 2
   heartLiner: {fileID: 1512020861}
   canvas: {fileID: 1512020865}
+  image: {fileID: 1099271491}
 --- !u!114 &1099271491
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -34439,8 +34440,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   hpGuage: {fileID: 1087844316}
-  playerController: {fileID: 0}
-  waveColors: []
+  playerController: {fileID: 1443479527}
+  waveColors:
+  - {r: 0.4, g: 1, b: 0.4, a: 1}
+  - {r: 1, g: 0.94509804, b: 0.02745098, a: 1}
+  - {r: 1, g: 0, b: 0, a: 1}
 --- !u!114 &1512020862
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -34788,6 +34792,7 @@ MonoBehaviour:
   waveSpeed: 2
   heartLiner: {fileID: 1512020861}
   canvas: {fileID: 1512020865}
+  image: {fileID: 1537907720}
 --- !u!114 &1537907720
 MonoBehaviour:
   m_ObjectHideFlags: 0
