@@ -29,8 +29,8 @@ public class PlayerController : MonoBehaviour
 
     // --- Inspector表示用 ---
     [Header("ダッシュ状態（デバッグ表示）")]
-    [SerializeField, Tooltip("現在のスタミナ残量（%）")]
-    private float currentStaminaPercent = 100f;
+    [Tooltip("現在のスタミナ残量（%）")]
+    public float currentStaminaPercent = 100f;
     [SerializeField, Tooltip("現在ダッシュ継続している秒数")]
     private float currentDashTime = 0f;
     [SerializeField, Tooltip("回復開始までの残り待機秒数")]

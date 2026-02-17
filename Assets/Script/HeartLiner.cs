@@ -1,38 +1,31 @@
-using System.Collections;
-using System.Collections.Generic;
-using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.UI;
 
 public class HeartLiner : MonoBehaviour
 {
-    [SerializeField] private Image BaseImage;
-    [SerializeField] private Sprite[] Waves;
-    public int index;
+    [SerializeField] private Image hpGuage;
+    [SerializeField] private PlayerController playerController;
+    [SerializeField] private Color[] waveColors = { Color.green, Color.yellow, Color.red };
+    Vector3 spawnPos = new Vector3(581, 280, 0);
 
-    private Image image;
-
-    private void Start()
+    private void FixedUpdate()
     {
-        image = GetComponent<Image>();
-        NewWave();
+        if (Input.GetKey(KeyCode.Keypad0))
+            hpGuage.fillAmount -= 0.001f;
     }
 
-    private void NewWave()
+    public void SpawnWave(GameObject gameObject)
     {
-        //BaseImage.sprite = image.sprite;
-        image.sprite = Waves[index];
-        StartCoroutine(animFillAmount());
-    }
-
-    private IEnumerator animFillAmount()
-    {
-        image.fillAmount = 0;
-        while (image.fillAmount < 1f)
-        {
-            image.fillAmount += 1 * Time.deltaTime;
-            yield return null;
-        }
-        NewWave();
+        GameObject obj = Instantiate(gameObject, spawnPos, gameObject.transform.rotation, this.transform);
+        Image img = obj.GetComponent<Image>();
+        img.fillAmount = 0;
+        img.fillOrigin = 0;
+        //スタミナ残量によって色を変える
+        //if (playerController.currentStaminaPercent <= 50)
+        //    img.color = waveColors[0];
+        //else if (playerController.currentStaminaPercent <= 80)
+        //    img.color = waveColors[1];
+        //else
+        //    img.color = waveColors[2];
     }
 }
