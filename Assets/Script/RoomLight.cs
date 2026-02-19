@@ -1,82 +1,649 @@
-using UnityEngine;
+ï»¿using UnityEngine;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 [RequireComponent(typeof(Light))]
+
+
+
+
+
+
+
 [RequireComponent(typeof(BoxCollider))]
+
+
+
+
+
+
+
 public class RoomLight : MonoBehaviour
+
+
+
+
+
+
+
 {
+
+
+
+
+
+
+
     [System.Serializable]
+
+
+
+
+
+
+
     public class LightSettings
+
+
+
+
+
+
+
     {
+
+
+
+
+
+
+
         public Color color = Color.white;
+
+
+
+
+
+
+
         public float intensity = 1.0f;
+
+
+
+
+
+
+
         public float range = 10.0f;
+
+
+
+
+
+
+
     }
 
-    [Header("ƒ‰ƒCƒg‚Ìİ’è (Inspector‚Å•ÏX‰Â”\)")]
-    [SerializeField] private LightSettings normalSettings; // ’Êí‚Ìİ’è
-    [SerializeField] private LightSettings redSettings;    // ÔF‚Ìİ’è
 
-    [Header("QÆ")]
+
+
+
+
+
+
+
+
+
+
+
+
+
+    [Header("ãƒ©ã‚¤ãƒˆã®è¨­å®š (Inspectorã§å¤‰æ›´å¯èƒ½)")]
+
+
+
+
+
+
+
+    [SerializeField] private LightSettings normalSettings; // é€šå¸¸æ™‚ã®è¨­å®š
+
+
+
+
+
+
+
+    [SerializeField] private LightSettings redSettings; // èµ¤è‰²æ™‚ã®è¨­å®š
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    [Header("å‚ç…§")]
+
+
+
+
+
+
+
     [SerializeField] private PlayerHealth playerHealth;
 
-    // “à•”•Ï”
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    // å†…éƒ¨å¤‰æ•°
+
+
+
+
+
+
+
     private Light myLight;
-    private bool isRedMode = false; // Œ»İÔƒ‰ƒ“ƒvƒ‚[ƒh‚©
+
+
+
+
+
+
+
+    private bool isRedMode = false; // ç¾åœ¨èµ¤ãƒ©ãƒ³ãƒ—ãƒ¢ãƒ¼ãƒ‰ã‹
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     private void Awake()
+
+
+
+
+
+
+
     {
+
+
+
+
+
+
+
         myLight = GetComponent<Light>();
 
-        // ƒvƒŒƒCƒ„[‚ÌHealthƒXƒNƒŠƒvƒg‚ğ©“®æ“¾
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        // ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ã®Healthã‚¹ã‚¯ãƒªãƒ—ãƒˆã‚’è‡ªå‹•å–å¾—
+
+
+
+
+
+
+
         if (playerHealth == null)
+
+
+
+
+
+
+
         {
+
+
+
+
+
+
+
             playerHealth = FindAnyObjectByType<PlayerHealth>();
+
+
+
+
+
+
+
         }
 
-        // ‰Šúó‘Ô‚Í’Êíƒ‚[ƒh‚É‚·‚é
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        // åˆæœŸçŠ¶æ…‹ã¯é€šå¸¸ãƒ¢ãƒ¼ãƒ‰ã«ã™ã‚‹
+
+
+
+
+
+
+
         SetNormal();
+
+
+
+
+
+
+
     }
 
-    // ’Êíƒ‚[ƒh‚É‚·‚é
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    // é€šå¸¸ãƒ¢ãƒ¼ãƒ‰ã«ã™ã‚‹
+
+
+
+
+
+
+
     public void SetNormal()
+
+
+
+
+
+
+
     {
+
+
+
+
+
+
+
         isRedMode = false;
+
+
+
+
+
+
+
         ApplySettings(normalSettings);
+
+
+
+
+
+
+
         myLight.enabled = true;
+
+
+
+
+
+
+
     }
 
-    // Ôƒ‰ƒ“ƒvƒ‚[ƒh‚É‚·‚éiŠëŒ¯j
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    // èµ¤ãƒ©ãƒ³ãƒ—ãƒ¢ãƒ¼ãƒ‰ã«ã™ã‚‹ï¼ˆå±é™ºï¼‰
+
+
+
+
+
+
+
     public void SetRed()
+
+
+
+
+
+
+
     {
+
+
+
+
+
+
+
         isRedMode = true;
+
+
+
+
+
+
+
         ApplySettings(redSettings);
+
+
+
+
+
+
+
         myLight.enabled = true;
+
+
+
+
+
+
+
     }
 
-    // “_–Å—pFƒ‰ƒCƒg‚ÌON/OFF‚ğØ‚è‘Ö‚¦‚é
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    // ç‚¹æ»…ç”¨ï¼šãƒ©ã‚¤ãƒˆã®ON/OFFã‚’åˆ‡ã‚Šæ›¿ãˆã‚‹
+
+
+
+
+
+
+
     public void ToggleLight(bool enable)
+
+
+
+
+
+
+
     {
+
+
+
+
+
+
+
         myLight.enabled = enable;
+
+
+
+
+
+
+
     }
 
-    // İ’è‚ğLightƒRƒ“ƒ|[ƒlƒ“ƒg‚É”½‰f‚³‚¹‚é
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    // è¨­å®šã‚’Lightã‚³ãƒ³ãƒãƒ¼ãƒãƒ³ãƒˆã«åæ˜ ã•ã›ã‚‹
+
+
+
+
+
+
+
     private void ApplySettings(LightSettings settings)
+
+
+
+
+
+
+
     {
+
+
+
+
+
+
+
         myLight.color = settings.color;
+
+
+
+
+
+
+
         myLight.intensity = settings.intensity;
+
+
+
+
+
+
+
         myLight.range = settings.range;
+
+
+
+
+
+
+
     }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     private void OnTriggerStay(Collider other)
+
+
+
+
+
+
+
     {
-        // Ôƒ‚[ƒh’† ‚©‚Â ƒvƒŒƒCƒ„[‚ª”ÍˆÍ“à‚É‚¢‚éê‡
+
+
+
+
+
+
+
+        // èµ¤ãƒ¢ãƒ¼ãƒ‰ä¸­ ã‹ã¤ ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ãŒç¯„å›²å†…ã«ã„ã‚‹å ´åˆ
+
+
+
+
+
+
+
         if (isRedMode && other.CompareTag("Player"))
+
+
+
+
+
+
+
         {
-            // PlayerHealth‚ÌDieŠÖ”‚ğŒÄ‚Ô
+
+
+
+
+
+
+
+            // PlayerHealthã®Dieé–¢æ•°ã‚’å‘¼ã¶
+
+
+
+
+
+
+
             if (playerHealth != null)
+
+
+
+
+
+
+
             {
+
+
+
+
+
+
+
                 playerHealth.Die();
+
+
+
+
+
+
+
             }
+
+
+
+
+
+
+
         }
+
+
+
+
+
+
+
     }
+
+
+
+
+
+
+
 }
