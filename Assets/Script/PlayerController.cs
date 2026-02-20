@@ -96,13 +96,15 @@ public class PlayerController : MonoBehaviour
     [SerializeField] SortPicture[] sortPictures;
     [SerializeField] BugSpawner bugSpawner;
 
-    [Header("--- アイテムモデル設定 ---")]
+    [Header("--- アイテムモデル設定 ---")] // アイテム化したいタグを追加
     public GameObject KeyModel;
     public GameObject ItemModel; // 汎用アイテム
     public GameObject CrowbarModel; // バール専用モデル
     public GameObject FlashlightModel;
     public GameObject LighterModel;
     public GameObject SpiderModel; // クモの手持ちモデル
+    public GameObject DetergentModel;
+    public GameObject DirtykeyModel;
 
     [Header("アイテムアニメーション")]
     public float itemBobSpeed = 6f;
@@ -146,12 +148,15 @@ public class PlayerController : MonoBehaviour
     float minX = -90f, maxX = 90f;
     Rigidbody rb;
 
+    // アイテム化したいタグを追加
     private Vector3 KeyModelDefaultPos;
     private Vector3 itemModelDefaultPos;
     private Vector3 crowbarModelDefaultPos;
     private Vector3 flashlightModelDefaultPos;
     private Vector3 lighterModelDefaultPos;
     private Vector3 spiderModelDefaultPos;
+    private Vector3 detergentModelDefaultPos;
+    private Vector3 dirtykeyModelDefaultPos;
 
     private Quaternion itemDefaultRot;
     private Quaternion crowbarDefaultRot;
@@ -603,7 +608,8 @@ public class PlayerController : MonoBehaviour
         RaycastHit hit;
 
         pickUpText.enabled = false;
-        string[] pickableTags = { "Item", "Key", "Flashlight", "Lighter", "Crowbar", "Spider" };
+        // アイテム化したいタグを追加
+        string[] pickableTags = { "Item", "Key", "Flashlight", "Lighter", "Crowbar", "Spider", "Detergent", "Dirtykey" };
 
         if (Physics.Raycast(ray, out hit, pickUpDistance))
         {
@@ -754,12 +760,15 @@ public class PlayerController : MonoBehaviour
         string itemName = inventoryManager.currentItems[targetIndex];
         if (string.IsNullOrEmpty(itemName)) return;
 
+        // アイテム化したいタグを追加
         if (KeyModel) KeyModel.SetActive(false);
         if (ItemModel) ItemModel.SetActive(false);
         if (CrowbarModel) CrowbarModel.SetActive(false);
         if (FlashlightModel) FlashlightModel.SetActive(false);
         if (LighterModel) LighterModel.SetActive(false);
         if (SpiderModel) SpiderModel.SetActive(false);
+        if (DetergentModel) DetergentModel.SetActive(false);
+        if (DirtykeyModel) DirtykeyModel.SetActive(false);
         Vector3 dropPos = transform.position + (transform.up * 1.3f) + (transform.forward * 2.0f);
         GameObject droppedItem = inventoryManager.DropItem(itemName, dropPos);
 
@@ -796,12 +805,15 @@ public class PlayerController : MonoBehaviour
 
     public void UpdateItemModel()
     {
+        // アイテム化したいタグを追加
         if (KeyModel != null) KeyModel.SetActive(false);
         if (ItemModel != null) ItemModel.SetActive(false);
         if (CrowbarModel != null) CrowbarModel.SetActive(false);
         if (FlashlightModel != null) FlashlightModel.SetActive(false);
         if (LighterModel != null) LighterModel.SetActive(false);
         if (SpiderModel != null) SpiderModel.SetActive(false);
+        if (DetergentModel != null) DetergentModel.SetActive(false);
+        if (DirtykeyModel != null) DirtykeyModel.SetActive(false);
 
         if (inventoryManager == null || inventoryManager.currentItems.Count == 0) return;
 
@@ -813,7 +825,7 @@ public class PlayerController : MonoBehaviour
 
         string tag = inventoryManager.GetItemTag(itemName);
 
-        switch (tag)
+        switch (tag) // アイテム化したいタグを追加
         {
             case "Key": if (KeyModel != null) KeyModel.SetActive(true); break;
             case "Crowbar": if (CrowbarModel != null) CrowbarModel.SetActive(true); break;
@@ -821,6 +833,8 @@ public class PlayerController : MonoBehaviour
             case "Lighter": if (LighterModel != null) LighterModel.SetActive(true); break;
             case "Item": if (ItemModel != null) ItemModel.SetActive(true); break;
             case "Spider": if (SpiderModel != null) SpiderModel.SetActive(true); break;
+            case "Detergent": if (DetergentModel != null) DetergentModel.SetActive(true); break;
+            case "Dirtykey": if (DirtykeyModel != null) DirtykeyModel.SetActive(true); break;
             default: Debug.LogWarning($"タグ '{tag}' に対応するモデルなし"); break;
         }
     }

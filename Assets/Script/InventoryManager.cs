@@ -120,6 +120,15 @@ public class InventoryManager : MonoBehaviour
 
         if (swapPromptPanel != null) swapPromptPanel.SetActive(false);
         if (fullMessageText != null) fullMessageText.gameObject.SetActive(false);
+
+        itemTagDatabase["Key"] = "Key";
+        itemTagDatabase["Crowbar"] = "Crowbar";
+        itemTagDatabase["Flashlight"] = "Flashlight";
+        itemTagDatabase["Lighter"] = "Lighter";
+        itemTagDatabase["Item"] = "Item";
+        itemTagDatabase["Spider"] = "Spider";
+        itemTagDatabase["Detergent"] = "Detergent";
+        itemTagDatabase["Dirtykey"] = "Dirtykey";
     }
 
     private void Update()

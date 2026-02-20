@@ -82,6 +82,31 @@ public class ItemUse : MonoBehaviour
             return;
         }
 
+        // Sink
+        if (hit.collider.CompareTag("Sink"))
+        {
+            string dirtykeyName = "Dirtykey";
+            string cleankeyName = "Key";
+
+            // Dirtykey‚ğ‚Á‚Ä‚¢‚é‚©
+            if (player.inventoryManager.HasItem(dirtykeyName))
+            {
+                player.PlayItemSwing(); // “®ì
+                await Task.Delay(800);
+
+                // Dirtykey‚ğíœ‚µ‚ÄKey‚ğ’Ç‰Á
+                player.inventoryManager.RemoveItem(dirtykeyName);
+                player.inventoryManager.AddItem(cleankeyName);
+
+                player.UpdateItemModel();
+                Debug.Log("Dirtykey‚ğô‚Á‚ÄKey‚É•Ï‰»‚³‚¹‚Ü‚µ‚½");
+
+                return;
+            }
+
+            return;
+        }
+
         // š Door ˆÈŠO‚È‚çŒ®ˆ—‚Íâ‘Î‚É‚µ‚È‚¢
         var door = hit.collider.GetComponentInParent<DoubleDoorController>();
         if (door == null)
@@ -155,6 +180,15 @@ public class ItemUse : MonoBehaviour
             }
         }
 
+        // Sink
+        if (hit.collider.CompareTag("Sink"))
+        {
+            if (player.inventoryManager.HasItem("Dirtykey"))
+            {
+                UseText.enabled = true;
+            }
+            return;
+        }
 
     }
 }
