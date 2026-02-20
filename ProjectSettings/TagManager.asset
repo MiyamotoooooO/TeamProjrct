@@ -22,6 +22,8 @@ TagManager:
   - Dirtykey
   - Detergent
   - Sink
+  - Frog
+  - PoisonSpider
   layers:
   - Default
   - TransparentFX
