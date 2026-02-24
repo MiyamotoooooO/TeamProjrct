@@ -46,7 +46,9 @@ public class TitleManager : MonoBehaviour
 
     private void SetBack(Transform _transform)
     {
-        blood.gameObject.transform.position = _transform.position;
+        Vector3 pos = _transform.position;
+        pos.y += 150;
+        blood.gameObject.transform.position = pos;
         StartCoroutine(animBlood());
     }
 

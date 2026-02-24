@@ -3,10 +3,15 @@ using UnityEngine.UI;
 
 public class WaveController : MonoBehaviour
 {
+    [Header("波の動くスピード")]
     [SerializeField] private float waveSpeed;
+    [Header("HeaerLinerスクリプト")]
     [SerializeField] private HeartLiner heartLiner;
-    [SerializeField] private Transform canvas;
+    [Header("コンポーネント")]
+    [SerializeField] private RectTransform rect;
     [SerializeField] private Image image;
+    [Header("合計移動距離")]
+    [SerializeField] private float moveDistance = 0;
     Vector3 pos;
 
     private void Start()
@@ -17,24 +22,14 @@ public class WaveController : MonoBehaviour
 
     void FixedUpdate()
     {
-        //if (Input.GetKey(KeyCode.Keypad0))
-        //{
         pos.x -= waveSpeed;
+        moveDistance += waveSpeed;
         transform.position = pos;
-        if (pos.x <= 250)
+        if (moveDistance >= 652)
         {
-            image.fillOrigin = 1;
-            image.fillAmount -= waveSpeed * 0.003f;
-            if (image.fillAmount == 0)
-            {
-                pos.x = 581;
-                image.fillAmount = 0;
-                image.fillOrigin = 0;
-                heartLiner.ColorChange(image);
-            }
+            moveDistance = 0;
+            heartLiner.ColorChange(image, rect);
+            pos = transform.position;
         }
-        else
-            image.fillAmount += waveSpeed * 0.003f;
-        //}
     }
 }
