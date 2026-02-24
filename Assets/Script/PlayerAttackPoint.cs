@@ -2,8 +2,14 @@ using UnityEngine;
 
 public class PlayerAttackPoint : MonoBehaviour
 {
+    public PlayerAttack playerAttack;
     private void OnTriggerEnter(Collider other)
     {
+
+        if (!playerAttack.IsAttacking())
+        {
+            return;
+        }
         Debug.Log("HIT:" + other.name);
         // ƒ{ƒX‚É“–‚½‚Á‚½‚ç
         BossAI boss = other.GetComponent<BossAI>();

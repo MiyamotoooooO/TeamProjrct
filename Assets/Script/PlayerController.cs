@@ -4,7 +4,7 @@ using UnityEngine;
 using System.Collections;
 using UnityEngine.UI;
 using System.Threading.Tasks;
-using UnityEngine.Rendering.PostProcessing;
+using UnityEngine.Rendering.PostProcessing; // PostProcessingを使うために必要
 
 [RequireComponent(typeof(Rigidbody))]
 [RequireComponent(typeof(AudioSource))]
@@ -105,7 +105,6 @@ public class PlayerController : MonoBehaviour
     public GameObject SpiderModel; // クモの手持ちモデル
     public GameObject DetergentModel;
     public GameObject DirtykeyModel;
-    public GameObject FrogModel; // カエルのモデル
 
     [Header("アイテムアニメーション")]
     public float itemBobSpeed = 6f;
@@ -124,6 +123,10 @@ public class PlayerController : MonoBehaviour
     public AudioSource footstepAudioSource;
     public AudioClip walkSoundLoop;
     public AudioClip runSoundLoop;
+
+    [Header("攻撃音")]
+    public AudioClip crowbarSwingSE;
+    public AudioSource attackAudioSource;
 
     [Header("吐息設定")]
     public AudioSource breathingAudioSource;
@@ -158,7 +161,6 @@ public class PlayerController : MonoBehaviour
     private Vector3 spiderModelDefaultPos;
     private Vector3 detergentModelDefaultPos;
     private Vector3 dirtykeyModelDefaultPos;
-    private Vector3 frogModelDefaultPos;
 
     private Quaternion itemDefaultRot;
     private Quaternion crowbarDefaultRot;
@@ -189,6 +191,7 @@ public class PlayerController : MonoBehaviour
 
     private void Start()
     {
+        
         rb = GetComponent<Rigidbody>();
         rb.freezeRotation = true;
 
@@ -240,7 +243,6 @@ public class PlayerController : MonoBehaviour
         if (LighterModel != null) lighterModelDefaultPos = LighterModel.transform.localPosition;
 
         if (SpiderModel != null) spiderModelDefaultPos = SpiderModel.transform.localPosition;
-        if (FrogModel != null) frogModelDefaultPos = FrogModel.transform.localPosition;
 
         Invoke(nameof(UpdateItemModel), 0.1f);
     }
@@ -612,7 +614,7 @@ public class PlayerController : MonoBehaviour
 
         pickUpText.enabled = false;
         // アイテム化したいタグを追加
-        string[] pickableTags = { "Item", "Key", "Flashlight", "Lighter", "Crowbar", "Spider", "Detergent", "Dirtykey", "Frog" };
+        string[] pickableTags = { "Item", "Key", "Flashlight", "Lighter", "Crowbar", "Spider", "Detergent", "Dirtykey" };
 
         if (Physics.Raycast(ray, out hit, pickUpDistance))
         {
@@ -772,7 +774,6 @@ public class PlayerController : MonoBehaviour
         if (SpiderModel) SpiderModel.SetActive(false);
         if (DetergentModel) DetergentModel.SetActive(false);
         if (DirtykeyModel) DirtykeyModel.SetActive(false);
-        if (FrogModel) FrogModel.SetActive(false);
         Vector3 dropPos = transform.position + (transform.up * 1.3f) + (transform.forward * 2.0f);
         GameObject droppedItem = inventoryManager.DropItem(itemName, dropPos);
 
@@ -818,7 +819,6 @@ public class PlayerController : MonoBehaviour
         if (SpiderModel != null) SpiderModel.SetActive(false);
         if (DetergentModel != null) DetergentModel.SetActive(false);
         if (DirtykeyModel != null) DirtykeyModel.SetActive(false);
-        if (FrogModel != null) FrogModel.SetActive(false);
 
         if (inventoryManager == null || inventoryManager.currentItems.Count == 0) return;
 
@@ -840,7 +840,6 @@ public class PlayerController : MonoBehaviour
             case "Spider": if (SpiderModel != null) SpiderModel.SetActive(true); break;
             case "Detergent": if (DetergentModel != null) DetergentModel.SetActive(true); break;
             case "Dirtykey": if (DirtykeyModel != null) DirtykeyModel.SetActive(true); break;
-            case "Frog": if (FrogModel != null) FrogModel.SetActive(true); break;
             default: Debug.LogWarning($"タグ '{tag}' に対応するモデルなし"); break;
         }
     }
@@ -859,7 +858,6 @@ public class PlayerController : MonoBehaviour
             if (FlashlightModel != null && FlashlightModel.activeSelf) FlashlightModel.transform.localPosition = flashlightModelDefaultPos + new Vector3(bobOffsetX, bobOffsetY, 0);
             if (LighterModel != null && LighterModel.activeSelf) LighterModel.transform.localPosition = lighterModelDefaultPos + new Vector3(bobOffsetX, bobOffsetY, 0);
             if (SpiderModel != null && SpiderModel.activeSelf) SpiderModel.transform.localPosition = spiderModelDefaultPos + new Vector3(bobOffsetX, bobOffsetY, 0);
-            if (FrogModel != null && FrogModel.activeSelf) FrogModel.transform.localPosition = frogModelDefaultPos + new Vector3(bobOffsetX, bobOffsetY, 0);
         }
         else
         {
@@ -869,7 +867,6 @@ public class PlayerController : MonoBehaviour
             if (FlashlightModel != null && FlashlightModel.activeSelf) FlashlightModel.transform.localPosition = Vector3.Lerp(FlashlightModel.transform.localPosition, flashlightModelDefaultPos, Time.deltaTime * 10f);
             if (LighterModel != null && LighterModel.activeSelf) LighterModel.transform.localPosition = Vector3.Lerp(LighterModel.transform.localPosition, lighterModelDefaultPos, Time.deltaTime * 10f);
             if (SpiderModel != null && SpiderModel.activeSelf) SpiderModel.transform.localPosition = Vector3.Lerp(SpiderModel.transform.localPosition, spiderModelDefaultPos, Time.deltaTime * 10f);
-            if (FrogModel != null && FrogModel.activeSelf) FrogModel.transform.localPosition = Vector3.Lerp(FrogModel.transform.localPosition, frogModelDefaultPos, Time.deltaTime * 10f);
             itemBobTimer = 0f;
         }
     }
@@ -987,6 +984,11 @@ public class PlayerController : MonoBehaviour
         canCrowbarSwing = false;
         Invoke(nameof(ResetCrowbarCooldown), crowbarCooldown);
 
+        // ★ ここで効果音再生
+        if (crowbarSwingSE != null && attackAudioSource != null)
+        {
+            attackAudioSource.PlayOneShot(crowbarSwingSE);
+        }
         isCrowbarSwing = true; crowbarSwingTimer = 0f; isCameraSwing = true; cameraSwingTimer = 0f;
         if (cam != null) cameraSwingStartRot = cam.transform.localRotation;
     }

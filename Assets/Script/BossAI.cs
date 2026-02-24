@@ -31,7 +31,7 @@ public class BossAI : MonoBehaviour
     public Transform[] escapePoints;
 
     [Header("接触判定")]
-    public float contactEscapeTime = 3f;
+    public float contactEscapeTime = 1;
     float contactTimer = 0.0f;
 
     [Header("背後出現位置調整（待機）")]
@@ -67,7 +67,7 @@ public class BossAI : MonoBehaviour
     public Transform faceTarget; // ボスの顔（Headボーン推奨）
     bool isCameraHijacked = false;
     [Header("ジャンプスケア後の待ち時間")]
-    public float deathDelayAfterHijack = 0.1f;
+    public float deathDelayAfterHijack = 0.3f;
 
     [Header("ジャンプスケア用固定カメラ位置")]
     public Transform cameraFacePoint; // ★追加
@@ -81,15 +81,19 @@ public class BossAI : MonoBehaviour
 
     [Header("3回目猶予時間")]
     public float finalAttackGraceTime = 2f;
-    
+
     Coroutine finalGraceCoroutine = null;
     bool isFinalGraceActive = false;
     bool canTakeDamage = true; //演出中でもダメージを受けられるか
-    
+
     [Header("音の設定")]
     [Tooltip("ボスの音（ここに音源を入れる）")]
     public AudioClip bosuSound;
     private AudioSource audioSource;
+    [Header("ジャンプスケア")]
+    public AudioClip jumpScareSound;
+
+    bool isJumpScarePlaying = false;
     void Start()
     {
         agent = GetComponent<NavMeshAgent>();
@@ -100,7 +104,8 @@ public class BossAI : MonoBehaviour
         if (audioSource != null)
         {
             audioSource.playOnAwake = false; // 勝手に鳴らないように
-            audioSource.loop = false;        // ループしないように
+            audioSource.loop = true;        // ループしないように
+            audioSource.clip = bosuSound; //ここでセット
         }
         ResetToIdle();
     }
@@ -132,6 +137,20 @@ public class BossAI : MonoBehaviour
         {
             agent.SetDestination(player.position);
         }
+        // ===== 音制御 =====
+        if (audioSource != null && !isJumpScarePlaying)
+        {
+            if (state == State.Chase)
+            {
+                if (!audioSource.isPlaying)
+                    audioSource.Play();
+            }
+            else
+            {
+                if (audioSource.isPlaying)
+                    audioSource.Stop();
+            }
+        }
 
 
     }
@@ -140,7 +159,7 @@ public class BossAI : MonoBehaviour
         if (state == State.Dead) return;
         if (isProcessingAttack) return;
 
-        if (collision.transform == player)
+        if (collision.gameObject.CompareTag("Player"))
         {
             //// 接触中は押さない
             //agent.isStopped = true;
@@ -210,6 +229,10 @@ public class BossAI : MonoBehaviour
         state = State.Chase;
         agent.isStopped = false;
 
+        if (audioSource != null && bosuSound != null && !audioSource.isPlaying)
+        {
+            audioSource.Play();
+        }
         //プレイヤーに「今回の遭遇で一回だけ攻撃OK」を与える
         player.GetComponent<PlayerAttack>().EnbleAttack();
     }
@@ -240,6 +263,10 @@ public class BossAI : MonoBehaviour
         ResetToIdle();
 
         canTakeDamage = true;
+        if (audioSource != null && audioSource.isPlaying)
+        {
+            audioSource.Stop();
+        }
     }
     IEnumerator BackAttackFlow()
     {
@@ -309,6 +336,14 @@ public class BossAI : MonoBehaviour
 
                     isCameraHijacked = true;
                     FreezeBoss();
+                    //ジャンプスケア音
+                    if (audioSource != null && jumpScareSound != null)
+                    {
+                        audioSource.loop = false; //一回だけ
+                        audioSource.clip = jumpScareSound;
+                        audioSource.Play();
+                    }
+
                     yield return StartCoroutine(CameraHijackHoldAndKill());
                     yield break;
 
@@ -377,12 +412,12 @@ public class BossAI : MonoBehaviour
 
     IEnumerator CameraHijackToFace()
     {
-        if (audioSource != null && bosuSound != null)
-        {
-            Debug.Log("音再生");
-            audioSource.clip = bosuSound; // 音をセット
-            audioSource.Play();           // 再生！
-        }
+        //if (audioSource != null && bosuSound != null)
+        //{
+        //    Debug.Log("音再生");
+        //    audioSource.clip = bosuSound; // 音をセット
+        //    audioSource.Play();           // 再生！
+        //}
         col.enabled = true;
         GetComponentInChildren<Renderer>().enabled = true;
 
@@ -414,16 +449,16 @@ public class BossAI : MonoBehaviour
         cam.position = targetPos;
         cam.rotation = targetRot;
         camComp.fieldOfView = hijackFOV;
-        if (audioSource != null)
-        {
-            audioSource.Stop();
-        }
+
     }
     IEnumerator CameraHijackHoldAndKill()
     {
+        isJumpScarePlaying = true;
+
         // ★ プレイヤーカメラ操作を無効化
         if (playerCameraController != null)
             playerCameraController.enabled = false;
+
         // ① 顔まで寄る
         yield return StartCoroutine(CameraHijackToFace());
 
@@ -433,6 +468,10 @@ public class BossAI : MonoBehaviour
         // ★ ③「死ぬ前の硬直時間」
         yield return new WaitForSeconds(deathDelayAfterHijack);
 
+        if (audioSource != null && jumpScareSound != null)
+        {
+            audioSource.Stop();
+        }
         // ③ そのまま死亡
         playerHealth.Die();
     }
@@ -480,6 +519,7 @@ public class BossAI : MonoBehaviour
     }
     public void TakeDamage()
     {
+        contactTimer = 0f;
         //最終猶予中なら解除
         if (isFinalGraceActive)
         {
@@ -551,7 +591,14 @@ public class BossAI : MonoBehaviour
         anim.SetFloat("Speed", 0f);
 
         canTakeDamage = true;
+        if (audioSource != null)
+        {
+            audioSource.Stop();
+        }
     }
+
+
+
 
 }
 

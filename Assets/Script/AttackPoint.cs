@@ -1,5 +1,3 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 
 public class AttackPoint : MonoBehaviour
@@ -7,29 +5,48 @@ public class AttackPoint : MonoBehaviour
     [Header("ゾンビ本体のAnimatorを指定してください")]
     public Animator zombieAnimator;
 
+    bool hasHit = false;
+
+    [Header("カメラポイント")]
+    public Transform cameraFacePoint;
+
+    private void OnEnable()
+    {
+        hasHit = false;
+    }
+
     private void OnTriggerEnter(Collider other)
     {
-        Debug.Log("Pointに当たった" + other.name);
 
-        if (other.CompareTag("Player"))
+        if (!other.CompareTag("Player")) return;
+
+        EnemyAI enemy = GetComponentInParent<EnemyAI>();
+        if (enemy != null)
         {
-            if (zombieAnimator != null && IsAttacking())
-            {
-                Debug.Log("攻撃ヒット！プレイヤー死亡");
+            enemy.StopChaseSound(); // ★ ここで止める
+        }
 
-                PlayerHealth health = other.GetComponent<PlayerHealth>();
-                if (health != null)
-                {
-                    health.Die();
-                }
-            }
+        if (hasHit) return;
+        if (zombieAnimator == null || !IsAttacking()) return;
+
+        hasHit = true;
+
+        PlayerHealth hp = other.GetComponent<PlayerHealth>();
+        if (hp != null && CameraHijackController.Instance != null)
+        {
+            CameraHijackController.Instance.PlayHijack(
+                cameraFacePoint,   // ← 顔前の空オブジェクト
+                hp
+            );
         }
     }
 
     bool IsAttacking()
     {
-        // 現在再生中のアニメーション情報を取得 (0はBase Layer)
-        AnimatorStateInfo stateInfo = zombieAnimator.GetCurrentAnimatorStateInfo(0);
+        AnimatorStateInfo stateInfo =
+            zombieAnimator.GetCurrentAnimatorStateInfo(0);
+
         return stateInfo.IsName("Z_Attack");
     }
+
 }
