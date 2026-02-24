@@ -5,27 +5,31 @@ using System.Collections;
 public class EventDoorController : MonoBehaviour
 {
     [Header("ドアの設定")]
+    [Tooltip("動かしたいドアオブジェクト")]
     public Transform targetDoor;
+
+    [Tooltip("近づいた時に表示するテキスト")]
     public GameObject guideText;
+
+    [Tooltip("ドアが開く角度（例：0, 90, 0）")]
     public Vector3 openAngle = new Vector3(0, 90, 0);
+
+    [Tooltip("ドアの開閉スピード")]
     public float moveDuration = 1.0f;
 
-    [Tooltip("trueにすると、プレイヤーの手動操作(Eキー)を無効化します")]
-    public bool isLocked = true; // イベントで開けるため最初はロック推奨
+    [Tooltip("最初は鍵がかかっているか")]
+    public bool isLocked = true;
+
+    [Header("【重要】鍵解除の条件設定")]
+    [Tooltip("ここにアタッチしたオブジェクト（毒蜘蛛など）が消滅(Destroy)すると、自動で鍵が開きます")]
+    public GameObject targetKeyObject;
+
+    [Header("音の設定")]
+    [Tooltip("ドアを開け閉めする時の音")]
     public AudioClip doorSound;
 
-    [Header("--- イベント演出設定 ---")]
-    [Tooltip("カメラがズームする先のターゲット（ドアノブなど。空欄ならこのオブジェクトの場所）")]
-    public Transform cameraTarget;
-
-    [Tooltip("ズーム時の視野角（通常は60。小さいほどズームします）")]
-    public float zoomFOV = 30f;
-
-    [Tooltip("カメラがズームする時間（秒）")]
-    public float cameraMoveDuration = 1.0f;
-
-    [Tooltip("ドアが開いた後、元の視点に戻るまでの待機時間（秒）")]
-    public float postOpenWaitTime = 1.0f;
+    [Tooltip("対象オブジェクト消滅時に鳴る「鍵が開く音」")]
+    public AudioClip unlockSound;
 
     // 内部変数
     private bool isOpen = false;
@@ -35,10 +39,17 @@ public class EventDoorController : MonoBehaviour
     private Quaternion openRot;
     private AudioSource audioSource;
 
+    // オブジェクトの消滅を監視するためのフラグ
+    private bool isWaitingForKeyObjectDestroy = false;
+
     void Start()
     {
         audioSource = GetComponent<AudioSource>();
-        if (audioSource != null) { audioSource.playOnAwake = false; audioSource.loop = false; }
+        if (audioSource != null)
+        {
+            audioSource.playOnAwake = false;
+            audioSource.loop = false;
+        }
 
         if (targetDoor != null)
         {
@@ -46,127 +57,66 @@ public class EventDoorController : MonoBehaviour
             openRot = Quaternion.Euler(openAngle);
         }
         if (guideText != null) guideText.SetActive(false);
+
+        // Target Key Object が設定されている場合、消滅監視をスタートする
+        if (targetKeyObject != null)
+        {
+            isWaitingForKeyObjectDestroy = true;
+        }
     }
 
     void Update()
     {
-        // プレイヤーによる手動操作
+        // ★鍵オブジェクトの消滅（Destroy）を監視
+        if (isWaitingForKeyObjectDestroy && targetKeyObject == null)
+        {
+            UnlockDoor();
+            isWaitingForKeyObjectDestroy = false; // 1回だけ実行するための制御
+        }
+
+        // プレイヤーによる手動操作 (Eキー)
         if (isPlayerNearby && !isAnimating && Input.GetKeyDown(KeyCode.E))
         {
-            if (!isLocked) StartCoroutine(OperateDoor());
-            else Debug.Log("ドアはロックされています（イベントで開きます）");
+            if (!isLocked)
+            {
+                // 鍵が開いていればドアを開閉する
+                StartCoroutine(OperateDoor());
+            }
+            else
+            {
+                // 鍵がかかっている場合
+                Debug.Log("ドアには鍵がかかっている！");
+            }
         }
     }
 
-    // ★外部（毒蜘蛛）から呼ばれるイベント専用関数
-    public void TriggerOpenEvent()
+    // 鍵を開ける処理
+    private void UnlockDoor()
     {
-        if (!isOpen && !isAnimating)
+        if (isLocked)
         {
-            StartCoroutine(EventSequence());
+            isLocked = false; // 鍵を解除！
+            Debug.Log("対象のオブジェクトが消滅しました。ドアの鍵が開きました！");
+
+            // 鍵が開く音を再生
+            if (audioSource != null && unlockSound != null)
+            {
+                audioSource.PlayOneShot(unlockSound);
+            }
         }
     }
 
-    // カメラ演出付きのオープン処理
-    private IEnumerator EventSequence()
-    {
-        isAnimating = true;
-
-        PlayerController player = FindAnyObjectByType<PlayerController>();
-        if (player == null || player.cam == null)
-        {
-            // プレイヤーが見つからなければカメラ演出なしで普通に開ける
-            yield return StartCoroutine(OperateDoorInternal());
-            isAnimating = false;
-            yield break;
-        }
-
-        Camera pCam = player.cam.GetComponent<Camera>();
-
-        // 1. プレイヤーの操作をロック
-        player.canControl = false;
-        if (guideText != null) guideText.SetActive(false);
-
-        // 2. カメラと体の元の状態を保存
-        Quaternion startPlayerRot = player.transform.rotation;
-        Quaternion startCamRot = pCam.transform.localRotation;
-        float startFOV = pCam.fieldOfView;
-
-        // ターゲット位置を決定
-        Transform target = cameraTarget != null ? cameraTarget : transform;
-        Vector3 dirToTarget = (target.position - pCam.transform.position).normalized;
-
-        // プレイヤーの体（Y軸）とカメラ（X軸）の目標角度を計算
-        Vector3 flatDir = new Vector3(dirToTarget.x, 0, dirToTarget.z);
-        Quaternion targetPlayerRot = Quaternion.LookRotation(flatDir);
-        Vector3 localDir = Quaternion.Inverse(targetPlayerRot) * dirToTarget;
-        Quaternion targetCamRot = Quaternion.LookRotation(localDir);
-
-        // 3. ドアを向いてズームする
-        float t = 0f;
-        while (t < 1.0f)
-        {
-            t += Time.deltaTime / cameraMoveDuration;
-            float easedT = Mathf.SmoothStep(0f, 1f, t);
-
-            player.transform.rotation = Quaternion.Slerp(startPlayerRot, targetPlayerRot, easedT);
-            pCam.transform.localRotation = Quaternion.Slerp(startCamRot, targetCamRot, easedT);
-            pCam.fieldOfView = Mathf.Lerp(startFOV, zoomFOV, easedT);
-
-            player.SyncRotationToCurrent(); // PlayerControllerの視点を同期
-            yield return null;
-        }
-
-        // 4. 少し待ってからドアを開ける
-        yield return new WaitForSeconds(0.5f);
-        isLocked = false; // イベントでロック解除
-        yield return StartCoroutine(OperateDoorInternal()); // 開閉処理を実行
-
-        // 5. ドアが開いたら少し待つ
-        yield return new WaitForSeconds(postOpenWaitTime);
-
-        // 6. 元の視点・FOVに戻る
-        t = 0f;
-        while (t < 1.0f)
-        {
-            t += Time.deltaTime / cameraMoveDuration;
-            float easedT = Mathf.SmoothStep(0f, 1f, t);
-
-            player.transform.rotation = Quaternion.Slerp(targetPlayerRot, startPlayerRot, easedT);
-            pCam.transform.localRotation = Quaternion.Slerp(targetCamRot, startCamRot, easedT);
-            pCam.fieldOfView = Mathf.Lerp(zoomFOV, startFOV, easedT);
-
-            player.SyncRotationToCurrent();
-            yield return null;
-        }
-
-        // 完全に元に戻す
-        player.transform.rotation = startPlayerRot;
-        pCam.transform.localRotation = startCamRot;
-        pCam.fieldOfView = startFOV;
-        player.SyncRotationToCurrent();
-
-        // 7. 操作再開
-        player.canControl = true;
-        isAnimating = false;
-
-        if (isPlayerNearby && guideText != null) guideText.SetActive(true);
-    }
-
+    // 手動でドアを開け閉めする処理
     private IEnumerator OperateDoor()
     {
-        isAnimating = true;
-        yield return StartCoroutine(OperateDoorInternal());
-        isAnimating = false;
-    }
+        isAnimating = true; // 連続で押せないようにロック
 
-    private IEnumerator OperateDoorInternal()
-    {
         if (guideText != null) guideText.SetActive(false);
 
         Quaternion startRot = targetDoor.localRotation;
         Quaternion endRot = isOpen ? closedRot : openRot;
 
+        // ドアの開閉音を再生
         if (audioSource != null && doorSound != null)
         {
             audioSource.clip = doorSound;
@@ -184,8 +134,14 @@ public class EventDoorController : MonoBehaviour
         }
 
         if (targetDoor != null) targetDoor.localRotation = endRot;
+
         if (audioSource != null) audioSource.Stop();
+
         isOpen = !isOpen;
+        isAnimating = false;
+
+        // ドアが動き終わった後、まだプレイヤーが近くにいればテキストを再表示
+        if (isPlayerNearby && guideText != null) guideText.SetActive(true);
     }
 
     void OnTriggerEnter(Collider other)

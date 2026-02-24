@@ -195,12 +195,6 @@ public class FrogTongueController : MonoBehaviour
         // ★口に戻ったタイミングで毒蜘蛛を消滅させる（捕食完了！）
         if (targetSpider != null)
         {
-            SpiderEventTrigger trigger = targetSpider.GetComponent<SpiderEventTrigger>();
-            if (trigger != null)
-            {
-                trigger.OnEaten();
-            }
-
             Destroy(targetSpider.gameObject);
         }
 

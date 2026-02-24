@@ -1,4 +1,4 @@
-using UnityEngine;
+/*using UnityEngine;
 
 public class SpiderEventTrigger : MonoBehaviour
 {
@@ -15,4 +15,4 @@ public class SpiderEventTrigger : MonoBehaviour
             targetEventDoor.TriggerOpenEvent();
         }
     }
-}
+}*/
