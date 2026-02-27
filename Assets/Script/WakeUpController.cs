@@ -22,9 +22,9 @@ public class WakeUpController : MonoBehaviour
     public LighterSystem lighterSystem;
     public FlashlightSystem flashlightSystem;
 
-    // private
-    private bool isSleeping = false;
-    private bool isWakingUp = false;
+    // ★ 他のスクリプト（クイズ等）から読み取れるように public に変更
+    [HideInInspector] public bool isSleeping = false;
+    [HideInInspector] public bool isWakingUp = false;
 
     void Awake()
     {
@@ -133,8 +133,6 @@ public class WakeUpController : MonoBehaviour
             // ニューゲーム(false)の時は使用禁止、ロード(true)の時は使用許可
             lighterSystem.canUseLighter = isEnabled;
         }
-
-        // flashlightSystemのcanUseFlashlight制御が必要ならここに追加
     }
 
     // 「セーブデータの続きかどうか」を判定する関数
@@ -188,6 +186,7 @@ public class WakeUpController : MonoBehaviour
         }
 
         isSleeping = false;
+        isWakingUp = false; // ★ 起き上がり完了フラグをリセット
         Debug.Log("おはようございます！操作可能です。");
     }
 }
