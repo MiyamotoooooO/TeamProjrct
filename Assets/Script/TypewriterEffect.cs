@@ -1,83 +1,69 @@
-using System.Collections;
+ï»¿using System.Collections;
 using UnityEngine;
 using UnityEngine.UI;
 
 public class TypewriterEffect : MonoBehaviour
 {
-    [Header("•\¦İ’è")]
-    [Tooltip("•\¦‚³‚¹‚½‚¢UI‚ÌImage‰æ‘œ")]
+    [Header("è¡¨ç¤ºè¨­å®š")]
+    [Tooltip("è¡¨ç¤ºã•ã›ãŸã„UIã®Imageç”»åƒ")]
     public Image targetImage;
 
-    [Tooltip("•\¦‚É‚©‚¯‚éŠÔi•bj")]
+    [Tooltip("è¡¨ç¤ºã«ã‹ã‘ã‚‹æ™‚é–“ï¼ˆç§’ï¼‰")]
     public float duration = 2.0f;
 
-    [Tooltip("•¶š”i‰æ‘œ‚ğ‰½’iŠK‚Å•\¦‚·‚é‚©j")]
+    [Tooltip("æ–‡å­—æ•°ï¼ˆç”»åƒã‚’ä½•æ®µéšã§è¡¨ç¤ºã™ã‚‹ã‹ï¼‰")]
     public int characterCount = 8;
 
-    // “à•”•Ï”
-    private bool hasTriggered = false; // ‚·‚Å‚É”­“®‚µ‚½‚©
-    private bool isTyping = false;     // ¡•¶š‚ğ•\¦‚µ‚Ä‚¢‚é“r’†‚©
-    private bool isFullDisplayed = false; // ÅŒã‚Ü‚Å•\¦‚³‚ê‚½‚©
-    private Coroutine typingCoroutine; // ƒAƒjƒ[ƒVƒ‡ƒ“ŠÇ——p
+    [Header("è‡ªå‹•æ¶ˆå»ãƒ»ãƒ•ã‚§ãƒ¼ãƒ‰è¨­å®š")]
+    [Tooltip("ã™ã¹ã¦è¡¨ç¤ºã•ã‚ŒãŸå¾Œã€æ¶ˆãˆå§‹ã‚ã‚‹ã¾ã§ã®å¾…æ©Ÿæ™‚é–“ï¼ˆç§’ï¼‰")]
+    public float displayTime = 3.0f;
+
+    [Tooltip("ã†ã£ã™ã‚‰æ¶ˆãˆã¦ã„ããƒ•ã‚§ãƒ¼ãƒ‰ã‚¢ã‚¦ãƒˆã®æ™‚é–“ï¼ˆç§’ï¼‰")]
+    public float fadeDuration = 1.0f;
+
+    // å†…éƒ¨å¤‰æ•°
+    private bool hasTriggered = false; // ã™ã§ã«ç™ºå‹•ã—ãŸã‹
 
     void Start()
     {
-        // ‰Šú‰»F‰æ‘œ‚ğ‰B‚·
+        // åˆæœŸåŒ–ï¼šç”»åƒã‚’éš ã™
         if (targetImage != null)
         {
-            // Imageİ’è‚ğ‹­§“I‚ÉFilled‚É‚·‚é
+            // Imageè¨­å®šã‚’å¼·åˆ¶çš„ã«Filledã«ã™ã‚‹
             targetImage.type = Image.Type.Filled;
             targetImage.fillMethod = Image.FillMethod.Horizontal;
             targetImage.fillOrigin = (int)Image.OriginHorizontal.Left;
             targetImage.fillAmount = 0f;
-            targetImage.gameObject.SetActive(false); // Å‰‚Í”ñ•\¦
-        }
-    }
+            targetImage.gameObject.SetActive(false); // æœ€åˆã¯éè¡¨ç¤º
 
-    void Update()
-    {
-        // ‰æ‘œ‚ª•\¦‚³‚ê‚Ä‚¢‚È‚¢‚Í‰½‚à‚µ‚È‚¢
-        if (targetImage == null || !targetImage.gameObject.activeSelf) return;
-
-        // SpaceƒL[‚ª‰Ÿ‚³‚ê‚½‚Ìˆ—
-        if (Input.GetKeyDown(KeyCode.Space))
-        {
-            if (isTyping)
-            {
-                // ƒpƒ^[ƒ“1F‚Ü‚¾•¶š‚ªo‚Ä‚¢‚é“r’†‚È‚çuƒXƒLƒbƒvv
-                SkipAnimation();
-            }
-            else if (isFullDisplayed)
-            {
-                // ƒpƒ^[ƒ“2F‚·‚×‚Ä•\¦Ï‚İ‚È‚çu•Â‚¶‚év
-                CloseText();
-            }
+            // è‰²ã®é€æ˜åº¦ã‚’100%ã«åˆæœŸåŒ–ã—ã¦ãŠã
+            SetAlpha(1f);
         }
     }
 
     private void OnTriggerEnter(Collider other)
     {
-        // ƒvƒŒƒCƒ„[‚ªG‚ê‚½‚ç1‰ñ‚¾‚¯”­“®
+        // ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ãŒè§¦ã‚ŒãŸã‚‰1å›ã ã‘ç™ºå‹•
         if (!hasTriggered && other.CompareTag("Player"))
         {
             hasTriggered = true;
             if (targetImage != null)
             {
                 targetImage.gameObject.SetActive(true);
-                typingCoroutine = StartCoroutine(PlayTypewriter());
+                StartCoroutine(PlayTypewriterSequence());
             }
         }
     }
 
-    // ™X‚É•\¦‚·‚éƒRƒ‹[ƒ`ƒ“
-    IEnumerator PlayTypewriter()
+    // å¾ã€…ã«è¡¨ç¤º â” å¾…æ©Ÿ â” ãƒ•ã‚§ãƒ¼ãƒ‰ã‚¢ã‚¦ãƒˆã™ã‚‹ä¸€é€£ã®ã‚³ãƒ«ãƒ¼ãƒãƒ³
+    IEnumerator PlayTypewriterSequence()
     {
-        isTyping = true;
-        isFullDisplayed = false;
         targetImage.fillAmount = 0f;
+        SetAlpha(1f); // å¿µã®ãŸã‚ã‚¢ãƒ«ãƒ•ã‚¡å€¤ã‚’1(ä¸é€æ˜)ã«ã—ã¦ãŠã
 
         float timer = 0f;
 
+        // 1. ã‚¿ã‚¤ãƒ—ãƒ©ã‚¤ã‚¿ãƒ¼é¢¨ã«å¾ã€…ã«è¡¨ç¤º
         while (timer < duration)
         {
             timer += Time.deltaTime;
@@ -85,49 +71,48 @@ public class TypewriterEffect : MonoBehaviour
 
             if (characterCount > 0)
             {
-                // •¶š”‚É‡‚í‚¹‚ÄƒJƒNƒJƒN•\¦
+                // æ–‡å­—æ•°ã«åˆã‚ã›ã¦ã‚«ã‚¯ã‚«ã‚¯è¡¨ç¤º
                 float steppedProgress = Mathf.Floor(progress * characterCount) / characterCount;
                 targetImage.fillAmount = steppedProgress;
             }
             else
             {
-                // ŠŠ‚ç‚©•\¦
+                // æ»‘ã‚‰ã‹è¡¨ç¤º
                 targetImage.fillAmount = progress;
             }
             yield return null;
         }
 
-        // ƒ‹[ƒv‚ªI‚í‚Á‚½‚çŠ®—¹ó‘Ô‚É‚·‚é
-        FinishDisplay();
+        // å®Œå…¨ã«è¡¨ç¤ºå®Œäº†
+        targetImage.fillAmount = 1.0f;
+
+        // 2. æŒ‡å®šã—ãŸæ™‚é–“ã ã‘è¡¨ç¤ºã—ãŸã¾ã¾å¾…æ©Ÿã™ã‚‹
+        yield return new WaitForSeconds(displayTime);
+
+        // 3. ã†ã£ã™ã‚‰æ¶ˆãˆã¦ã„ãï¼ˆãƒ•ã‚§ãƒ¼ãƒ‰ã‚¢ã‚¦ãƒˆï¼‰
+        timer = 0f;
+        while (timer < fadeDuration)
+        {
+            timer += Time.deltaTime;
+            // 1(ä¸é€æ˜)ã‹ã‚‰0(é€æ˜)ã¸å¾ã€…ã«æ•°å€¤ã‚’ä¸‹ã’ã‚‹
+            float alpha = Mathf.Lerp(1f, 0f, timer / fadeDuration);
+            SetAlpha(alpha);
+            yield return null;
+        }
+
+        // å®Œå…¨ã«æ¶ˆã—ã¦ã€ã‚ªãƒ–ã‚¸ã‚§ã‚¯ãƒˆã‚’éã‚¢ã‚¯ãƒ†ã‚£ãƒ–ã«ã™ã‚‹
+        SetAlpha(0f);
+        targetImage.gameObject.SetActive(false);
     }
 
-    // ƒXƒLƒbƒvˆ—
-    void SkipAnimation()
-    {
-        if (typingCoroutine != null) StopCoroutine(typingCoroutine); // ƒAƒjƒ[ƒVƒ‡ƒ“‚ğ‹­§’â~
-        FinishDisplay(); // Š®—¹ó‘Ô‚É‚·‚é
-    }
-
-    // •\¦Š®—¹ó‘Ô‚É‚·‚éŠÖ”
-    void FinishDisplay()
-    {
-        if (targetImage != null) targetImage.fillAmount = 1.0f; // Š®‘S‚É•\¦
-        isTyping = false;
-        isFullDisplayed = true;
-    }
-
-    // ƒeƒLƒXƒg‚ğÁ‚·ŠÖ”
-    void CloseText()
+    // Alphaï¼ˆé€æ˜åº¦ï¼‰ã‚’è¨­å®šã™ã‚‹è£œåŠ©é–¢æ•°
+    private void SetAlpha(float alpha)
     {
         if (targetImage != null)
         {
-            targetImage.gameObject.SetActive(false); // ”ñ•\¦‚É‚·‚é
-            targetImage.fillAmount = 0f;
+            Color c = targetImage.color;
+            c.a = alpha;
+            targetImage.color = c;
         }
-        isTyping = false;
-        isFullDisplayed = false;
-
-        // ‚à‚µ1‰ñ‚«‚è‚Å‚È‚­A‰½“x‚Å‚àTrigger‚ÉG‚ê‚½‚ç•\¦‚µ‚½‚¢ê‡‚Í
-        // hasTriggered = false; // ‚±‚Ìs‚ÌƒRƒƒ“ƒg‚ğŠO‚µ‚Ä‚­‚¾‚³‚¢
     }
 }
