@@ -11,6 +11,9 @@ public class PlayerHealth : MonoBehaviour
 {
     public bool isDead = false;
 
+    // ★追加：シーンをまたいで（死んでも）持ち物を記憶しておくための魔法の変数
+    public static List<string> keptItemsOnDeath = null;
+
     [Header("設定")]
     [Tooltip("プレイヤーの移動制御スクリプト")]
     public MonoBehaviour playerMovementScript;
@@ -29,7 +32,7 @@ public class PlayerHealth : MonoBehaviour
 
     [Header("死亡演出の設定")]
     [Tooltip("死亡してからリスポーンするまでの時間（秒）")]
-    public float timeToRespawn = 4.0f; // 4秒後にリスポーン
+    public float timeToRespawn = 4.0f;
 
     [Tooltip("ふらつきの激しさ（全体）")]
     public float wobbleIntensity = 15.0f;
@@ -40,17 +43,16 @@ public class PlayerHealth : MonoBehaviour
 
     private Rigidbody rb;
     private VideoPlayer sandStormPlayer;
-    private AudioSource audioSource; // 音を鳴らすコンポーネント
+    private AudioSource audioSource;
 
     void Start()
     {
         rb = GetComponent<Rigidbody>();
-        audioSource = GetComponent<AudioSource>(); // AudioSource取得
+        audioSource = GetComponent<AudioSource>();
 
         if (playerCamera == null)
             playerCamera = GetComponentInChildren<Camera>();
 
-        // ゲーム開始時、砂嵐UIがあれば非表示にする
         if (sandStormUI != null)
         {
             sandStormPlayer = sandStormUI.GetComponent<VideoPlayer>();
@@ -60,6 +62,29 @@ public class PlayerHealth : MonoBehaviour
                 sandStormPlayer.Stop();
             }
             sandStormUI.SetActive(false);
+        }
+
+        // ★追加：リスポーン時に記憶しておいたアイテムを復元する
+        StartCoroutine(RestoreInventoryRoutine());
+    }
+
+    // ★追加：他のスクリプトの準備が終わった後にアイテムを復元する処理
+    IEnumerator RestoreInventoryRoutine()
+    {
+        yield return null; // 1フレーム待機して、InventoryManagerのStartが終わるのを待つ
+
+        if (keptItemsOnDeath != null)
+        {
+            InventoryManager inv = FindAnyObjectByType<InventoryManager>();
+            if (inv != null)
+            {
+                // 記憶しておいた持ち物を復元する。
+                // （LoadItemDataの中で ReflectInventoryToScene が呼ばれるので、マップのアイテムも自動で消えます！）
+                inv.LoadItemData(new List<string>(keptItemsOnDeath));
+                Debug.Log("死亡時の持ち物を復元し、マップのアイテムを消去しました！");
+            }
+            // 復元が終わったらリセットしておく（ニューゲーム時に影響しないように）
+            keptItemsOnDeath = null;
         }
     }
 
@@ -74,9 +99,7 @@ public class PlayerHealth : MonoBehaviour
             playerMovementScript.enabled = false;
 
         if (lighterSystem != null) lighterSystem.canUseLighter = false;
-        //if (flashlightSystem != null) flashlightSystem.canUseFlashlight = false;
 
-        // --- 砂嵐と音の再生 ---
         if (sandStormUI != null)
         {
             sandStormUI.SetActive(true);
@@ -88,7 +111,6 @@ public class PlayerHealth : MonoBehaviour
             }
         }
 
-        // 音を鳴らす
         if (sandStormSound != null && audioSource != null)
         {
             audioSource.PlayOneShot(sandStormSound);
@@ -120,6 +142,8 @@ public class PlayerHealth : MonoBehaviour
             MonoBehaviour[] scripts = agent.GetComponents<MonoBehaviour>();
             foreach (var script in scripts)
             {
+                if (script == null) continue;
+
                 string name = script.GetType().Name;
                 if (name == "EnemyAI" || name == "StatueEnemy" || name == "EnemyAttack" || name == "NavMeshAgent")
                 {
@@ -134,15 +158,11 @@ public class PlayerHealth : MonoBehaviour
         float timer = 0;
         Quaternion startRot = playerCamera.transform.localRotation;
 
-        // 指定時間（4秒間）、ふらふらしながら待機
         while (timer < timeToRespawn)
         {
-            timer += Time.deltaTime;
+            timer += Time.unscaledDeltaTime;
 
-            // 進行度 (0.0 ～ 1.0)
             float progress = timer / timeToRespawn;
-
-            // 時間とともに揺れを激しくする
             float currentIntensity = Mathf.Lerp(wobbleIntensity * 0.5f, wobbleIntensity * 1.5f, progress);
 
             float x = Mathf.Sin(timer * wobbleSpeed) * currentIntensity;
@@ -154,8 +174,15 @@ public class PlayerHealth : MonoBehaviour
             yield return null;
         }
 
-        // --- リスポーン処理 ---
-        // 現在のシーンを再読み込みする
+        // ★追加：シーンをリロードする直前に、今の持ち物を記憶しておく！
+        InventoryManager inv = FindAnyObjectByType<InventoryManager>();
+        if (inv != null)
+        {
+            keptItemsOnDeath = new List<string>(inv.currentItems);
+        }
+
+        Time.timeScale = 1f;
+
         string currentSceneName = SceneManager.GetActiveScene().name;
         SceneManager.LoadScene(currentSceneName);
     }

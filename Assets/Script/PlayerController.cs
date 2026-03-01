@@ -106,6 +106,7 @@ public class PlayerController : MonoBehaviour
     public GameObject DetergentModel;
     public GameObject DirtykeyModel;
     public GameObject FrogModel; // カエルのモデル
+    public GameObject TinokatamariModel;
 
     [Header("アイテムアニメーション")]
     public float itemBobSpeed = 6f;
@@ -163,6 +164,7 @@ public class PlayerController : MonoBehaviour
     private Vector3 detergentModelDefaultPos;
     private Vector3 dirtykeyModelDefaultPos;
     private Vector3 frogModelDefaultPos;
+    private Vector3 TinokatamariModelDefaultPos;
 
     private Quaternion itemDefaultRot;
     private Quaternion crowbarDefaultRot;
@@ -193,7 +195,7 @@ public class PlayerController : MonoBehaviour
 
     private void Start()
     {
-        
+
         rb = GetComponent<Rigidbody>();
         rb.freezeRotation = true;
 
@@ -246,6 +248,7 @@ public class PlayerController : MonoBehaviour
 
         if (SpiderModel != null) spiderModelDefaultPos = SpiderModel.transform.localPosition;
         if (FrogModel != null) frogModelDefaultPos = FrogModel.transform.localPosition;
+        if (TinokatamariModel != null) TinokatamariModelDefaultPos = TinokatamariModel.transform.localPosition;
 
         Invoke(nameof(UpdateItemModel), 0.1f);
     }
@@ -617,7 +620,7 @@ public class PlayerController : MonoBehaviour
 
         pickUpText.enabled = false;
         // アイテム化したいタグを追加
-        string[] pickableTags = { "Item", "Key", "Flashlight", "Lighter", "Crowbar", "Spider", "Detergent", "Dirtykey", "Frog" };
+        string[] pickableTags = { "Item", "Key", "Flashlight", "Lighter", "Crowbar", "Spider", "Detergent", "Dirtykey", "Frog", "Tinokatamari" };
 
         if (Physics.Raycast(ray, out hit, pickUpDistance))
         {
@@ -778,6 +781,7 @@ public class PlayerController : MonoBehaviour
         if (DetergentModel) DetergentModel.SetActive(false);
         if (DirtykeyModel) DirtykeyModel.SetActive(false);
         if (FrogModel) FrogModel.SetActive(false);
+        if (TinokatamariModel) TinokatamariModel.SetActive(false);
         Vector3 dropPos = transform.position + (transform.up * 1.3f) + (transform.forward * 2.0f);
         GameObject droppedItem = inventoryManager.DropItem(itemName, dropPos);
 
@@ -824,6 +828,7 @@ public class PlayerController : MonoBehaviour
         if (DetergentModel != null) DetergentModel.SetActive(false);
         if (DirtykeyModel != null) DirtykeyModel.SetActive(false);
         if (FrogModel != null) FrogModel.SetActive(false);
+        if (TinokatamariModel != null) TinokatamariModel.SetActive(false);
 
         if (inventoryManager == null || inventoryManager.currentItems.Count == 0) return;
 
@@ -846,6 +851,7 @@ public class PlayerController : MonoBehaviour
             case "Detergent": if (DetergentModel != null) DetergentModel.SetActive(true); break;
             case "Dirtykey": if (DirtykeyModel != null) DirtykeyModel.SetActive(true); break;
             case "Frog": if (FrogModel != null) FrogModel.SetActive(true); break;
+            case "Tinokatamari": if (TinokatamariModel != null) TinokatamariModel.SetActive(true); break;
             default: Debug.LogWarning($"タグ '{tag}' に対応するモデルなし"); break;
         }
     }
@@ -865,6 +871,7 @@ public class PlayerController : MonoBehaviour
             if (LighterModel != null && LighterModel.activeSelf) LighterModel.transform.localPosition = lighterModelDefaultPos + new Vector3(bobOffsetX, bobOffsetY, 0);
             if (SpiderModel != null && SpiderModel.activeSelf) SpiderModel.transform.localPosition = spiderModelDefaultPos + new Vector3(bobOffsetX, bobOffsetY, 0);
             if (FrogModel != null && FrogModel.activeSelf) FrogModel.transform.localPosition = frogModelDefaultPos + new Vector3(bobOffsetX, bobOffsetY, 0);
+            if (TinokatamariModel != null && TinokatamariModel.activeSelf) TinokatamariModel.transform.localPosition = TinokatamariModelDefaultPos + new Vector3(bobOffsetX, bobOffsetY, 0);
         }
         else
         {
@@ -875,6 +882,7 @@ public class PlayerController : MonoBehaviour
             if (LighterModel != null && LighterModel.activeSelf) LighterModel.transform.localPosition = Vector3.Lerp(LighterModel.transform.localPosition, lighterModelDefaultPos, Time.deltaTime * 10f);
             if (SpiderModel != null && SpiderModel.activeSelf) SpiderModel.transform.localPosition = Vector3.Lerp(SpiderModel.transform.localPosition, spiderModelDefaultPos, Time.deltaTime * 10f);
             if (FrogModel != null && FrogModel.activeSelf) FrogModel.transform.localPosition = Vector3.Lerp(FrogModel.transform.localPosition, frogModelDefaultPos, Time.deltaTime * 10f);
+            if (TinokatamariModel != null && TinokatamariModel.activeSelf) TinokatamariModel.transform.localPosition = Vector3.Lerp(TinokatamariModel.transform.localPosition, TinokatamariModelDefaultPos, Time.deltaTime * 10f);
             itemBobTimer = 0f;
         }
     }

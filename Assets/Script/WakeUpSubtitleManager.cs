@@ -28,6 +28,9 @@ public class WakeUpSubtitleManager : MonoBehaviour
     private bool isFullDisplayed = false;    // 最後まで表示されたか
     private Coroutine typingCoroutine;       // アニメーション管理用
 
+    // ★追加：ゲーム起動後に1度でも表示したかを記憶する魔法の変数（シーンをリロードしても消えません）
+    private static bool hasPlayedOnce = false;
+
     void Start()
     {
         // アタッチし忘れ防止のため、シーン内から自動取得
@@ -42,6 +45,14 @@ public class WakeUpSubtitleManager : MonoBehaviour
             targetImage.fillOrigin = (int)Image.OriginHorizontal.Left;
             targetImage.fillAmount = 0f;
             targetImage.gameObject.SetActive(false); // 最初は非表示
+        }
+
+        // ★追加：すでに1度でも字幕を表示したことがある（リスポーン時など）なら、処理を完全にスキップ！
+        if (hasPlayedOnce)
+        {
+            isWaitingForWakeUp = false;
+            hasTriggered = true;
+            return;
         }
 
         // ゲーム開始時に「寝ている状態（ニューゲーム）」なら、起きるのを待つフラグを立てる
@@ -88,11 +99,14 @@ public class WakeUpSubtitleManager : MonoBehaviour
         }
     }
 
-    // ★追加：字幕スタートと同時にプレイヤーの操作をロックする
+    // 字幕スタートと同時にプレイヤーの操作をロックする
     private void StartSubtitleSequence()
     {
         if (hasTriggered) return;
         hasTriggered = true;
+
+        // ★追加：ここで「1回表示した」という記憶を保存する！
+        hasPlayedOnce = true;
 
         // プレイヤーの操作を無効化
         if (playerController != null)
@@ -154,7 +168,7 @@ public class WakeUpSubtitleManager : MonoBehaviour
         isFullDisplayed = true;
     }
 
-    // ★追加：テキストを消し、プレイヤーの操作を再び有効にする
+    // テキストを消し、プレイヤーの操作を再び有効にする
     void CloseText()
     {
         if (targetImage != null)

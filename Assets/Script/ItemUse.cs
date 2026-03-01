@@ -142,7 +142,7 @@ public class ItemUse : MonoBehaviour
         player.inventoryManager.RemoveItem(requiredKeyName);
 
 
-        door.ForceOpen();
+        //door.ForceOpen();
 
         await Task.Delay(3000);
         player.canControl = true;
