@@ -2,7 +2,7 @@ using System.Collections;
 using UnityEngine;
 using UnityEngine.UI;
 
-[RequireComponent(typeof(AudioSource))] // ★音を鳴らすために自動追加されます
+[RequireComponent(typeof(AudioSource))]
 public class WindowSubtitleManager : MonoBehaviour
 {
     [Header("表示設定")]
@@ -10,14 +10,14 @@ public class WindowSubtitleManager : MonoBehaviour
     public Image[] targetImages;
 
     [Tooltip("1つの画像を表示にかける時間（秒）")]
-    public float duration = 2.0f;
+    public float duration = 0.8f;
 
     [Tooltip("文字数（画像を何段階で表示するか）")]
     public int characterCount = 8;
 
     [Header("時間・フェード設定")]
     [Tooltip("すべて表示された後、消え始めるまでの待機時間（秒）")]
-    public float displayTime = 3.0f;
+    public float displayTime = 1.0f;
 
     [Tooltip("最後の字幕がうっすら消えていくフェードアウトの時間（秒）")]
     public float fadeDuration = 1.0f;
@@ -37,16 +37,16 @@ public class WindowSubtitleManager : MonoBehaviour
     public PlayerController playerController;
 
     // 内部変数
-    private bool hasTriggered = false;    // すでにイベントが発動したか
-    private bool isPlayerInRange = false; // プレイヤーがBoxCollider内にいるか
+    private bool hasTriggered = false;
+    private bool isPlayerInRange = false;
     private AudioSource audioSource;
+    private bool isAnimating = false; // ★ 追加
 
     void Start()
     {
         audioSource = GetComponent<AudioSource>();
         if (playerController == null) playerController = FindAnyObjectByType<PlayerController>();
 
-        // 初期化：登録されたすべての画像を隠す
         if (targetImages != null)
         {
             foreach (Image img in targetImages)
@@ -63,7 +63,6 @@ public class WindowSubtitleManager : MonoBehaviour
             }
         }
 
-        // 案内UI（Eキー画像など）を最初は隠しておく
         if (interactPromptUI != null)
         {
             interactPromptUI.SetActive(false);
@@ -72,16 +71,27 @@ public class WindowSubtitleManager : MonoBehaviour
 
     void Update()
     {
-        // プレイヤーが範囲内にいて、まだイベントが始まっておらず、Eキーが押されたら
-        if (isPlayerInRange && !hasTriggered && Input.GetKeyDown(KeyCode.E))
+        // ★ 変更：他の字幕が再生中なら、UIを隠してEキー入力も受け付けない
+        if (GlobalSubtitleState.IsAnySubtitlePlaying && !isAnimating)
         {
-            hasTriggered = true; // 二度と発動しないようにロック
-
-            // 案内表示を消す
             if (interactPromptUI != null) interactPromptUI.SetActive(false);
+            return;
+        }
 
-            // 字幕シーケンスを開始！
-            StartCoroutine(PlayWindowSequence());
+        // 範囲内にいて、グローバルでもローカルでもアニメーション中でない場合
+        if (isPlayerInRange && !hasTriggered && !isAnimating && !GlobalSubtitleState.IsAnySubtitlePlaying)
+        {
+            if (interactPromptUI != null && !interactPromptUI.activeSelf)
+            {
+                interactPromptUI.SetActive(true);
+            }
+
+            if (Input.GetKeyDown(KeyCode.E))
+            {
+                hasTriggered = true;
+                if (interactPromptUI != null) interactPromptUI.SetActive(false);
+                StartCoroutine(PlayWindowSequence());
+            }
         }
     }
 
@@ -90,7 +100,6 @@ public class WindowSubtitleManager : MonoBehaviour
         if (!hasTriggered && other.CompareTag("Player"))
         {
             isPlayerInRange = true;
-            if (interactPromptUI != null) interactPromptUI.SetActive(true);
         }
     }
 
@@ -103,24 +112,22 @@ public class WindowSubtitleManager : MonoBehaviour
         }
     }
 
-    // 音の再生と、字幕表示を管理するコルーチン
     IEnumerator PlayWindowSequence()
     {
-        // ★ 1. プレイヤーの操作を止める
+        isAnimating = true;
+        GlobalSubtitleState.IsAnySubtitlePlaying = true; // ★ グローバルロックON
+
         if (playerController != null)
         {
             playerController.canControl = false;
         }
 
-        // ★ 2. 効果音を鳴らし、鳴り終わるまで待機する
         if (interactSound != null && audioSource != null)
         {
             audioSource.PlayOneShot(interactSound);
-            // 音の長さ（秒）だけ待つ
             yield return new WaitForSeconds(interactSound.length);
         }
 
-        // --- ここから字幕の表示 ---
         if (targetImages != null && targetImages.Length > 0)
         {
             for (int i = 0; i < targetImages.Length; i++)
@@ -134,7 +141,6 @@ public class WindowSubtitleManager : MonoBehaviour
 
                 float timer = 0f;
 
-                // タイプライター風に徐々に表示
                 while (timer < duration)
                 {
                     timer += Time.deltaTime;
@@ -153,14 +159,10 @@ public class WindowSubtitleManager : MonoBehaviour
                 }
 
                 currentImage.fillAmount = 1.0f;
-
-                // 指定した時間だけ表示したまま待機
                 yield return new WaitForSeconds(displayTime);
 
-                // ★ 3. 最後の字幕かどうかの判定
                 if (i == targetImages.Length - 1)
                 {
-                    // 最後の字幕なら、うっすらフェードアウトさせる
                     timer = 0f;
                     while (timer < fadeDuration)
                     {
@@ -170,17 +172,10 @@ public class WindowSubtitleManager : MonoBehaviour
                         yield return null;
                     }
                 }
-                else
-                {
-                    // 途中の字幕ならフェードアウトせず、すぐに消える（パッと切り替わる）
-                    // ※ ここは待ち時間なしで瞬時に消します
-                }
 
-                // 完全に消して非表示にする
                 SetAlpha(currentImage, 0f);
                 currentImage.gameObject.SetActive(false);
 
-                // 次の字幕へ行く前に指定した時間待つ（最後の場合は待たない）
                 if (i < targetImages.Length - 1)
                 {
                     yield return new WaitForSeconds(delayBetweenSubtitles);
@@ -188,14 +183,15 @@ public class WindowSubtitleManager : MonoBehaviour
             }
         }
 
-        // ★ 4. 全ての表示が終わったら、プレイヤーの操作を再び有効にする
         if (playerController != null)
         {
             playerController.canControl = true;
         }
+
+        isAnimating = false;
+        GlobalSubtitleState.IsAnySubtitlePlaying = false; // ★ グローバルロックOFF
     }
 
-    // 指定したImageのAlpha（透明度）を設定する補助関数
     private void SetAlpha(Image img, float alpha)
     {
         if (img != null)

@@ -25,25 +25,21 @@ public class AutoTriggerSubtitleManager : MonoBehaviour
     public float delayBetweenSubtitles = 0.5f;
 
     // 内部変数
-    private bool hasTriggered = false; // すでに字幕イベントが発動したか
+    private bool hasTriggered = false;
 
     void Start()
     {
-        // 初期化：登録されたすべての画像を隠す
         if (targetImages != null)
         {
             foreach (Image img in targetImages)
             {
                 if (img != null)
                 {
-                    // Image設定を強制的にFilledにする
                     img.type = Image.Type.Filled;
                     img.fillMethod = Image.FillMethod.Horizontal;
                     img.fillOrigin = (int)Image.OriginHorizontal.Left;
                     img.fillAmount = 0f;
-                    img.gameObject.SetActive(false); // 最初は非表示
-
-                    // 色の透明度を100%に初期化しておく
+                    img.gameObject.SetActive(false);
                     SetAlpha(img, 1f);
                 }
             }
@@ -52,17 +48,20 @@ public class AutoTriggerSubtitleManager : MonoBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
-        // プレイヤーが範囲に入り、かつまだイベントが終わっていないなら自動でスタート
         if (!hasTriggered && other.CompareTag("Player"))
         {
-            hasTriggered = true; // 2回以上連続で発動しないようにロック
+            // ★ 変更：他の字幕が再生中なら、発動を予約せずに完全に無視する
+            if (GlobalSubtitleState.IsAnySubtitlePlaying) return;
+
+            hasTriggered = true;
             StartCoroutine(PlaySequentialTypewriter());
         }
     }
 
-    // 複数の画像を順番に表示するコルーチン
     IEnumerator PlaySequentialTypewriter()
     {
+        GlobalSubtitleState.IsAnySubtitlePlaying = true; // ★ グローバルロックON
+
         if (targetImages == null || targetImages.Length == 0) yield break;
 
         for (int i = 0; i < targetImages.Length; i++)
@@ -70,14 +69,12 @@ public class AutoTriggerSubtitleManager : MonoBehaviour
             Image currentImage = targetImages[i];
             if (currentImage == null) continue;
 
-            // 次の画像を表示するための準備
             currentImage.gameObject.SetActive(true);
             currentImage.fillAmount = 0f;
             SetAlpha(currentImage, 1f);
 
             float timer = 0f;
 
-            // 1. タイプライター風に徐々に表示
             while (timer < duration)
             {
                 timer += Time.deltaTime;
@@ -85,28 +82,21 @@ public class AutoTriggerSubtitleManager : MonoBehaviour
 
                 if (characterCount > 0)
                 {
-                    // 文字数に合わせてカクカク表示
                     float steppedProgress = Mathf.Floor(progress * characterCount) / characterCount;
                     currentImage.fillAmount = steppedProgress;
                 }
                 else
                 {
-                    // 滑らか表示
                     currentImage.fillAmount = progress;
                 }
                 yield return null;
             }
 
-            // 完全に表示完了
             currentImage.fillAmount = 1.0f;
-
-            // 2. 指定した時間だけ表示したまま待機する
             yield return new WaitForSeconds(displayTime);
 
-            // ★ 変更：最後の字幕かどうかの判定
             if (i == targetImages.Length - 1)
             {
-                // 最後の字幕なら、うっすらフェードアウトさせる
                 timer = 0f;
                 while (timer < fadeDuration)
                 {
@@ -116,25 +106,19 @@ public class AutoTriggerSubtitleManager : MonoBehaviour
                     yield return null;
                 }
             }
-            else
-            {
-                // 途中の字幕ならフェードアウトせず、すぐに消える（パッと切り替わる）
-            }
 
-            // 完全に消して、オブジェクトを非アクティブにする
             SetAlpha(currentImage, 0f);
             currentImage.gameObject.SetActive(false);
 
-            // 4. 次の字幕へ行く前に指定した時間待つ
-            // ※最後の字幕が終わった後は待つ必要がないので判定を入れています
             if (i < targetImages.Length - 1)
             {
                 yield return new WaitForSeconds(delayBetweenSubtitles);
             }
         }
+
+        GlobalSubtitleState.IsAnySubtitlePlaying = false; // ★ グローバルロックOFF
     }
 
-    // 指定したImageのAlpha（透明度）を設定する補助関数
     private void SetAlpha(Image img, float alpha)
     {
         if (img != null)

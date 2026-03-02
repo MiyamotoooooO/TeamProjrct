@@ -50,6 +50,10 @@ public class FinalQuizManager : MonoBehaviour
     [Tooltip("敵についているAnimator")]
     public Animator enemyAnimator;
 
+    [Header("★オブジェクトの非表示設定")]
+    [Tooltip("クイズ中だけ非表示にしたいオブジェクトを登録してください")]
+    public GameObject[] objectsToHideDuringQuiz;
+
     // 内部変数
     private float timer = 0f;
     private bool isQuizTriggered = false;
@@ -174,6 +178,15 @@ public class FinalQuizManager : MonoBehaviour
             blurVolume.weight = 1f;
         }
 
+        // ★追加：指定されたオブジェクトを非表示にする
+        if (objectsToHideDuringQuiz != null)
+        {
+            foreach (GameObject obj in objectsToHideDuringQuiz)
+            {
+                if (obj != null) obj.SetActive(false);
+            }
+        }
+
         if (enemyModel != null && shadowPosition != null && playerController != null && playerController.cam != null)
         {
             Transform camTransform = playerController.cam.transform;
@@ -202,13 +215,22 @@ public class FinalQuizManager : MonoBehaviour
         if (answerCanvasGroup != null) answerCanvasGroup.alpha = 0f;
 
         Time.timeScale = 1f;
+
+        // ★追加：非表示にしていたオブジェクトを元に戻す
+        if (objectsToHideDuringQuiz != null)
+        {
+            foreach (GameObject obj in objectsToHideDuringQuiz)
+            {
+                if (obj != null) obj.SetActive(true);
+            }
+        }
+
         if (playerController != null)
         {
             playerController.canControl = true;
             playerController.UpdateCursorLock();
         }
 
-        // ★追加：正解した瞬間、敵のアニメーターを完全にオフ（無効化）にして微動だにさせない
         if (enemyAnimator != null)
         {
             enemyAnimator.enabled = false;
@@ -233,6 +255,15 @@ public class FinalQuizManager : MonoBehaviour
     private IEnumerator WrongSequence()
     {
         Time.timeScale = 1f;
+
+        // ★追加：死ぬ（ゲームオーバー）時にも一応表示を戻しておく
+        if (objectsToHideDuringQuiz != null)
+        {
+            foreach (GameObject obj in objectsToHideDuringQuiz)
+            {
+                if (obj != null) obj.SetActive(true);
+            }
+        }
 
         Vector3 safeClosePos = enemyModel.transform.position;
         if (enemyModel != null && closePosition != null && playerController != null)

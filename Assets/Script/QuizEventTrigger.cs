@@ -28,6 +28,10 @@ public class QuizEventTrigger : MonoBehaviour
     [Tooltip("解答とぼかしが徐々に消えていく時間（秒）")]
     public float fadeDuration = 1.0f;
 
+    [Header("★オブジェクトの非表示設定")]
+    [Tooltip("クイズ中だけ非表示にしたいオブジェクトを登録してください（複数可）")]
+    public GameObject[] objectsToHideDuringQuiz;
+
     private bool isEventStarted = false;
     private PlayerController playerController;
 
@@ -98,6 +102,15 @@ public class QuizEventTrigger : MonoBehaviour
             blurVolume.gameObject.SetActive(true); // オブジェクト自体がOFFならONにする
             blurVolume.weight = 1f;
         }
+
+        // ★追加：指定されたオブジェクトを非表示にする
+        if (objectsToHideDuringQuiz != null)
+        {
+            foreach (GameObject obj in objectsToHideDuringQuiz)
+            {
+                if (obj != null) obj.SetActive(false);
+            }
+        }
     }
 
     // ボタンが押されたら呼ばれる関数
@@ -147,6 +160,15 @@ public class QuizEventTrigger : MonoBehaviour
     {
         // UIを完全に消す
         if (quizUIContainer != null) quizUIContainer.SetActive(false);
+
+        // ★追加：非表示にしていたオブジェクトを元に戻す
+        if (objectsToHideDuringQuiz != null)
+        {
+            foreach (GameObject obj in objectsToHideDuringQuiz)
+            {
+                if (obj != null) obj.SetActive(true);
+            }
+        }
 
         // 止めていた時間を元に戻す
         Time.timeScale = 1f;

@@ -17,6 +17,10 @@ public class QuizData
 
     [Tooltip("選択肢のボタン（複数登録可能）")]
     public Button[] answerButtons;
+
+    [Header("★オブジェクトの非表示設定")]
+    [Tooltip("このクイズ中だけ非表示にしたいオブジェクトを登録してください")]
+    public GameObject[] objectsToHideDuringQuiz;
 }
 
 public class AreaTimedQuizManager : MonoBehaviour
@@ -149,6 +153,15 @@ public class AreaTimedQuizManager : MonoBehaviour
             blurVolume.gameObject.SetActive(true);
             blurVolume.weight = 1f;
         }
+
+        // ★追加：指定されたオブジェクトを非表示にする
+        if (currentQuiz.objectsToHideDuringQuiz != null)
+        {
+            foreach (GameObject obj in currentQuiz.objectsToHideDuringQuiz)
+            {
+                if (obj != null) obj.SetActive(false);
+            }
+        }
     }
 
     // ボタンが押されたら呼ばれる
@@ -199,6 +212,15 @@ public class AreaTimedQuizManager : MonoBehaviour
 
         // UIを完全に消す
         if (currentQuiz.quizUIContainer != null) currentQuiz.quizUIContainer.SetActive(false);
+
+        // ★追加：非表示にしていたオブジェクトを元に戻す
+        if (currentQuiz.objectsToHideDuringQuiz != null)
+        {
+            foreach (GameObject obj in currentQuiz.objectsToHideDuringQuiz)
+            {
+                if (obj != null) obj.SetActive(true);
+            }
+        }
 
         // 止めていた時間を元に戻す
         Time.timeScale = 1f;

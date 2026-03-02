@@ -96,17 +96,16 @@ public class PlayerController : MonoBehaviour
     [SerializeField] SortPicture[] sortPictures;
     [SerializeField] BugSpawner bugSpawner;
 
-    [Header("--- アイテムモデル設定 ---")] // アイテム化したいタグを追加
+    [Header("--- アイテムモデル設定 ---")]
     public GameObject KeyModel;
-    public GameObject ItemModel; // 汎用アイテム
-    public GameObject CrowbarModel; // バール専用モデル
+    public GameObject ItemModel;
+    public GameObject CrowbarModel;
     public GameObject FlashlightModel;
     public GameObject LighterModel;
-    public GameObject SpiderModel; // クモの手持ちモデル
+    public GameObject SpiderModel;
     public GameObject DetergentModel;
     public GameObject DirtykeyModel;
-    public GameObject FrogModel; // カエルのモデル
-    public GameObject TinokatamariModel;
+    public GameObject FrogModel;
 
     [Header("アイテムアニメーション")]
     public float itemBobSpeed = 6f;
@@ -133,8 +132,8 @@ public class PlayerController : MonoBehaviour
     [Header("吐息設定")]
     public AudioSource breathingAudioSource;
     public AudioClip breathingSoundLoop;
-    [Range(0f, 1f)] public float breathingWalkVolume = 0.3f; // 通常歩行時の音量
-    [Range(0f, 1f)] public float breathingRunVolume = 0.5f;  // 走っている最中の音量（固定）
+    [Range(0f, 1f)] public float breathingWalkVolume = 0.3f;
+    [Range(0f, 1f)] public float breathingRunVolume = 0.5f;
 
     [Tooltip("走り終わった直後、最大まで疲労していた場合の音量")]
     [Range(0f, 1f)] public float breathingMaxVolume = 1.0f;
@@ -154,7 +153,6 @@ public class PlayerController : MonoBehaviour
     float minX = -90f, maxX = 90f;
     Rigidbody rb;
 
-    // アイテム化したいタグを追加
     private Vector3 KeyModelDefaultPos;
     private Vector3 itemModelDefaultPos;
     private Vector3 crowbarModelDefaultPos;
@@ -164,38 +162,34 @@ public class PlayerController : MonoBehaviour
     private Vector3 detergentModelDefaultPos;
     private Vector3 dirtykeyModelDefaultPos;
     private Vector3 frogModelDefaultPos;
-    private Vector3 TinokatamariModelDefaultPos;
 
     private Quaternion itemDefaultRot;
     private Quaternion crowbarDefaultRot;
     private Quaternion defaultRot;
 
-    private bool canCrowbarSwing = true; // 連続攻撃できないように
-    private float crowbarCooldown = 1.5f; // 攻撃できない時間
-
+    private bool canCrowbarSwing = true;
+    private float crowbarCooldown = 1.5f;
 
     private float itemBobTimer = 0f;
-    private bool isSwinging = false; // Key用
+    private bool isSwinging = false;
     private float swingTimer = 0f;
 
-    private bool isItemSwing = false; // 汎用アイテム用
+    private bool isItemSwing = false;
     private float itemSwingTimer = 0f;
 
-    private bool isCrowbarSwing = false; // バール用
+    private bool isCrowbarSwing = false;
     private float crowbarSwingTimer = 0f;
 
     private bool isCameraSwing = false;
     private float cameraSwingTimer = -2f;
     private Quaternion cameraSwingStartRot;
 
-    // 吐息の疲労度管理用（0.0〜1.0）
     private float currentAudioFatigue = 0f;
 
     public DoubleDoorController DoubleDoor;
 
     private void Start()
     {
-
         rb = GetComponent<Rigidbody>();
         rb.freezeRotation = true;
 
@@ -203,10 +197,9 @@ public class PlayerController : MonoBehaviour
         if (inventoryManager == null) inventoryManager = FindAnyObjectByType<InventoryManager>();
         if (inventoryUIPanel != null) inventoryUIPanel.SetActive(false);
 
-        // 疲労演出用ボリュームの初期化
         if (fatigueBlurVolume != null)
         {
-            fatigueBlurVolume.weight = 0f; // 最初はぼやけなし
+            fatigueBlurVolume.weight = 0f;
         }
 
         if (cam != null)
@@ -248,7 +241,6 @@ public class PlayerController : MonoBehaviour
 
         if (SpiderModel != null) spiderModelDefaultPos = SpiderModel.transform.localPosition;
         if (FrogModel != null) frogModelDefaultPos = FrogModel.transform.localPosition;
-        if (TinokatamariModel != null) TinokatamariModelDefaultPos = TinokatamariModel.transform.localPosition;
 
         Invoke(nameof(UpdateItemModel), 0.1f);
     }
@@ -316,12 +308,8 @@ public class PlayerController : MonoBehaviour
         bool hasInput = (Input.GetAxisRaw("Horizontal") != 0 || Input.GetAxisRaw("Vertical") != 0);
         bool isMoving = isGrounded && hasInput;
 
-        // スタミナ管理（isDashingの更新）
         HandleDashStamina(hasInput);
-
-        // 疲労管理（音と視界のぼやけ）
         HandleFatigueEffects(isMoving, isDashing);
-
         HandleFootsteps(isMoving, isDashing);
         HandleCameraShake();
 
@@ -339,7 +327,6 @@ public class PlayerController : MonoBehaviour
         }
     }
 
-    // ダッシュとスタミナの管理ロジック
     void HandleDashStamina(bool hasInput)
     {
         bool wantsToDash = Input.GetKey(KeyCode.R) && hasInput;
@@ -619,8 +606,8 @@ public class PlayerController : MonoBehaviour
         RaycastHit hit;
 
         pickUpText.enabled = false;
-        // アイテム化したいタグを追加
-        string[] pickableTags = { "Item", "Key", "Flashlight", "Lighter", "Crowbar", "Spider", "Detergent", "Dirtykey", "Frog", "Tinokatamari" };
+
+        string[] pickableTags = { "Item", "Key", "Flashlight", "Lighter", "Crowbar", "Spider", "Detergent", "Dirtykey", "Frog" };
 
         if (Physics.Raycast(ray, out hit, pickUpDistance))
         {
@@ -701,19 +688,15 @@ public class PlayerController : MonoBehaviour
         }
     }
 
-    // ★修正：疲労演出（音＋視界のぼやけ）をまとめて管理
     void HandleFatigueEffects(bool isMoving, bool isDashing)
     {
-        // 1. 疲労度（currentAudioFatigue）の蓄積と回復計算
         if (isDashing && isMoving)
         {
-            // ダッシュ中: 疲労度が上がる
             if (maxDashDuration > 0)
                 currentAudioFatigue += Time.deltaTime / maxDashDuration;
         }
         else
         {
-            // ダッシュしていない時: 疲労度が下がる（回復）
             if (breathingRecoveryTime > 0)
                 currentAudioFatigue -= Time.deltaTime / breathingRecoveryTime;
             else
@@ -721,7 +704,6 @@ public class PlayerController : MonoBehaviour
         }
         currentAudioFatigue = Mathf.Clamp01(currentAudioFatigue);
 
-        // 2. 音量の適用
         if (breathingAudioSource != null)
         {
             if (isMoving && !breathingAudioSource.isPlaying) breathingAudioSource.Play();
@@ -729,12 +711,10 @@ public class PlayerController : MonoBehaviour
             float targetVolume = 0f;
             if (isDashing && isMoving)
             {
-                // 走っている最中は固定音量
                 targetVolume = breathingRunVolume;
             }
             else
             {
-                // 走り終わった後（または歩き中）は疲労度に応じた音量
                 float baseVolume = isMoving ? breathingWalkVolume : 0f;
                 targetVolume = Mathf.Lerp(baseVolume, breathingMaxVolume, currentAudioFatigue);
             }
@@ -742,11 +722,8 @@ public class PlayerController : MonoBehaviour
             breathingAudioSource.volume = Mathf.Lerp(breathingAudioSource.volume, targetVolume, Time.deltaTime * audioFadeSpeed);
         }
 
-        // 3. 視界のぼやけ（PostProcessVolume）の適用
         if (fatigueBlurVolume != null)
         {
-            // 疲労度（0.0〜1.0）をそのままWeightに適用
-            // 疲労度が高いほど強くぼやける
             fatigueBlurVolume.weight = currentAudioFatigue;
         }
     }
@@ -771,7 +748,6 @@ public class PlayerController : MonoBehaviour
         string itemName = inventoryManager.currentItems[targetIndex];
         if (string.IsNullOrEmpty(itemName)) return;
 
-        // アイテム化したいタグを追加
         if (KeyModel) KeyModel.SetActive(false);
         if (ItemModel) ItemModel.SetActive(false);
         if (CrowbarModel) CrowbarModel.SetActive(false);
@@ -781,7 +757,6 @@ public class PlayerController : MonoBehaviour
         if (DetergentModel) DetergentModel.SetActive(false);
         if (DirtykeyModel) DirtykeyModel.SetActive(false);
         if (FrogModel) FrogModel.SetActive(false);
-        if (TinokatamariModel) TinokatamariModel.SetActive(false);
         Vector3 dropPos = transform.position + (transform.up * 1.3f) + (transform.forward * 2.0f);
         GameObject droppedItem = inventoryManager.DropItem(itemName, dropPos);
 
@@ -818,7 +793,6 @@ public class PlayerController : MonoBehaviour
 
     public void UpdateItemModel()
     {
-        // アイテム化したいタグを追加
         if (KeyModel != null) KeyModel.SetActive(false);
         if (ItemModel != null) ItemModel.SetActive(false);
         if (CrowbarModel != null) CrowbarModel.SetActive(false);
@@ -828,7 +802,6 @@ public class PlayerController : MonoBehaviour
         if (DetergentModel != null) DetergentModel.SetActive(false);
         if (DirtykeyModel != null) DirtykeyModel.SetActive(false);
         if (FrogModel != null) FrogModel.SetActive(false);
-        if (TinokatamariModel != null) TinokatamariModel.SetActive(false);
 
         if (inventoryManager == null || inventoryManager.currentItems.Count == 0) return;
 
@@ -840,7 +813,7 @@ public class PlayerController : MonoBehaviour
 
         string tag = inventoryManager.GetItemTag(itemName);
 
-        switch (tag) // アイテム化したいタグを追加
+        switch (tag)
         {
             case "Key": if (KeyModel != null) KeyModel.SetActive(true); break;
             case "Crowbar": if (CrowbarModel != null) CrowbarModel.SetActive(true); break;
@@ -851,7 +824,6 @@ public class PlayerController : MonoBehaviour
             case "Detergent": if (DetergentModel != null) DetergentModel.SetActive(true); break;
             case "Dirtykey": if (DirtykeyModel != null) DirtykeyModel.SetActive(true); break;
             case "Frog": if (FrogModel != null) FrogModel.SetActive(true); break;
-            case "Tinokatamari": if (TinokatamariModel != null) TinokatamariModel.SetActive(true); break;
             default: Debug.LogWarning($"タグ '{tag}' に対応するモデルなし"); break;
         }
     }
@@ -871,7 +843,6 @@ public class PlayerController : MonoBehaviour
             if (LighterModel != null && LighterModel.activeSelf) LighterModel.transform.localPosition = lighterModelDefaultPos + new Vector3(bobOffsetX, bobOffsetY, 0);
             if (SpiderModel != null && SpiderModel.activeSelf) SpiderModel.transform.localPosition = spiderModelDefaultPos + new Vector3(bobOffsetX, bobOffsetY, 0);
             if (FrogModel != null && FrogModel.activeSelf) FrogModel.transform.localPosition = frogModelDefaultPos + new Vector3(bobOffsetX, bobOffsetY, 0);
-            if (TinokatamariModel != null && TinokatamariModel.activeSelf) TinokatamariModel.transform.localPosition = TinokatamariModelDefaultPos + new Vector3(bobOffsetX, bobOffsetY, 0);
         }
         else
         {
@@ -882,7 +853,6 @@ public class PlayerController : MonoBehaviour
             if (LighterModel != null && LighterModel.activeSelf) LighterModel.transform.localPosition = Vector3.Lerp(LighterModel.transform.localPosition, lighterModelDefaultPos, Time.deltaTime * 10f);
             if (SpiderModel != null && SpiderModel.activeSelf) SpiderModel.transform.localPosition = Vector3.Lerp(SpiderModel.transform.localPosition, spiderModelDefaultPos, Time.deltaTime * 10f);
             if (FrogModel != null && FrogModel.activeSelf) FrogModel.transform.localPosition = Vector3.Lerp(FrogModel.transform.localPosition, frogModelDefaultPos, Time.deltaTime * 10f);
-            if (TinokatamariModel != null && TinokatamariModel.activeSelf) TinokatamariModel.transform.localPosition = Vector3.Lerp(TinokatamariModel.transform.localPosition, TinokatamariModelDefaultPos, Time.deltaTime * 10f);
             itemBobTimer = 0f;
         }
     }
@@ -1000,7 +970,6 @@ public class PlayerController : MonoBehaviour
         canCrowbarSwing = false;
         Invoke(nameof(ResetCrowbarCooldown), crowbarCooldown);
 
-        // ★ ここで効果音再生
         if (crowbarSwingSE != null && attackAudioSource != null)
         {
             attackAudioSource.PlayOneShot(crowbarSwingSE);
@@ -1009,12 +978,6 @@ public class PlayerController : MonoBehaviour
         if (cam != null) cameraSwingStartRot = cam.transform.localRotation;
     }
 
-
-    /*public void PlayCrowbarSwing()
-    {
-        isCrowbarSwing = true; crowbarSwingTimer = 0f; isCameraSwing = true; cameraSwingTimer = 0f;
-        if (cam != null) cameraSwingStartRot = cam.transform.localRotation;
-    }*/
 
     void UpdateCameraSwing()
     {
