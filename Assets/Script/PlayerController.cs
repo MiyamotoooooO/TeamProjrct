@@ -104,7 +104,7 @@ public class PlayerController : MonoBehaviour
     public GameObject LighterModel;
     public GameObject SpiderModel;
     public GameObject DetergentModel;
-    public GameObject DirtykeyModel;
+    public GameObject rust_keyModel; // ★変更
     public GameObject FrogModel;
 
     [Header("アイテムアニメーション")]
@@ -160,7 +160,7 @@ public class PlayerController : MonoBehaviour
     private Vector3 lighterModelDefaultPos;
     private Vector3 spiderModelDefaultPos;
     private Vector3 detergentModelDefaultPos;
-    private Vector3 dirtykeyModelDefaultPos;
+    private Vector3 rust_keyModelDefaultPos; // ★変更
     private Vector3 frogModelDefaultPos;
 
     private Quaternion itemDefaultRot;
@@ -240,6 +240,7 @@ public class PlayerController : MonoBehaviour
         if (LighterModel != null) lighterModelDefaultPos = LighterModel.transform.localPosition;
 
         if (SpiderModel != null) spiderModelDefaultPos = SpiderModel.transform.localPosition;
+        if (rust_keyModel != null) rust_keyModelDefaultPos = rust_keyModel.transform.localPosition; // ★変更
         if (FrogModel != null) frogModelDefaultPos = FrogModel.transform.localPosition;
 
         Invoke(nameof(UpdateItemModel), 0.1f);
@@ -567,8 +568,11 @@ public class PlayerController : MonoBehaviour
 
     public void backgroundTrue(float pos)
     {
-        backGround.gameObject.transform.position = new Vector3(960, pos + 540, 0);
-        StartCoroutine(animBackGround());
+        if (!canControl)
+        {
+            backGround.gameObject.transform.position = new Vector3(960, pos + 540, 0);
+            StartCoroutine(animBackGround());
+        }
     }
 
     public void backgroundFalse()
@@ -607,7 +611,7 @@ public class PlayerController : MonoBehaviour
 
         pickUpText.enabled = false;
 
-        string[] pickableTags = { "Item", "Key", "Flashlight", "Lighter", "Crowbar", "Spider", "Detergent", "Dirtykey", "Frog" };
+        string[] pickableTags = { "Item", "Key", "Flashlight", "Lighter", "Crowbar", "Spider", "Detergent", "rust_key", "Frog" };
 
         if (Physics.Raycast(ray, out hit, pickUpDistance))
         {
@@ -755,7 +759,7 @@ public class PlayerController : MonoBehaviour
         if (LighterModel) LighterModel.SetActive(false);
         if (SpiderModel) SpiderModel.SetActive(false);
         if (DetergentModel) DetergentModel.SetActive(false);
-        if (DirtykeyModel) DirtykeyModel.SetActive(false);
+        if (rust_keyModel) rust_keyModel.SetActive(false); // ★変更
         if (FrogModel) FrogModel.SetActive(false);
         Vector3 dropPos = transform.position + (transform.up * 1.3f) + (transform.forward * 2.0f);
         GameObject droppedItem = inventoryManager.DropItem(itemName, dropPos);
@@ -800,7 +804,7 @@ public class PlayerController : MonoBehaviour
         if (LighterModel != null) LighterModel.SetActive(false);
         if (SpiderModel != null) SpiderModel.SetActive(false);
         if (DetergentModel != null) DetergentModel.SetActive(false);
-        if (DirtykeyModel != null) DirtykeyModel.SetActive(false);
+        if (rust_keyModel != null) rust_keyModel.SetActive(false); // ★変更
         if (FrogModel != null) FrogModel.SetActive(false);
 
         if (inventoryManager == null || inventoryManager.currentItems.Count == 0) return;
@@ -822,7 +826,7 @@ public class PlayerController : MonoBehaviour
             case "Item": if (ItemModel != null) ItemModel.SetActive(true); break;
             case "Spider": if (SpiderModel != null) SpiderModel.SetActive(true); break;
             case "Detergent": if (DetergentModel != null) DetergentModel.SetActive(true); break;
-            case "Dirtykey": if (DirtykeyModel != null) DirtykeyModel.SetActive(true); break;
+            case "rust_key": if (rust_keyModel != null) rust_keyModel.SetActive(true); break; // ★変更
             case "Frog": if (FrogModel != null) FrogModel.SetActive(true); break;
             default: Debug.LogWarning($"タグ '{tag}' に対応するモデルなし"); break;
         }
@@ -842,6 +846,7 @@ public class PlayerController : MonoBehaviour
             if (FlashlightModel != null && FlashlightModel.activeSelf) FlashlightModel.transform.localPosition = flashlightModelDefaultPos + new Vector3(bobOffsetX, bobOffsetY, 0);
             if (LighterModel != null && LighterModel.activeSelf) LighterModel.transform.localPosition = lighterModelDefaultPos + new Vector3(bobOffsetX, bobOffsetY, 0);
             if (SpiderModel != null && SpiderModel.activeSelf) SpiderModel.transform.localPosition = spiderModelDefaultPos + new Vector3(bobOffsetX, bobOffsetY, 0);
+            if (rust_keyModel != null && rust_keyModel.activeSelf) rust_keyModel.transform.localPosition = rust_keyModelDefaultPos + new Vector3(bobOffsetX, bobOffsetY, 0); // ★変更
             if (FrogModel != null && FrogModel.activeSelf) FrogModel.transform.localPosition = frogModelDefaultPos + new Vector3(bobOffsetX, bobOffsetY, 0);
         }
         else
@@ -852,6 +857,7 @@ public class PlayerController : MonoBehaviour
             if (FlashlightModel != null && FlashlightModel.activeSelf) FlashlightModel.transform.localPosition = Vector3.Lerp(FlashlightModel.transform.localPosition, flashlightModelDefaultPos, Time.deltaTime * 10f);
             if (LighterModel != null && LighterModel.activeSelf) LighterModel.transform.localPosition = Vector3.Lerp(LighterModel.transform.localPosition, lighterModelDefaultPos, Time.deltaTime * 10f);
             if (SpiderModel != null && SpiderModel.activeSelf) SpiderModel.transform.localPosition = Vector3.Lerp(SpiderModel.transform.localPosition, spiderModelDefaultPos, Time.deltaTime * 10f);
+            if (rust_keyModel != null && rust_keyModel.activeSelf) rust_keyModel.transform.localPosition = Vector3.Lerp(rust_keyModel.transform.localPosition, rust_keyModelDefaultPos, Time.deltaTime * 10f); // ★変更
             if (FrogModel != null && FrogModel.activeSelf) FrogModel.transform.localPosition = Vector3.Lerp(FrogModel.transform.localPosition, frogModelDefaultPos, Time.deltaTime * 10f);
             itemBobTimer = 0f;
         }
