@@ -48,7 +48,6 @@ MonoBehaviour:
   nameLabelObject: {fileID: 2718418942782928705}
   displayDistance: 3
   labelOffset: {x: 0, y: 0.5, z: 0}
-  pickupKey: 101
 --- !u!65 &2776407712686614374
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -250,7 +249,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 6235775578246462882}
-  - component: {fileID: 5172899485967420076}
   - component: {fileID: 5086071056146005360}
   - component: {fileID: 2458877538180196370}
   - component: {fileID: 992628791609093013}
@@ -279,22 +277,6 @@ Transform:
   - {fileID: 7327303965153107947}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &5172899485967420076
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8783640544754932877}
-  m_Enabled: 0
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f6c5ce1f16ad5074ea6e4f8519214ea3, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  nameLabelObject: {fileID: 0}
-  displayDistance: 3
-  labelOffset: {x: 0, y: 0.5, z: 0}
-  pickupKey: 101
 --- !u!33 &5086071056146005360
 MeshFilter:
   m_ObjectHideFlags: 0
