@@ -172,7 +172,7 @@ public class WindowSubtitleManager : MonoBehaviour
                         yield return null;
                     }
                 }
-
+                
                 SetAlpha(currentImage, 0f);
                 currentImage.gameObject.SetActive(false);
 

@@ -1,7 +1,8 @@
-﻿using TMPro;
-using UnityEngine.SceneManagement;
+﻿using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
-using System.Collections;
+using TMPro;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using System.Threading.Tasks;
 using UnityEngine.Rendering.PostProcessing;
@@ -71,6 +72,9 @@ public class PlayerController : MonoBehaviour
     public TMP_Text pickUpText;
     public float pickUpDistance = 3f;
 
+    [Header("クロスヘアUI")]
+    public GameObject crosshairUI;
+
     [Header("インベントリ開閉設定")]
     [Tooltip("インベントリ画面の親オブジェクト")]
     public GameObject inventoryUIPanel;
@@ -97,14 +101,18 @@ public class PlayerController : MonoBehaviour
     [SerializeField] BugSpawner bugSpawner;
 
     [Header("--- アイテムモデル設定 ---")]
-    public GameObject KeyModel;
+    public GameObject Key1Model;
+    public GameObject Key2Model;
+    public GameObject Key3Model;
+    public GameObject Key4Model;
+    public GameObject Key5Model; // ★追加
     public GameObject ItemModel;
     public GameObject CrowbarModel;
     public GameObject FlashlightModel;
     public GameObject LighterModel;
     public GameObject SpiderModel;
     public GameObject DetergentModel;
-    public GameObject rust_keyModel; // ★変更
+    public GameObject rust_keyModel;
     public GameObject FrogModel;
 
     [Header("アイテムアニメーション")]
@@ -153,14 +161,18 @@ public class PlayerController : MonoBehaviour
     float minX = -90f, maxX = 90f;
     Rigidbody rb;
 
-    private Vector3 KeyModelDefaultPos;
+    private Vector3 Key1ModelDefaultPos;
+    private Vector3 Key2ModelDefaultPos;
+    private Vector3 Key3ModelDefaultPos;
+    private Vector3 Key4ModelDefaultPos;
+    private Vector3 Key5ModelDefaultPos; // ★追加
     private Vector3 itemModelDefaultPos;
     private Vector3 crowbarModelDefaultPos;
     private Vector3 flashlightModelDefaultPos;
     private Vector3 lighterModelDefaultPos;
     private Vector3 spiderModelDefaultPos;
     private Vector3 detergentModelDefaultPos;
-    private Vector3 rust_keyModelDefaultPos; // ★変更
+    private Vector3 rust_keyModelDefaultPos;
     private Vector3 frogModelDefaultPos;
 
     private Quaternion itemDefaultRot;
@@ -225,7 +237,12 @@ public class PlayerController : MonoBehaviour
         }
 
         // 初期位置保存
-        if (KeyModel != null) KeyModelDefaultPos = KeyModel.transform.localPosition;
+        if (Key1Model != null) Key1ModelDefaultPos = Key1Model.transform.localPosition;
+        if (Key2Model != null) Key2ModelDefaultPos = Key2Model.transform.localPosition;
+        if (Key3Model != null) Key3ModelDefaultPos = Key3Model.transform.localPosition;
+        if (Key4Model != null) Key4ModelDefaultPos = Key4Model.transform.localPosition;
+        if (Key5Model != null) Key5ModelDefaultPos = Key5Model.transform.localPosition; // ★追加
+
         if (ItemModel != null)
         {
             itemModelDefaultPos = ItemModel.transform.localPosition;
@@ -240,7 +257,7 @@ public class PlayerController : MonoBehaviour
         if (LighterModel != null) lighterModelDefaultPos = LighterModel.transform.localPosition;
 
         if (SpiderModel != null) spiderModelDefaultPos = SpiderModel.transform.localPosition;
-        if (rust_keyModel != null) rust_keyModelDefaultPos = rust_keyModel.transform.localPosition; // ★変更
+        if (rust_keyModel != null) rust_keyModelDefaultPos = rust_keyModel.transform.localPosition;
         if (FrogModel != null) frogModelDefaultPos = FrogModel.transform.localPosition;
 
         Invoke(nameof(UpdateItemModel), 0.1f);
@@ -403,7 +420,15 @@ public class PlayerController : MonoBehaviour
 
     public void HandleAttackInput()
     {
-        if (KeyModel != null && KeyModel.activeSelf) PlayKeySwing();
+        // ★ Key1〜5のどれかがアクティブなら振る
+        if ((Key1Model != null && Key1Model.activeSelf) ||
+            (Key2Model != null && Key2Model.activeSelf) ||
+            (Key3Model != null && Key3Model.activeSelf) ||
+            (Key4Model != null && Key4Model.activeSelf) ||
+            (Key5Model != null && Key5Model.activeSelf)) // ★追加
+        {
+            PlayKeySwing();
+        }
         else if (ItemModel != null && ItemModel.activeSelf) PlayItemSwing();
         else if (CrowbarModel != null && CrowbarModel.activeSelf) PlayCrowbarSwing();
         else if (SpiderModel != null && SpiderModel.activeSelf) UseSpiderDecoy();
@@ -434,6 +459,8 @@ public class PlayerController : MonoBehaviour
         if (!isInventoryOpen && !canControl) return;
 
         isInventoryOpen = !isInventoryOpen;
+
+        if (crosshairUI != null) crosshairUI.SetActive(!isInventoryOpen);
 
         if (inventoryBlurVolume != null)
         {
@@ -557,11 +584,13 @@ public class PlayerController : MonoBehaviour
                 pauseMenu.SetActive(false);
                 backGround.fillAmount = 0;
                 panelAlpha(0);
+                if (crosshairUI != null) crosshairUI.SetActive(true);
                 break;
 
             case "Pause":
                 option.SetActive(false);
                 pauseMenu.SetActive(true);
+                if (crosshairUI != null) crosshairUI.SetActive(false);
                 break;
         }
     }
@@ -611,7 +640,8 @@ public class PlayerController : MonoBehaviour
 
         pickUpText.enabled = false;
 
-        string[] pickableTags = { "Item", "Key", "Flashlight", "Lighter", "Crowbar", "Spider", "Detergent", "rust_key", "Frog" };
+        // ★ Key5を追加
+        string[] pickableTags = { "Item", "Key", "Key1", "Key2", "Key3", "Key4", "Key5", "Flashlight", "Lighter", "Crowbar", "Spider", "Detergent", "rust_key", "Frog" };
 
         if (Physics.Raycast(ray, out hit, pickUpDistance))
         {
@@ -752,15 +782,22 @@ public class PlayerController : MonoBehaviour
         string itemName = inventoryManager.currentItems[targetIndex];
         if (string.IsNullOrEmpty(itemName)) return;
 
-        if (KeyModel) KeyModel.SetActive(false);
+        // ★ 非表示対応
+        if (Key1Model) Key1Model.SetActive(false);
+        if (Key2Model) Key2Model.SetActive(false);
+        if (Key3Model) Key3Model.SetActive(false);
+        if (Key4Model) Key4Model.SetActive(false);
+        if (Key5Model) Key5Model.SetActive(false); // ★追加
+
         if (ItemModel) ItemModel.SetActive(false);
         if (CrowbarModel) CrowbarModel.SetActive(false);
         if (FlashlightModel) FlashlightModel.SetActive(false);
         if (LighterModel) LighterModel.SetActive(false);
         if (SpiderModel) SpiderModel.SetActive(false);
         if (DetergentModel) DetergentModel.SetActive(false);
-        if (rust_keyModel) rust_keyModel.SetActive(false); // ★変更
+        if (rust_keyModel) rust_keyModel.SetActive(false);
         if (FrogModel) FrogModel.SetActive(false);
+
         Vector3 dropPos = transform.position + (transform.up * 1.3f) + (transform.forward * 2.0f);
         GameObject droppedItem = inventoryManager.DropItem(itemName, dropPos);
 
@@ -797,14 +834,19 @@ public class PlayerController : MonoBehaviour
 
     public void UpdateItemModel()
     {
-        if (KeyModel != null) KeyModel.SetActive(false);
+        if (Key1Model != null) Key1Model.SetActive(false);
+        if (Key2Model != null) Key2Model.SetActive(false);
+        if (Key3Model != null) Key3Model.SetActive(false);
+        if (Key4Model != null) Key4Model.SetActive(false);
+        if (Key5Model != null) Key5Model.SetActive(false); // ★追加
+
         if (ItemModel != null) ItemModel.SetActive(false);
         if (CrowbarModel != null) CrowbarModel.SetActive(false);
         if (FlashlightModel != null) FlashlightModel.SetActive(false);
         if (LighterModel != null) LighterModel.SetActive(false);
         if (SpiderModel != null) SpiderModel.SetActive(false);
         if (DetergentModel != null) DetergentModel.SetActive(false);
-        if (rust_keyModel != null) rust_keyModel.SetActive(false); // ★変更
+        if (rust_keyModel != null) rust_keyModel.SetActive(false);
         if (FrogModel != null) FrogModel.SetActive(false);
 
         if (inventoryManager == null || inventoryManager.currentItems.Count == 0) return;
@@ -819,14 +861,20 @@ public class PlayerController : MonoBehaviour
 
         switch (tag)
         {
-            case "Key": if (KeyModel != null) KeyModel.SetActive(true); break;
+            case "Key": // 古い設定の互換用
+            case "Key1": if (Key1Model != null) Key1Model.SetActive(true); break;
+            case "Key2": if (Key2Model != null) Key2Model.SetActive(true); break;
+            case "Key3": if (Key3Model != null) Key3Model.SetActive(true); break;
+            case "Key4": if (Key4Model != null) Key4Model.SetActive(true); break;
+            case "Key5": if (Key5Model != null) Key5Model.SetActive(true); break; // ★追加
+
             case "Crowbar": if (CrowbarModel != null) CrowbarModel.SetActive(true); break;
             case "Flashlight": if (FlashlightModel != null) FlashlightModel.SetActive(true); break;
             case "Lighter": if (LighterModel != null) LighterModel.SetActive(true); break;
             case "Item": if (ItemModel != null) ItemModel.SetActive(true); break;
             case "Spider": if (SpiderModel != null) SpiderModel.SetActive(true); break;
             case "Detergent": if (DetergentModel != null) DetergentModel.SetActive(true); break;
-            case "rust_key": if (rust_keyModel != null) rust_keyModel.SetActive(true); break; // ★変更
+            case "rust_key": if (rust_keyModel != null) rust_keyModel.SetActive(true); break;
             case "Frog": if (FrogModel != null) FrogModel.SetActive(true); break;
             default: Debug.LogWarning($"タグ '{tag}' に対応するモデルなし"); break;
         }
@@ -840,24 +888,34 @@ public class PlayerController : MonoBehaviour
             float bobOffsetY = Mathf.Sin(itemBobTimer) * itemBobAmount;
             float bobOffsetX = Mathf.Cos(itemBobTimer * 0.5f) * itemBobAmount;
 
-            if (KeyModel != null && KeyModel.activeSelf) KeyModel.transform.localPosition = KeyModelDefaultPos + new Vector3(bobOffsetX, bobOffsetY, 0);
+            if (Key1Model != null && Key1Model.activeSelf) Key1Model.transform.localPosition = Key1ModelDefaultPos + new Vector3(bobOffsetX, bobOffsetY, 0);
+            if (Key2Model != null && Key2Model.activeSelf) Key2Model.transform.localPosition = Key2ModelDefaultPos + new Vector3(bobOffsetX, bobOffsetY, 0);
+            if (Key3Model != null && Key3Model.activeSelf) Key3Model.transform.localPosition = Key3ModelDefaultPos + new Vector3(bobOffsetX, bobOffsetY, 0);
+            if (Key4Model != null && Key4Model.activeSelf) Key4Model.transform.localPosition = Key4ModelDefaultPos + new Vector3(bobOffsetX, bobOffsetY, 0);
+            if (Key5Model != null && Key5Model.activeSelf) Key5Model.transform.localPosition = Key5ModelDefaultPos + new Vector3(bobOffsetX, bobOffsetY, 0); // ★追加
+
             if (ItemModel != null && ItemModel.activeSelf) ItemModel.transform.localPosition = itemModelDefaultPos + new Vector3(bobOffsetX, bobOffsetY, 0);
             if (CrowbarModel != null && CrowbarModel.activeSelf) CrowbarModel.transform.localPosition = crowbarModelDefaultPos + new Vector3(bobOffsetX, bobOffsetY, 0);
             if (FlashlightModel != null && FlashlightModel.activeSelf) FlashlightModel.transform.localPosition = flashlightModelDefaultPos + new Vector3(bobOffsetX, bobOffsetY, 0);
             if (LighterModel != null && LighterModel.activeSelf) LighterModel.transform.localPosition = lighterModelDefaultPos + new Vector3(bobOffsetX, bobOffsetY, 0);
             if (SpiderModel != null && SpiderModel.activeSelf) SpiderModel.transform.localPosition = spiderModelDefaultPos + new Vector3(bobOffsetX, bobOffsetY, 0);
-            if (rust_keyModel != null && rust_keyModel.activeSelf) rust_keyModel.transform.localPosition = rust_keyModelDefaultPos + new Vector3(bobOffsetX, bobOffsetY, 0); // ★変更
+            if (rust_keyModel != null && rust_keyModel.activeSelf) rust_keyModel.transform.localPosition = rust_keyModelDefaultPos + new Vector3(bobOffsetX, bobOffsetY, 0);
             if (FrogModel != null && FrogModel.activeSelf) FrogModel.transform.localPosition = frogModelDefaultPos + new Vector3(bobOffsetX, bobOffsetY, 0);
         }
         else
         {
-            if (KeyModel != null && KeyModel.activeSelf) KeyModel.transform.localPosition = Vector3.Lerp(KeyModel.transform.localPosition, KeyModelDefaultPos, Time.deltaTime * 10f);
+            if (Key1Model != null && Key1Model.activeSelf) Key1Model.transform.localPosition = Vector3.Lerp(Key1Model.transform.localPosition, Key1ModelDefaultPos, Time.deltaTime * 10f);
+            if (Key2Model != null && Key2Model.activeSelf) Key2Model.transform.localPosition = Vector3.Lerp(Key2Model.transform.localPosition, Key2ModelDefaultPos, Time.deltaTime * 10f);
+            if (Key3Model != null && Key3Model.activeSelf) Key3Model.transform.localPosition = Vector3.Lerp(Key3Model.transform.localPosition, Key3ModelDefaultPos, Time.deltaTime * 10f);
+            if (Key4Model != null && Key4Model.activeSelf) Key4Model.transform.localPosition = Vector3.Lerp(Key4Model.transform.localPosition, Key4ModelDefaultPos, Time.deltaTime * 10f);
+            if (Key5Model != null && Key5Model.activeSelf) Key5Model.transform.localPosition = Vector3.Lerp(Key5Model.transform.localPosition, Key5ModelDefaultPos, Time.deltaTime * 10f); // ★追加
+
             if (ItemModel != null && ItemModel.activeSelf) ItemModel.transform.localPosition = Vector3.Lerp(ItemModel.transform.localPosition, itemModelDefaultPos, Time.deltaTime * 10f);
             if (CrowbarModel != null && CrowbarModel.activeSelf) CrowbarModel.transform.localPosition = Vector3.Lerp(CrowbarModel.transform.localPosition, crowbarModelDefaultPos, Time.deltaTime * 10f);
             if (FlashlightModel != null && FlashlightModel.activeSelf) FlashlightModel.transform.localPosition = Vector3.Lerp(FlashlightModel.transform.localPosition, flashlightModelDefaultPos, Time.deltaTime * 10f);
             if (LighterModel != null && LighterModel.activeSelf) LighterModel.transform.localPosition = Vector3.Lerp(LighterModel.transform.localPosition, lighterModelDefaultPos, Time.deltaTime * 10f);
             if (SpiderModel != null && SpiderModel.activeSelf) SpiderModel.transform.localPosition = Vector3.Lerp(SpiderModel.transform.localPosition, spiderModelDefaultPos, Time.deltaTime * 10f);
-            if (rust_keyModel != null && rust_keyModel.activeSelf) rust_keyModel.transform.localPosition = Vector3.Lerp(rust_keyModel.transform.localPosition, rust_keyModelDefaultPos, Time.deltaTime * 10f); // ★変更
+            if (rust_keyModel != null && rust_keyModel.activeSelf) rust_keyModel.transform.localPosition = Vector3.Lerp(rust_keyModel.transform.localPosition, rust_keyModelDefaultPos, Time.deltaTime * 10f);
             if (FrogModel != null && FrogModel.activeSelf) FrogModel.transform.localPosition = Vector3.Lerp(FrogModel.transform.localPosition, frogModelDefaultPos, Time.deltaTime * 10f);
             itemBobTimer = 0f;
         }
@@ -868,12 +926,22 @@ public class PlayerController : MonoBehaviour
         if (!isSwinging) return;
         swingTimer += Time.deltaTime * swingSpeed;
         float swingOffset = Mathf.Sin(swingTimer) * swingAmount;
-        if (KeyModel.activeSelf) KeyModel.transform.localPosition = KeyModelDefaultPos + new Vector3(0, 0, swingOffset);
+
+        // ★ どのアクティブな鍵でも揺らす
+        if (Key1Model != null && Key1Model.activeSelf) Key1Model.transform.localPosition = Key1ModelDefaultPos + new Vector3(0, 0, swingOffset);
+        if (Key2Model != null && Key2Model.activeSelf) Key2Model.transform.localPosition = Key2ModelDefaultPos + new Vector3(0, 0, swingOffset);
+        if (Key3Model != null && Key3Model.activeSelf) Key3Model.transform.localPosition = Key3ModelDefaultPos + new Vector3(0, 0, swingOffset);
+        if (Key4Model != null && Key4Model.activeSelf) Key4Model.transform.localPosition = Key4ModelDefaultPos + new Vector3(0, 0, swingOffset);
+        if (Key5Model != null && Key5Model.activeSelf) Key5Model.transform.localPosition = Key5ModelDefaultPos + new Vector3(0, 0, swingOffset); // ★追加
+
         if (swingTimer >= Mathf.PI)
         {
             isSwinging = false;
-            KeyModel.transform.localPosition = KeyModelDefaultPos;
-            KeyModel.SetActive(false);
+            if (Key1Model) { Key1Model.transform.localPosition = Key1ModelDefaultPos; Key1Model.SetActive(false); }
+            if (Key2Model) { Key2Model.transform.localPosition = Key2ModelDefaultPos; Key2Model.SetActive(false); }
+            if (Key3Model) { Key3Model.transform.localPosition = Key3ModelDefaultPos; Key3Model.SetActive(false); }
+            if (Key4Model) { Key4Model.transform.localPosition = Key4ModelDefaultPos; Key4Model.SetActive(false); }
+            if (Key5Model) { Key5Model.transform.localPosition = Key5ModelDefaultPos; Key5Model.SetActive(false); } // ★追加
         }
     }
 
@@ -954,7 +1022,13 @@ public class PlayerController : MonoBehaviour
         isCameraSwing = false;
         cameraSwingTimer = 0f;
         await Task.Delay(2000);
-        if (KeyModel) KeyModel.SetActive(false);
+
+        // ★ 使い終わったら非アクティブに
+        if (Key1Model) Key1Model.SetActive(false);
+        if (Key2Model) Key2Model.SetActive(false);
+        if (Key3Model) Key3Model.SetActive(false);
+        if (Key4Model) Key4Model.SetActive(false);
+        if (Key5Model) Key5Model.SetActive(false); // ★追加
     }
 
     public void PlayItemSwing()

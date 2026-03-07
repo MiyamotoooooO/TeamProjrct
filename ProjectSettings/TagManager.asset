@@ -31,6 +31,7 @@ TagManager:
   - Key3
   - Key4
   - rust_key
+  - Key5
   layers:
   - Default
   - TransparentFX

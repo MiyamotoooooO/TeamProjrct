@@ -110,7 +110,7 @@ public class ItemUse : MonoBehaviour
         RaycastHit hit;
 
         // 何も当たらなかったら即終了
-        if (!Physics.Raycast(ray, out hit, useDistance))
+        if (!Physics.Raycast(ray, out hit, useDistance, Physics.AllLayers, QueryTriggerInteraction.Ignore))
         {
             return;
         }
@@ -213,6 +213,20 @@ public class ItemUse : MonoBehaviour
         RaycastHit hit;
 
         if (!Physics.Raycast(ray, out hit, useDistance)) return;
+
+        if (hit.collider.CompareTag("PuzzleButton"))
+        {
+            PuzzleButton btn = hit.collider.GetComponent<PuzzleButton>();
+            if (btn != null) btn.OnHover(); // ボタンの色を明るくする
+            return; // ボタンを見つめている時は他の判定をしない
+        }
+
+        if (hit.collider.CompareTag("RotateObject"))
+        {
+            RotateObject rot = hit.collider.GetComponent<RotateObject>();
+            if (rot != null) rot.OnHover();
+            return;
+        }
 
         // Bloodlump
         if (hit.collider.CompareTag("Bloodlump"))
