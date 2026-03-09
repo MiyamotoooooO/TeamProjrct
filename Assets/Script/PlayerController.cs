@@ -42,7 +42,7 @@ public class PlayerController : MonoBehaviour
     private bool isDashing = false;
 
     [Header("メインカメラを参照")]
-    public GameObject cam;
+    public Camera cam;
 
     [Header("アイテム入手演出")]
     public ItemGetDisplay itemGetDisplay;
@@ -150,6 +150,12 @@ public class PlayerController : MonoBehaviour
     public float breathingRecoveryTime = 3.0f;
 
     public float audioFadeSpeed = 5.0f;
+
+    //[Header("ActiveなUIを記録しておくリスト")]
+    private List<GameObject> ActiveUI = new List<GameObject>();
+
+    [Header("Canvasを参照")]
+    [SerializeField] private Transform canvas;
 
     // 内部変数
     private Vector3 defaultCamPos;
@@ -312,6 +318,8 @@ public class PlayerController : MonoBehaviour
             transform.localRotation = characterRot;
         }
 
+        ZoomCamera();
+        InactiveUI();
         RotateCamera();
         UpdateCursorLock();
 
@@ -630,6 +638,38 @@ public class PlayerController : MonoBehaviour
             Color c = panel.color;
             c.a = Mathf.Clamp01(alpha);
             panel.color = c;
+        }
+    }
+
+    private void ZoomCamera()
+    {
+        if (Input.GetKey(KeyCode.F2))
+        {
+            float scroll = Input.mouseScrollDelta.y * Time.deltaTime * -200;
+            cam.fieldOfView += scroll;
+            if (Input.GetMouseButtonDown(2))
+                cam.fieldOfView = 60;
+        }
+    }
+
+    private void InactiveUI()
+    {
+        if (Input.GetKey(KeyCode.F1) && ActiveUI.Count == 0)
+        {
+            for (int i = 0; i < canvas.childCount; i++)
+            {
+                if (canvas.GetChild(i).gameObject.activeSelf)
+                {
+                    canvas.GetChild(i).gameObject.SetActive(false);
+                    ActiveUI.Add(canvas.GetChild(i).gameObject);
+                }
+            }
+        }
+        else if (!(Input.GetKey(KeyCode.F1)) && ActiveUI.Count != 0)
+        {
+            foreach (GameObject obj in ActiveUI)
+                obj.SetActive(true);
+            ActiveUI.Clear();
         }
     }
 

@@ -78595,7 +78595,7 @@ MonoBehaviour:
   currentStaminaPercent: 100
   currentDashTime: 0
   recoveryDelayTimer: 0
-  cam: {fileID: 329624367}
+  cam: {fileID: 329624370}
   itemGetDisplay: {fileID: 1092730152}
   inventoryManager: {fileID: 1092730148}
   inventoryBlurVolume: {fileID: 739921332}
@@ -78665,6 +78665,7 @@ MonoBehaviour:
   breathingMaxVolume: 1
   breathingRecoveryTime: 5
   audioFadeSpeed: 5
+  canvas: {fileID: 811994521}
   canLock: 0
   isInventoryOpen: 0
   DoubleDoor: {fileID: 0}
