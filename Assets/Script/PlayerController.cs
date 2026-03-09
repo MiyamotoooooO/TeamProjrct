@@ -199,6 +199,7 @@ public class PlayerController : MonoBehaviour
     private float currentAudioFatigue = 0f;
 
     public DoubleDoorController DoubleDoor;
+    Animator animator;
 
     private void Start()
     {
@@ -261,6 +262,8 @@ public class PlayerController : MonoBehaviour
         if (FrogModel != null) frogModelDefaultPos = FrogModel.transform.localPosition;
 
         Invoke(nameof(UpdateItemModel), 0.1f);
+
+        animator = GetComponent<Animator>();
     }
 
     private void OnDisable()
@@ -983,6 +986,7 @@ public class PlayerController : MonoBehaviour
             CrowbarModel.transform.localPosition = Vector3.Lerp(crowbarModelDefaultPos, windUpPos, t);
             Quaternion windUpRot = Quaternion.Euler(10f, -80f, 100f);
             CrowbarModel.transform.localRotation = Quaternion.Lerp(crowbarDefaultRot, windUpRot, t);
+            animator.SetTrigger("Attack");
         }
         else if (crowbarSwingTimer < 0.4f)
         {
@@ -1015,6 +1019,7 @@ public class PlayerController : MonoBehaviour
     public async Task PlayKeySwing()
     {
         if (isSwinging) return;
+        animator.SetTrigger("Opening");
         isSwinging = true;
         swingTimer = 0f;
         canLock = false;

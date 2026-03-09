@@ -29,6 +29,10 @@ public class ItemUse : MonoBehaviour
 
     public TMP_Text UseText;
 
+    public ParticleSystem ps;
+    public float bubble_duration = 2f;
+
+
     // ==========================================
     // ★追加：演出・字幕・暗転設定
     // ==========================================
@@ -122,6 +126,7 @@ public class ItemUse : MonoBehaviour
             {
                 // ★ 変更：演出用のコルーチンを呼び出す
                 StartCoroutine(BloodlumpSequence(hit.collider.gameObject, hit.point));
+                StartCoroutine(PlayForSeconds());
             }
             return;
         }
@@ -397,5 +402,12 @@ public class ItemUse : MonoBehaviour
             c.a = alpha;
             img.color = c;
         }
+    }
+
+    IEnumerator PlayForSeconds()
+    {
+        ps.Play();
+        yield return new WaitForSeconds(bubble_duration);
+        ps.Stop(false);
     }
 }
