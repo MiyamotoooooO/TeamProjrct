@@ -74,7 +74,7 @@ public class FrogTongueController : MonoBehaviour
         }
 
         // 右クリック（1）で舌を伸ばす。
-        if (Input.GetMouseButtonDown(1) && !isShooting && tonguePivot != null)
+        if (Input.GetMouseButtonDown(0) && !isShooting && tonguePivot != null)
         {
             StartCoroutine(ShootTongueRoutine());
         }

@@ -49398,7 +49398,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 40492247743399a459bf9e03c54b6b8b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  spawnPosition: {x: 136.3, y: 48, z: -31.64}
+  spawnPosition: {x: 136.3, y: 48, z: -126.874}
   bedRotationY: 90
   wakeUpDuration: 2
   playerTransform: {fileID: 1443479526}
@@ -59634,33 +59634,33 @@ MonoBehaviour:
     descriptionPosition: {x: 0, y: 0}
     descriptionScale: {x: 1, y: 1, z: 1}
   - itemName: Item
-    icon: {fileID: 21300000, guid: 0b7513ee6cfa7914c9337e738c45b3fc, type: 3}
-    description: {fileID: 21300000, guid: e069ae957e616794e8a907371f2134f7, type: 3}
+    icon: {fileID: 21300000, guid: f0da6c65863e17b43a07a315fcaf77c5, type: 3}
+    description: {fileID: 21300000, guid: a6e71c1bcf1fda34c99806e79d22d406, type: 3}
     descriptionPosition: {x: 0, y: 0}
     descriptionScale: {x: 1, y: 1, z: 1}
   - itemName: Lighter
     icon: {fileID: -241611720, guid: 93c39124366d5c04a8f369728626f4fa, type: 3}
-    description: {fileID: 21300000, guid: 1ec5142029258c243a3c2cca9d0727f7, type: 3}
+    description: {fileID: 21300000, guid: c9808fc37241ec84985b09ea84c54d07, type: 3}
     descriptionPosition: {x: 0, y: 0}
     descriptionScale: {x: 300, y: 400, z: 1}
   - itemName: Flashlight
     icon: {fileID: -1462291311, guid: b30fa011257e9a349b1dcbd816cbd50a, type: 3}
-    description: {fileID: 21300000, guid: df25ff773b43e79419e23f015c1b0d09, type: 3}
+    description: {fileID: 21300000, guid: 0f367ee84ee4b574981427dae3ea1124, type: 3}
     descriptionPosition: {x: 0, y: 0}
     descriptionScale: {x: 1, y: 1, z: 1}
   - itemName: Crowbar(1)
     icon: {fileID: 2090137287, guid: 51e2ce3c8d9211d4990603037654c463, type: 3}
-    description: {fileID: 21300000, guid: af1f1b45fa6b5e64894c04ceb8a592f7, type: 3}
+    description: {fileID: 2090137287, guid: 51e2ce3c8d9211d4990603037654c463, type: 3}
     descriptionPosition: {x: 0, y: 0}
     descriptionScale: {x: 1, y: 1, z: 1}
   - itemName: Frog
     icon: {fileID: 21300000, guid: 0816d5a89d93b404cba2b03014d18fe9, type: 3}
-    description: {fileID: 0}
+    description: {fileID: 21300000, guid: dbf36777922eb7b47b657f5483ae4b2b, type: 3}
     descriptionPosition: {x: 0, y: 0}
     descriptionScale: {x: 1, y: 1, z: 1}
   - itemName: Spider
     icon: {fileID: 1197683382, guid: 8d923cd8994047c4f948048a51736097, type: 3}
-    description: {fileID: 0}
+    description: {fileID: 21300000, guid: c453f4604aef009488e39fb5259d1a02, type: 3}
     descriptionPosition: {x: 0, y: 0}
     descriptionScale: {x: 1, y: 1, z: 1}
   - itemName: tinokatamari
@@ -59686,6 +59686,16 @@ MonoBehaviour:
   - itemName: Key5
     icon: {fileID: 49104215, guid: 3b3abf2bdae0f7746acb982da5cdfb23, type: 3}
     description: {fileID: 0}
+    descriptionPosition: {x: 0, y: 0}
+    descriptionScale: {x: 1, y: 1, z: 1}
+  - itemName: Detergent
+    icon: {fileID: 21300000, guid: abf3ed0194050854ca4d8915c2fd7b02, type: 3}
+    description: {fileID: 21300000, guid: fbc27ffd3677a3b46ac9e2fe1d18b7c2, type: 3}
+    descriptionPosition: {x: 0, y: 0}
+    descriptionScale: {x: 1, y: 1, z: 1}
+  - itemName: rust_key
+    icon: {fileID: 21300000, guid: 4ca3b8aa410ecca459db2d4b091ec15e, type: 3}
+    description: {fileID: 21300000, guid: d444cb87650d7c142a78e5abec7d69ef, type: 3}
     descriptionPosition: {x: 0, y: 0}
     descriptionScale: {x: 1, y: 1, z: 1}
   allSlots:
@@ -78691,7 +78701,7 @@ MonoBehaviour:
   keyObject: {fileID: 772465515}
   detergentName: Detergent
   spawnSpherePrefab: {fileID: 374289202576707483, guid: 78df1db2fbc8ec64f949fac0c05bf693, type: 3}
-  spawnOffset: {x: 0, y: 0.5, z: 1}
+  spawnOffset: {x: 0, y: 0, z: 0}
   spawnScale: {x: 3, y: 3, z: 3}
   UseText: {fileID: 1468070820}
   blackFadeVolume: {fileID: 1054532093}
