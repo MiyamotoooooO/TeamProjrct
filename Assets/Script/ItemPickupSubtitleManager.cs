@@ -75,7 +75,7 @@ public class ItemPickupSubtitleManager : MonoBehaviour
 
     void Update()
     {
-        // ★ 変更：他の字幕が再生中なら待機する
+        // 他の字幕が再生中なら待機する
         if (GlobalSubtitleState.IsAnySubtitlePlaying) return;
 
         if (!hasTriggered && inventoryManager != null)
@@ -96,13 +96,9 @@ public class ItemPickupSubtitleManager : MonoBehaviour
 
     IEnumerator PlayPickupSequence()
     {
-        GlobalSubtitleState.IsAnySubtitlePlaying = true; // ★ グローバルロックON
+        GlobalSubtitleState.IsAnySubtitlePlaying = true; // グローバルロックON
 
-        if (itemGetDisplay != null)
-        {
-            yield return new WaitWhile(() => itemGetDisplay.isDisplaying);
-        }
-
+        // ★ 変更：拾った瞬間に、真っ先にプレイヤーの操作をロックして動けなくする！
         if (playerController != null)
         {
             playerController.canControl = false;
@@ -110,6 +106,13 @@ public class ItemPickupSubtitleManager : MonoBehaviour
             if (rb != null) rb.velocity = Vector3.zero;
         }
 
+        // その状態で、アイテム入手演出（クルクル回るUI）が終わるのを待つ
+        if (itemGetDisplay != null)
+        {
+            yield return new WaitWhile(() => itemGetDisplay.isDisplaying);
+        }
+
+        // 演出が終わったら字幕を表示し始める
         if (targetImages != null && targetImages.Length > 0)
         {
             for (int i = 0; i < targetImages.Length; i++)
@@ -165,12 +168,13 @@ public class ItemPickupSubtitleManager : MonoBehaviour
             }
         }
 
+        // 字幕がすべて終わったら、プレイヤーを再び動けるようにする
         if (playerController != null)
         {
             playerController.canControl = true;
         }
 
-        GlobalSubtitleState.IsAnySubtitlePlaying = false; // ★ グローバルロックOFF
+        GlobalSubtitleState.IsAnySubtitlePlaying = false; // グローバルロックOFF
     }
 
     private void SetAlpha(Image img, float alpha)

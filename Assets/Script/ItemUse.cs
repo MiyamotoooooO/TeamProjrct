@@ -1,9 +1,9 @@
 using UnityEngine;
 using TMPro;
 using System.Threading.Tasks;
-using System.Collections; // ★追加
-using UnityEngine.UI; // ★追加
-using UnityEngine.Rendering.PostProcessing; // ★追加
+using System.Collections;
+using UnityEngine.UI;
+using UnityEngine.Rendering.PostProcessing;
 
 public class ItemUse : MonoBehaviour
 {
@@ -32,7 +32,6 @@ public class ItemUse : MonoBehaviour
     public ParticleSystem ps;
     public float bubble_duration = 2f;
 
-
     // ==========================================
     // ★追加：演出・字幕・暗転設定
     // ==========================================
@@ -52,10 +51,25 @@ public class ItemUse : MonoBehaviour
     public float delayBetweenSubtitles = 0.5f;
 
     [Header("字幕：画像データ")]
-    [Tooltip("洗剤を使用した直後（暗転前）に出る字幕")]
+    [Tooltip("洗剤を使用した直後（選択肢が出る前）に出る字幕")]
     public Image[] startSubtitleImages;
     [Tooltip("画面が明るくなった後に出る字幕")]
     public Image[] endSubtitleImages;
+
+    // ==========================================
+    // ★追加：選択肢UI設定
+    // ==========================================
+    [Header("【Bloodlump】選択肢UI設定")]
+    [Tooltip("クイズの問題文とボタンが含まれる親パネル")]
+    public GameObject choicePanel;
+    [Tooltip("「はい」のボタン")]
+    public Button yesButton;
+    [Tooltip("「いいえ」のボタン")]
+    public Button noButton;
+
+    // 内部変数（選択結果を待つため）
+    private bool isChoiceMade = false;
+    private bool isYesChosen = false;
 
     private void Start()
     {
@@ -65,6 +79,11 @@ public class ItemUse : MonoBehaviour
 
         // 暗転ボリュームの初期化
         if (blackFadeVolume != null) blackFadeVolume.weight = 0f;
+
+        // ★選択肢UIの初期化とボタン機能の登録
+        if (choicePanel != null) choicePanel.SetActive(false);
+        if (yesButton != null) yesButton.onClick.AddListener(() => { isChoiceMade = true; isYesChosen = true; });
+        if (noButton != null) noButton.onClick.AddListener(() => { isChoiceMade = true; isYesChosen = false; });
     }
 
     private void InitImages(Image[] images)
@@ -86,7 +105,7 @@ public class ItemUse : MonoBehaviour
 
     private void Update()
     {
-        // ★ 追加：他の字幕が再生中なら入力を受け付けない
+        // 他の字幕が再生中なら入力を受け付けない
         if (GlobalSubtitleState.IsAnySubtitlePlaying)
         {
             UseText.enabled = false;
@@ -124,9 +143,8 @@ public class ItemUse : MonoBehaviour
         {
             if (player.inventoryManager.HasItem(detergentName))
             {
-                // ★ 変更：演出用のコルーチンを呼び出す
+                // 演出用のコルーチンを呼び出す
                 StartCoroutine(BloodlumpSequence(hit.collider.gameObject, hit.point));
-                StartCoroutine(PlayForSeconds());
             }
             return;
         }
@@ -267,7 +285,7 @@ public class ItemUse : MonoBehaviour
     }
 
     // ==========================================
-    // ★追加：血の塊の演出シーケンス
+    // 血の塊の演出シーケンス（選択肢付き）
     // ==========================================
     private IEnumerator BloodlumpSequence(GameObject bloodlumpObj, Vector3 hitPoint)
     {
@@ -281,14 +299,38 @@ public class ItemUse : MonoBehaviour
             if (rb != null) rb.velocity = Vector3.zero;
         }
 
-        // アイテムを振るアニメーション
-        player.PlayItemSwing();
-        yield return new WaitForSeconds(0.9f);
-
-        // 1. 開始時の字幕（暗転前）を表示
+        // 1. 開始時の字幕を表示
         yield return StartCoroutine(ShowImagesRoutine(startSubtitleImages));
 
-        // 2. 画面を徐々に暗転させる（PostProcessVolumeのWeightを上げる）
+        // 2. 選択肢UIを表示してマウスクリックを待つ
+        isChoiceMade = false;
+        isYesChosen = false;
+
+        if (choicePanel != null) choicePanel.SetActive(true);
+        UnityEngine.Cursor.lockState = CursorLockMode.None;
+        UnityEngine.Cursor.visible = true;
+
+        yield return new WaitUntil(() => isChoiceMade); // どちらかのボタンが押されるまで待機
+
+        // ボタンが押されたのでUIとカーソルを隠す
+        if (choicePanel != null) choicePanel.SetActive(false);
+        UnityEngine.Cursor.lockState = CursorLockMode.Locked;
+        UnityEngine.Cursor.visible = false;
+
+        // ★「いいえ」が選ばれた場合はそのまま終了する
+        if (!isYesChosen)
+        {
+            if (player != null) player.canControl = true;
+            GlobalSubtitleState.IsAnySubtitlePlaying = false;
+            yield break; // ここで処理を完全にストップ
+        }
+
+        // ★「はい」が選ばれた場合：アイテムを振るアニメーションと泡を出す
+        player.PlayItemSwing();
+        StartCoroutine(PlayForSeconds()); // ここで泡を出す
+        yield return new WaitForSeconds(0.9f);
+
+        // 3. 画面を徐々に暗転させる
         if (blackFadeVolume != null)
         {
             float elapsed = 0f;
@@ -301,7 +343,7 @@ public class ItemUse : MonoBehaviour
             blackFadeVolume.weight = 1f;
         }
 
-        // 3. 真っ暗な間に血の塊を消して、鍵を出す
+        // 4. 真っ暗な間に血の塊を消して、鍵を出す
         if (bloodlumpObj != null)
         {
             Destroy(bloodlumpObj);
@@ -317,7 +359,7 @@ public class ItemUse : MonoBehaviour
         // そのまま少し待機
         yield return new WaitForSeconds(blackWaitTime);
 
-        // 4. 画面を徐々に明転させる（Weightを下げる）
+        // 5. 画面を徐々に明転させる
         if (blackFadeVolume != null)
         {
             float elapsed = 0f;
@@ -330,10 +372,10 @@ public class ItemUse : MonoBehaviour
             blackFadeVolume.weight = 0f;
         }
 
-        // 5. 終了時の字幕（暗転後）を表示
+        // 6. 終了時の字幕（暗転後）を表示
         yield return StartCoroutine(ShowImagesRoutine(endSubtitleImages));
 
-        // 6. 完了処理（操作を戻す）
+        // 7. 完了処理（操作を戻す）
         if (player != null)
         {
             player.canControl = true;

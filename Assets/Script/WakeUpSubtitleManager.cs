@@ -18,11 +18,16 @@ public class WakeUpSubtitleManager : MonoBehaviour
     [Tooltip("順番に表示させたいUIのImage画像（+ボタンで複数登録可能）")]
     public Image[] subtitleImages;
 
-    [Tooltip("1つの字幕の表示にかける時間（秒）")]
+    [Tooltip("1つの字幕の文字が全部出るまでにかかる時間（秒）")]
     public float duration = 2.0f;
-
     [Tooltip("文字数（画像を何段階で表示するか。0なら滑らか）")]
     public int characterCount = 8;
+    [Tooltip("文字が全部出た後に表示したままにする時間（秒）")]
+    public float displayTime = 1.0f;
+    [Tooltip("★最後の字幕が消える時のフェードアウト時間（秒）")]
+    public float fadeDuration = 1.0f;
+    [Tooltip("次の字幕が出るまでの待機時間（秒）")]
+    public float delayBetweenSubtitles = 0.5f;
 
     [Header("参照設定")]
     [Tooltip("プレイヤーの操作を止めるために使用します")]
@@ -34,10 +39,6 @@ public class WakeUpSubtitleManager : MonoBehaviour
     // 内部変数
     private bool isWaitingForWakeUp = false;
     private bool hasTriggered = false;
-    private bool isTyping = false;
-    private bool isFullDisplayed = false;
-    private Coroutine typingCoroutine;
-    private int currentSubtitleIndex = 0;    // 今何番目の字幕を表示しているか
 
     // ★追加：ゲーム起動後に1度でも表示したかを記憶する魔法の変数
     private static bool hasPlayedOnce = false;
@@ -60,6 +61,7 @@ public class WakeUpSubtitleManager : MonoBehaviour
                     img.fillOrigin = (int)Image.OriginHorizontal.Left;
                     img.fillAmount = 0f;
                     img.gameObject.SetActive(false);
+                    SetAlpha(img, 1f);
                 }
             }
         }
@@ -93,25 +95,6 @@ public class WakeUpSubtitleManager : MonoBehaviour
             {
                 isWaitingForWakeUp = false;
                 StartCoroutine(WakeUpSequence());
-            }
-        }
-
-        // --- 2. 字幕表示中のSpaceキー操作 ---
-        // 視点が動いている最中は入力を受け付けない
-        if (isTyping || isFullDisplayed)
-        {
-            if (Input.GetKeyDown(KeyCode.Space))
-            {
-                if (isTyping)
-                {
-                    // パターン1：まだ文字が出ている途中なら「スキップ」
-                    SkipAnimation();
-                }
-                else if (isFullDisplayed)
-                {
-                    // パターン2：すべて表示済みなら「次の字幕へ」
-                    NextSubtitle();
-                }
             }
         }
     }
@@ -171,112 +154,75 @@ public class WakeUpSubtitleManager : MonoBehaviour
             playerController.SyncRotationToCurrent();
         }
 
-        // --- ②字幕表示開始 ---
-        currentSubtitleIndex = 0;
-        ShowSubtitle(currentSubtitleIndex);
-    }
-
-    // 指定したインデックスの字幕を表示する
-    private void ShowSubtitle(int index)
-    {
-        if (subtitleImages == null || index >= subtitleImages.Length || subtitleImages[index] == null)
+        // --- ②自動字幕表示開始 ---
+        if (subtitleImages != null && subtitleImages.Length > 0)
         {
-            CloseText();
-            return;
-        }
-
-        Image targetImage = subtitleImages[index];
-        targetImage.gameObject.SetActive(true);
-        typingCoroutine = StartCoroutine(PlayTypewriter(targetImage));
-    }
-
-    // 徐々に表示するコルーチン
-    IEnumerator PlayTypewriter(Image targetImage)
-    {
-        isTyping = true;
-        isFullDisplayed = false;
-        targetImage.fillAmount = 0f;
-
-        float timer = 0f;
-
-        while (timer < duration)
-        {
-            timer += Time.deltaTime;
-            float progress = timer / duration;
-
-            if (characterCount > 0)
+            for (int i = 0; i < subtitleImages.Length; i++)
             {
-                // 文字数に合わせてカクカク表示
-                float steppedProgress = Mathf.Floor(progress * characterCount) / characterCount;
-                targetImage.fillAmount = steppedProgress;
-            }
-            else
-            {
-                // 滑らか表示
-                targetImage.fillAmount = progress;
-            }
-            yield return null;
-        }
+                Image currentImage = subtitleImages[i];
+                if (currentImage == null) continue;
 
-        FinishDisplay();
-    }
+                currentImage.gameObject.SetActive(true);
+                currentImage.fillAmount = 0f;
+                SetAlpha(currentImage, 1f);
 
-    // スキップ処理
-    void SkipAnimation()
-    {
-        if (typingCoroutine != null) StopCoroutine(typingCoroutine);
-        FinishDisplay();
-    }
+                float timer = 0f;
 
-    // 1枚の字幕の表示完了状態にする
-    void FinishDisplay()
-    {
-        if (subtitleImages != null && currentSubtitleIndex < subtitleImages.Length)
-        {
-            Image currentImg = subtitleImages[currentSubtitleIndex];
-            if (currentImg != null) currentImg.fillAmount = 1.0f; // 完全に表示
-        }
-        isTyping = false;
-        isFullDisplayed = true;
-    }
+                // 1. タイプライター表示
+                while (timer < duration)
+                {
+                    timer += Time.deltaTime;
+                    float progress = timer / duration;
 
-    // 次の字幕へ進む処理
-    void NextSubtitle()
-    {
-        // 今表示している画像を隠す
-        if (subtitleImages != null && currentSubtitleIndex < subtitleImages.Length)
-        {
-            Image currentImg = subtitleImages[currentSubtitleIndex];
-            if (currentImg != null)
-            {
-                currentImg.fillAmount = 0f;
-                currentImg.gameObject.SetActive(false);
+                    if (characterCount > 0) currentImage.fillAmount = Mathf.Floor(progress * characterCount) / characterCount;
+                    else currentImage.fillAmount = progress;
+
+                    yield return null;
+                }
+                currentImage.fillAmount = 1.0f;
+
+                // 2. 表示状態をキープ
+                yield return new WaitForSeconds(displayTime);
+
+                // 3. 最後の字幕だけフェードアウト
+                if (i == subtitleImages.Length - 1)
+                {
+                    timer = 0f;
+                    while (timer < fadeDuration)
+                    {
+                        timer += Time.deltaTime;
+                        float alpha = Mathf.Lerp(1f, 0f, timer / fadeDuration);
+                        SetAlpha(currentImage, alpha);
+                        yield return null;
+                    }
+                }
+
+                // 4. 画像を非表示にする
+                SetAlpha(currentImage, 0f);
+                currentImage.gameObject.SetActive(false);
+
+                // 5. 次の字幕への待機（最後でなければ）
+                if (i < subtitleImages.Length - 1)
+                {
+                    yield return new WaitForSeconds(delayBetweenSubtitles);
+                }
             }
         }
-
-        currentSubtitleIndex++;
-
-        // まだ次の字幕があれば表示、なければ終了
-        if (subtitleImages != null && currentSubtitleIndex < subtitleImages.Length)
-        {
-            ShowSubtitle(currentSubtitleIndex);
-        }
-        else
-        {
-            CloseText();
-        }
-    }
-
-    // すべての字幕を終え、プレイヤーの操作を再び有効にする
-    void CloseText()
-    {
-        isTyping = false;
-        isFullDisplayed = false;
 
         // 字幕がすべて終わったらプレイヤーが再び動けるようにする
         if (playerController != null)
         {
             playerController.canControl = true;
+        }
+    }
+
+    private void SetAlpha(Image img, float alpha)
+    {
+        if (img != null)
+        {
+            Color c = img.color;
+            c.a = alpha;
+            img.color = c;
         }
     }
 }
