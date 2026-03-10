@@ -1,83 +1,58 @@
-using System.Collections;
+ï»¿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
 public class RotateObject : MonoBehaviour
 {
     public PuzzleRotateManager manager;
-    public int objectID; // 0,1,2‚Ì”Ô†
+    public int objectID; // 0,1,2ã®ç•ªå·
 
-    [Header("yV‹Kz‘ÎÛ‚Æ”»’è‚Ìİ’è")]
-    [Tooltip("ƒNƒŠƒbƒN‚µ‚½‚ÉÀÛ‚É‰ñ“]EF•Ï‚¦‚³‚¹‚½‚¢ƒIƒuƒWƒFƒNƒg‚ğƒAƒ^ƒbƒ`")]
+    [Header("ã€æ–°è¦ã€‘å¯¾è±¡ã¨åˆ¤å®šã®è¨­å®š")]
     public Transform targetToRotate;
-
-    [Tooltip("“–‚½‚è”»’è‚Ég‚¤BoxCollideri•¡”“o˜^‚Å‚«‚Ü‚·j")]
     public BoxCollider[] interactColliders;
 
-    [Header("³‰ğ‚ÌŒü‚«i0 = ‘O, 1 = ‰E, 2 = Œã, 3 = ¶j")]
-    public int correctDirection;
+    [Header("æ­£è§£ã®è§’åº¦è¨­å®š")]
+    [Tooltip("æ­£è§£ã¨ãªã‚‹Yè»¸ã®è§’åº¦ã‚’å…¥åŠ›ã—ã¦ãã ã•ã„ï¼ˆä¾‹: 30, 90, 180 ãªã©ï¼‰")]
+    public float correctAngleY = 0f;
 
-    [Header("‰ñ“]İ’è")]
-    [Tooltip("1‰ñ‚ÌƒNƒŠƒbƒN‚Å‰ñ“]‚·‚éŠp“xBY²‚É‰ñ‚·‚È‚ç Y ‚ğ 90 ‚â -90 ‚Éİ’è‚µ‚Ü‚·")]
+    [Header("å›è»¢è¨­å®š")]
     public Vector3 rotationAngle = new Vector3(0, 90f, 0);
 
-    [Header("Œõ‚éFİ’è")]
+    [Header("å…‰ã‚‹è‰²è¨­å®š")]
     public Color normalColor = Color.gray;
-    public Color hoverColor = new Color(0.8f, 0.8f, 0.8f); // ƒNƒƒXƒwƒA‚ª‡‚Á‚Ä‚¢‚é‚ÌF
+    public Color hoverColor = new Color(0.8f, 0.8f, 0.8f);
 
     private Renderer rend;
-    private int currentDirection = 0;
-
-    private bool isHovered = false; // ƒNƒƒXƒwƒA‚ª‡‚Á‚Ä‚¢‚é‚©
+    private bool isHovered = false;
 
     public void Start()
     {
-        // ‚à‚µInspector‚Å‰ñ“]‘ÎÛ‚ªƒZƒbƒg‚³‚ê‚Ä‚¢‚È‚¯‚ê‚ÎA©•ª©g‚ğ‘ÎÛ‚É‚·‚é
-        if (targetToRotate == null)
-        {
-            targetToRotate = transform;
-        }
+        if (manager == null) manager = FindAnyObjectByType<PuzzleRotateManager>();
+        if (manager == null) return;
 
-        // ‚à‚µInspector‚ÅCollider‚ªƒZƒbƒg‚³‚ê‚Ä‚¢‚È‚¯‚ê‚ÎA©•ª‚É‚Â‚¢‚Ä‚¢‚é‚à‚Ì‚ğ‚·‚×‚Ä©“®æ“¾‚·‚é
-        if (interactColliders == null || interactColliders.Length == 0)
-        {
-            interactColliders = GetComponents<BoxCollider>();
-        }
+        if (targetToRotate == null) targetToRotate = transform;
+        if (interactColliders == null || interactColliders.Length == 0) interactColliders = GetComponents<BoxCollider>();
 
-        // F‚ğ•Ï‚¦‚é‚½‚ß‚ÌRenderer‚ğæ“¾i‰ñ“]‘ÎÛ‚ÌƒIƒuƒWƒFƒNƒg‚©‚çæ“¾j
         rend = targetToRotate.GetComponent<Renderer>();
-        if (rend == null)
-        {
-            rend = GetComponent<Renderer>();
-        }
+        if (rend == null) rend = GetComponent<Renderer>();
+        if (rend != null) rend.material.color = normalColor;
 
-        if (rend != null)
-        {
-            rend.material.color = normalColor;
-        }
+        manager.SetCorrectDirection(objectID, 1);
 
-        manager.SetCorrectDirection(objectID, correctDirection);
+        // â˜…è¿½åŠ ï¼šã‚²ãƒ¼ãƒ é–‹å§‹æ™‚ã«ã‚‚è©³ç´°ãªãƒ­ã‚°ã‚’å‡ºã™ã‚ˆã†ã«ã—ã¾ã—ãŸ
+        CheckAngleAndNotify(true);
     }
 
     private void Update()
     {
         if (rend == null) return;
 
-        // ƒNƒƒXƒwƒA‚ª‡‚Á‚Ä‚¢‚ê‚Îƒzƒo[FAŠO‚ê‚ê‚Î’ÊíF
-        if (isHovered)
-        {
-            rend.material.color = hoverColor;
-        }
-        else
-        {
-            rend.material.color = normalColor;
-        }
+        if (isHovered) rend.material.color = hoverColor;
+        else rend.material.color = normalColor;
 
-        // –ˆƒtƒŒ[ƒ€‰ğœiƒNƒƒXƒwƒA‚ª‡‚Á‚Ä‚¢‚ê‚Î OnHover() ‚ÅÄ‚Ñtrue‚É‚È‚éj
         isHovered = false;
     }
 
-    // ƒNƒƒXƒwƒA‚ªŒü‚¢‚Ä‚¢‚é‚ÉŠO•”iItemUse“™j‚©‚çŒÄ‚Î‚ê‚é
     public void OnHover()
     {
         isHovered = true;
@@ -85,18 +60,43 @@ public class RotateObject : MonoBehaviour
 
     public void RotateLeft()
     {
-        // ©•ª©g‚Å‚Í‚È‚­Aw’è‚µ‚½‘ÎÛ‚ğ‰ñ“]‚³‚¹‚é
+        if (manager == null) return;
+
         if (targetToRotate != null)
         {
-            // Space.World ‚ğw’è‚·‚é‚±‚Æ‚ÅAƒ‚ƒfƒ‹‚ª‚Ç‚ñ‚È•—‚ÉŒX‚¢‚Ä‚¢‚Ä‚à
-            // í‚ÉuŒ©‚½–Úã‚Ìc²iY²jv‚ğŠî€‚É‰ñ“]‚·‚é‚æ‚¤‚É‚È‚è‚Ü‚·
             targetToRotate.Rotate(rotationAngle, Space.World);
         }
 
-        // Œü‚«‚Ì”Ô†‚ğXV(0`3)
-        currentDirection = (currentDirection + 1) % 4;
+        float currentY = targetToRotate.eulerAngles.y;
+        float diffY = Mathf.DeltaAngle(currentY, correctAngleY);
 
-        // ƒ}ƒl[ƒWƒƒ[‚É’Ê’m
-        manager.UpdateDirection(objectID, currentDirection);
+        Debug.Log($"ã€å›è»¢ä¸­ã€‘ID[{objectID}] ç¾åœ¨ã®World_Y: {currentY:F1} (ç›®æ¨™: {correctAngleY}) / ã‚ºãƒ¬: {diffY:F1}åº¦");
+
+        CheckAngleAndNotify(false);
+    }
+
+    // â˜…å¤‰æ›´ï¼šé–‹å§‹æ™‚ã‹å›è»¢ä¸­ã‹ã‚’åˆ¤å®šã™ã‚‹ isStart ã‚’è¿½åŠ 
+    private void CheckAngleAndNotify(bool isStart = false)
+    {
+        if (targetToRotate == null || manager == null) return;
+
+        float currentY = targetToRotate.eulerAngles.y;
+        float diffY = Mathf.DeltaAngle(currentY, correctAngleY);
+
+        // â˜…è¿½åŠ ï¼šã‚²ãƒ¼ãƒ é–‹å§‹æ™‚ã«ã€ã©ã†ã—ã¦ãã®åˆ¤å®šã«ãªã£ãŸã‹ã‚’ãƒ­ã‚°ã«å‡ºã™
+        if (isStart)
+        {
+            Debug.Log($"ã€é–‹å§‹æ™‚ãƒã‚§ãƒƒã‚¯ã€‘ID[{objectID}] ç¾åœ¨ã®World_Y: {currentY:F1} (ç›®æ¨™: {correctAngleY}) / ã‚ºãƒ¬: {diffY:F1}åº¦");
+        }
+
+        if (Mathf.Abs(diffY) < 0.1f)
+        {
+            if (!isStart) Debug.Log($"â˜…â˜…â˜… ã‚ªãƒ–ã‚¸ã‚§ã‚¯ãƒˆID[{objectID}] ãŒæ­£è§£ã®è§’åº¦ã«åˆ°é”ã—ã¾ã—ãŸï¼ â˜…â˜…â˜…");
+            manager.UpdateDirection(objectID, 1);
+        }
+        else
+        {
+            manager.UpdateDirection(objectID, 0);
+        }
     }
 }
