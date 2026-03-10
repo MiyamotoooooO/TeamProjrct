@@ -31,25 +31,23 @@ public class PuzzleRotateManager : MonoBehaviour
 
     private bool keySpawned = false;
 
-    // ★変更点：Start ではなく Awake にすることで、他のスクリプトよりも「絶対に先」に配列を準備する
     private void Awake()
     {
         currentDirections = new int[objectCount];
         correctDirections = new int[objectCount];
 
-        // 最初から「正解」と誤判定されないように、ありえない数字(-1)で埋めておく
         for (int i = 0; i < objectCount; i++)
         {
-            correctDirections[i] = -1;
+            // ★追加：最初は「まだ判定されていない状態」として -1 を入れておく
+            currentDirections[i] = -1;
+            // ユーザーの希望通り、初期の目標(正解)を 0 に設定する
+            correctDirections[i] = 0;
         }
     }
 
     private void Start()
     {
-        // プレイヤーを自動取得
         if (playerController == null) playerController = FindAnyObjectByType<PlayerController>();
-
-        // 画像の初期化
         InitImages(clearSubtitleImages);
     }
 
@@ -72,7 +70,6 @@ public class PuzzleRotateManager : MonoBehaviour
 
     public void SetCorrectDirection(int id, int dir)
     {
-        // 配列の範囲外エラーを防ぐ
         if (id >= 0 && id < objectCount)
         {
             correctDirections[id] = dir;
@@ -81,42 +78,45 @@ public class PuzzleRotateManager : MonoBehaviour
 
     public void UpdateDirection(int id, int dir)
     {
-        // ★追加：IDが設定ミスの場合は警告を出す
         if (id < 0 || id >= objectCount)
         {
-            Debug.LogError($"エラー：ObjectID[{id}]は無効です！ 0 から {objectCount - 1} の間で設定してください。");
+            Debug.LogError($"エラー：ObjectID[{id}]は無効です！");
             return;
         }
 
         currentDirections[id] = dir;
 
-        // すでに鍵を出している場合は何もしない
-        if (keySpawned)
-            return;
+        if (keySpawned) return;
 
-        // ★追加：原因究明用のログ
         string currentLog = "現在: ";
         string correctLog = "目標: ";
         bool isAllCorrect = true;
+        bool isAllInitialized = true;
 
         for (int i = 0; i < objectCount; i++)
         {
-            currentLog += currentDirections[i] + " ";
+            // -1の場合は「未」と表示してわかりやすくする
+            currentLog += (currentDirections[i] == -1 ? "未" : currentDirections[i].ToString()) + " ";
             correctLog += correctDirections[i] + " ";
+
+            if (currentDirections[i] == -1)
+            {
+                isAllInitialized = false; // まだ判定が終わっていない像がある
+            }
 
             if (currentDirections[i] != correctDirections[i])
             {
-                isAllCorrect = false; // 1つでも違ったら「全部正解」を解除
+                isAllCorrect = false; // 1つでも不正解（1）があればダメ
             }
         }
 
-        Debug.Log($"【パズル判定】{currentLog} | {correctLog}");
+        Debug.Log($"【パズル判定】{currentLog}| {correctLog}");
 
-        if (!isAllCorrect) return;
+        // ★追加：まだすべてのオブジェクトの初期判定が終わっていない、または不正解ならクリアにしない
+        if (!isAllInitialized || !isAllCorrect) return;
 
         // 全問正解！
         keySpawned = true;
-
         StartCoroutine(ClearSequence());
     }
 

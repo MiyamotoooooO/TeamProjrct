@@ -37,19 +37,17 @@ public class RotateObject : MonoBehaviour
         if (rend == null) rend = GetComponent<Renderer>();
         if (rend != null) rend.material.color = normalColor;
 
-        manager.SetCorrectDirection(objectID, 1);
+        // ★変更：「0なら正解」というルールでマネージャーに登録
+        manager.SetCorrectDirection(objectID, 0);
 
-        // ★追加：ゲーム開始時にも詳細なログを出すようにしました
         CheckAngleAndNotify(true);
     }
 
     private void Update()
     {
         if (rend == null) return;
-
         if (isHovered) rend.material.color = hoverColor;
         else rend.material.color = normalColor;
-
         isHovered = false;
     }
 
@@ -61,21 +59,10 @@ public class RotateObject : MonoBehaviour
     public void RotateLeft()
     {
         if (manager == null) return;
-
-        if (targetToRotate != null)
-        {
-            targetToRotate.Rotate(rotationAngle, Space.World);
-        }
-
-        float currentY = targetToRotate.eulerAngles.y;
-        float diffY = Mathf.DeltaAngle(currentY, correctAngleY);
-
-        Debug.Log($"【回転中】ID[{objectID}] 現在のWorld_Y: {currentY:F1} (目標: {correctAngleY}) / ズレ: {diffY:F1}度");
-
+        if (targetToRotate != null) targetToRotate.Rotate(rotationAngle, Space.World);
         CheckAngleAndNotify(false);
     }
 
-    // ★変更：開始時か回転中かを判定する isStart を追加
     private void CheckAngleAndNotify(bool isStart = false)
     {
         if (targetToRotate == null || manager == null) return;
@@ -83,20 +70,23 @@ public class RotateObject : MonoBehaviour
         float currentY = targetToRotate.eulerAngles.y;
         float diffY = Mathf.DeltaAngle(currentY, correctAngleY);
 
-        // ★追加：ゲーム開始時に、どうしてその判定になったかをログに出す
         if (isStart)
         {
             Debug.Log($"【開始時チェック】ID[{objectID}] 現在のWorld_Y: {currentY:F1} (目標: {correctAngleY}) / ズレ: {diffY:F1}度");
         }
 
+        // ズレがほぼ無い（正解）の場合
         if (Mathf.Abs(diffY) < 0.1f)
         {
             if (!isStart) Debug.Log($"★★★ オブジェクトID[{objectID}] が正解の角度に到達しました！ ★★★");
-            manager.UpdateDirection(objectID, 1);
+
+            // ★変更：正解の時は「0」をマネージャーに送る
+            manager.UpdateDirection(objectID, 0);
         }
         else
         {
-            manager.UpdateDirection(objectID, 0);
+            // ★変更：不正解の時は「1」をマネージャーに送る
+            manager.UpdateDirection(objectID, 1);
         }
     }
 }
