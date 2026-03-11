@@ -6,8 +6,8 @@ using TMPro;
 
 public class InventoryManager : MonoBehaviour
 {
-    // ... (設定変数はそのまま) ...
-    [Header("インベントリ設定")]
+    // ... (設定変数はそのまま) ...
+    [Header("インベントリ設定")]
     [Tooltip("アイテムの最大所持数（例: 21ならホットバー3 + 9×2ページ）")]
     public int maxSlots = 21;
     public int backpackColumns = 3;
@@ -48,13 +48,6 @@ public class InventoryManager : MonoBehaviour
     {
         public string itemName;
         public Sprite icon;
-
-        // ==========================================
-        // ★追加：アイテムアイコンのサイズ調整機能
-        // ==========================================
-        [Header("アイコン表示設定")]
-        [Tooltip("HUDでのアイコンの大きさ (1, 1, 1 が標準)")]
-        public Vector3 iconScale = Vector3.one;
 
         [Header("説明パネル設定")]
         [Tooltip("説明欄に表示する画像")]
@@ -103,14 +96,15 @@ public class InventoryManager : MonoBehaviour
     [Range(0, 255)] public float selectedAlpha = 255f;
     [Range(0, 255)] public float unselectedAlpha = 100f;
 
-    // 内部変数
-    private int currentCursorIndex = 0;
+    // 内部変数
+    private int currentCursorIndex = 0;
     private bool isSwapMode = false;
     private bool isAnimatingPage = false;
     private Coroutine messageCoroutine;
     private Vector2 originalContainerPosition;
 
-    [Header("デバッグ用")]
+    // ★重要：ここはpublicにしておくと、Inspectorで残り時間を確認できてデバッグしやすいです
+    [Header("デバッグ用")]
     public float currentDecoyCooldown = 0f;
 
     private void Start()
@@ -150,22 +144,30 @@ public class InventoryManager : MonoBehaviour
         {
             playerController = FindAnyObjectByType<PlayerController>();
 
-            if (playerController != null)
+            // 新しいプレイヤーを無事に見つけたら、すぐに手にアイテムを持たせる（モデル更新）
+            if (playerController != null)
             {
                 playerController.UpdateItemModel();
             }
 
-            if (playerController == null) return;
+            // プレイヤーが見つかっていない間は、下の処理でエラーが出ないようにここで止める
+            if (playerController == null) return;
         }
 
-        if (currentDecoyCooldown > 0)
+        // ★重要：クールダウンの計算は、インベントリが開いているかどうかに関わらず常に行う
+        if (currentDecoyCooldown > 0)
         {
             currentDecoyCooldown -= Time.unscaledDeltaTime;
+
             if (currentDecoyCooldown < 0) currentDecoyCooldown = 0;
-            UpdateCooldownUI();
+
+            // ★UI更新は「インベントリが開いている時」だけ行えば負荷が軽いですが、
+            // 閉じていても呼んで問題ありません（非表示のUIを更新するだけなので）
+            UpdateCooldownUI();
         }
 
-        if (playerController != null && !playerController.isInventoryOpen)
+        // ここから下はインベントリ操作など
+        if (playerController != null && !playerController.isInventoryOpen)
         {
             HandleWeaponSwitchInput();
             return;
@@ -188,7 +190,8 @@ public class InventoryManager : MonoBehaviour
         }
     }
 
-    public int GetRealDataIndex(int uiSlotIndex)
+    // ... (GetRealDataIndexなどの関数はそのまま) ...
+    public int GetRealDataIndex(int uiSlotIndex)
     {
         if (uiSlotIndex < 3) return uiSlotIndex;
         else
@@ -198,11 +201,16 @@ public class InventoryManager : MonoBehaviour
         }
     }
 
-    void UpdateCooldownUI()
+    // --- クールダウンUI更新 ---
+    // ここでUIへの反映を行う
+    void UpdateCooldownUI()
     {
         if (allSlots == null) return;
 
-        float fillValue = currentDecoyCooldown / decoyCooldownTime;
+        // インベントリ画面（inventoryUIPanel）が非アクティブなら、UI操作をスキップしても良い
+        // ただし、UpdateInventoryUIが呼ばれた直後は強制的に更新したいので、ここではチェックしないでおく
+
+        float fillValue = currentDecoyCooldown / decoyCooldownTime;
         int remainingSeconds = Mathf.CeilToInt(currentDecoyCooldown);
         string textValue = (remainingSeconds > 0) ? remainingSeconds.ToString() : "";
 
@@ -210,7 +218,8 @@ public class InventoryManager : MonoBehaviour
         {
             int realIndex = GetRealDataIndex(allSlots[i].slotIndex);
 
-            if (realIndex < currentItems.Count && currentItems[realIndex] == decoyItemName)
+            // アイテム名の一致確認
+            if (realIndex < currentItems.Count && currentItems[realIndex] == decoyItemName)
             {
                 if (allSlots[i].cooldownImage != null)
                 {
@@ -234,7 +243,8 @@ public class InventoryManager : MonoBehaviour
         }
     }
 
-    public void UseDecoy()
+    // ... (UseDecoy, IsDecoyReadyはそのまま) ...
+    public void UseDecoy()
     {
         currentDecoyCooldown = decoyCooldownTime;
         UpdateCooldownUI();
@@ -245,7 +255,8 @@ public class InventoryManager : MonoBehaviour
         return currentDecoyCooldown <= 0;
     }
 
-    public void OnNextPageButton()
+    // ... (以下、既存の関数群。変更なし) ...
+    public void OnNextPageButton()
     {
         if (isAnimatingPage) return;
         if (currentPage < maxPages - 1)
@@ -321,20 +332,16 @@ public class InventoryManager : MonoBehaviour
             {
                 int realIndex = GetRealDataIndex(i);
                 if (realIndex < currentItems.Count && !string.IsNullOrEmpty(currentItems[realIndex]))
-                {
                     allSlots[i].SetItem(GetItemIcon(currentItems[realIndex]));
-                }
                 else
-                {
                     allSlots[i].ClearSlot();
-                }
             }
         }
 
         UpdateDescriptionPanel();
-        UpdateCooldownUI();
+        UpdateCooldownUI(); // ★重要：インベントリを開いた時やページ切り替え時に必ず呼び出して、最新の残り時間を反映する
 
-        if (pageNumberText != null) pageNumberText.text = (currentPage + 1) + " / " + maxPages;
+        if (pageNumberText != null) pageNumberText.text = (currentPage + 1) + " / " + maxPages;
 
         if (hudHotbarIcons != null)
         {
@@ -344,15 +351,11 @@ public class InventoryManager : MonoBehaviour
                 if (!string.IsNullOrEmpty(currentItems[i]))
                 {
                     hudHotbarIcons[i].sprite = GetItemIcon(currentItems[i]);
-                    // ★追加：ここでHUDアイコンの大きさを設定したサイズに変更する
-                    hudHotbarIcons[i].rectTransform.localScale = GetItemIconScale(currentItems[i]);
                     hudHotbarIcons[i].enabled = true;
                 }
                 else
                 {
                     hudHotbarIcons[i].sprite = null;
-                    // ★追加：アイテムが無いスロットは標準の大きさ(1,1,1)に戻しておく
-                    hudHotbarIcons[i].rectTransform.localScale = Vector3.one;
                     hudHotbarIcons[i].enabled = false;
                 }
             }
@@ -362,7 +365,9 @@ public class InventoryManager : MonoBehaviour
         if (nextPageButton != null) nextPageButton.gameObject.SetActive(currentPage < maxPages - 1);
     }
 
-    public void UpdateDescriptionPanel()
+    // ... (残りの関数群：UpdateDescriptionPanel, GetItemData, HandleSpaceKeyAction, MoveItemToBackpack, SwapItems, HandleCursorMovement, HandleSwapInput, EndSwapMode, ShowFullMessage, FadeOutMessageRoutine, HandleWeaponSwitchInput, UpdateCursorPosition, UpdateHUDSlotSelection, InitializeInventorySlots, ChangeSelectedSlot, PickUpItem, AddItem, DropItem, RemoveItem, GetItemIcon, GetItemTag, HasItem, GetEquippedItem, GetItemDataForSave, LoadItemData, ReflectInventoryToScene) ...
+    // これらは変更せず、そのまま記述してください（前回のコードと同じです）。
+    public void UpdateDescriptionPanel()
     {
         if (descriptionDisplayImage == null) return;
         int realIndex = GetRealDataIndex(currentCursorIndex);
@@ -495,17 +500,11 @@ public class InventoryManager : MonoBehaviour
     public void AddItem(string itemName) { int emptyIndex = currentItems.IndexOf(""); if (emptyIndex != -1) { currentItems[emptyIndex] = itemName; if (!itemTagDatabase.ContainsKey(itemName)) itemTagDatabase.Add(itemName, "Untagged"); UpdateInventoryUI(); UpdateHUDSlotSelection(); if (emptyIndex == equippedIndex && playerController != null) playerController.UpdateItemModel(); } else { ShowFullMessage(); } }
     public GameObject DropItem(string itemName, Vector3 position) { int index = currentItems.IndexOf(itemName); if (index == -1) return null; currentItems[index] = ""; UpdateInventoryUI(); if (!consumedItems.Contains(itemName)) { consumedItems.Add(itemName); } foreach (var pair in itemPrefabs) { if (pair.itemName == itemName || itemName.Contains(pair.itemName)) { GameObject droppedObj = Instantiate(pair.prefab, position, Quaternion.identity); droppedItemsList.Add(new DroppedItemInfo { itemName = itemName, position = position }); return droppedObj; } } return null; }
     public void RemoveItem(string itemName) { if (currentItems.Contains(itemName)) currentItems.Remove(itemName); if (!consumedItems.Contains(itemName)) { consumedItems.Add(itemName); } }
-
     public Sprite GetItemIcon(string itemName) { foreach (var d in itemDataList) if (itemName.Contains(d.itemName)) return d.icon; return null; }
-
-    // ★追加：アイテムのアイコンサイズを取得する関数
-    public Vector3 GetItemIconScale(string itemName) { foreach (var d in itemDataList) if (itemName.Contains(d.itemName)) return d.iconScale; return Vector3.one; }
-
     public string GetItemTag(string itemName) { if (itemTagDatabase.ContainsKey(itemName)) return itemTagDatabase[itemName]; return "Untagged"; }
     public bool HasItem(string itemName) { return currentItems.Contains(itemName); }
     public string GetEquippedItem() { if (currentItems != null && equippedIndex >= 0 && equippedIndex < currentItems.Count) return currentItems[equippedIndex]; return ""; }
     public List<string> GetItemDataForSave() { return currentItems; }
-
     public void LoadItemData(List<string> loadedItems)
     {
         currentItems = loadedItems;
@@ -521,7 +520,10 @@ public class InventoryManager : MonoBehaviour
         UpdateInventoryUI();
         UpdateHUDSlotSelection();
 
-        if (playerController == null) playerController = FindAnyObjectByType<PlayerController>();
+        // =========================================================
+        // ★ここを追加：ロードが終わった直後に、新しいプレイヤーの手元モデルを更新させる！
+        // =========================================================
+        if (playerController == null) playerController = FindAnyObjectByType<PlayerController>();
         if (playerController != null)
         {
             playerController.UpdateItemModel();
@@ -536,20 +538,23 @@ public class InventoryManager : MonoBehaviour
             if (obj != null) obj.SetActive(false);
         }
 
-        foreach (string itemName in consumedItems)
+        // ② すでに使って無くなった（消費した）アイテムも元の場所から消す
+        foreach (string itemName in consumedItems)
         {
             if (string.IsNullOrEmpty(itemName)) continue;
             GameObject obj = GameObject.Find(itemName);
             if (obj != null) obj.SetActive(false);
         }
 
-        foreach (DroppedItemInfo info in droppedItemsList)
+        // ③ ★追加：ドロップして地面に落ちているアイテムを、ドロップした場所に復元する
+        foreach (DroppedItemInfo info in droppedItemsList)
         {
             foreach (var pair in itemPrefabs)
             {
                 if (pair.itemName == info.itemName || info.itemName.Contains(pair.itemName))
                 {
-                    Instantiate(pair.prefab, info.position, Quaternion.identity);
+                    // 記憶しておいた座標にアイテムを生み出す
+                    Instantiate(pair.prefab, info.position, Quaternion.identity);
                     break;
                 }
             }

@@ -97,7 +97,7 @@ public class SingleDoorController : MonoBehaviour
 
     void Update()
     {
-        // ★ 他の字幕が再生中なら、UIを隠して入力を受け付けない
+        // 他の字幕が再生中なら、UIを隠して入力を受け付けない
         if (GlobalSubtitleState.IsAnySubtitlePlaying && !isAnimating)
         {
             if (guideText != null) guideText.SetActive(false);
@@ -162,11 +162,11 @@ public class SingleDoorController : MonoBehaviour
         if (targetImages == null || targetImages.Length == 0) yield break;
 
         isAnimating = true; // 連打防止
-        GlobalSubtitleState.IsAnySubtitlePlaying = true; // ★ グローバルロックON
+        GlobalSubtitleState.IsAnySubtitlePlaying = true; // グローバルロックON
 
         if (guideText != null) guideText.SetActive(false); // Eキー案内を消す
 
-        // ★時間を止める！（敵もプレイヤーも動けなくなる）
+        // 時間を止める！（敵もプレイヤーも動けなくなる）
         Time.timeScale = 0f;
         if (player != null) player.canControl = false;
 
@@ -225,12 +225,12 @@ public class SingleDoorController : MonoBehaviour
             }
         }
 
-        // ★時間が動き出す！
+        // 時間が動き出す！
         Time.timeScale = 1f;
         if (player != null) player.canControl = true;
 
         isAnimating = false;
-        GlobalSubtitleState.IsAnySubtitlePlaying = false; // ★ グローバルロックOFF
+        GlobalSubtitleState.IsAnySubtitlePlaying = false; // グローバルロックOFF
 
         // まだドアの前にいたらEキー案内を再表示
         if (isPlayerNearby && guideText != null) guideText.SetActive(true);
@@ -247,26 +247,20 @@ public class SingleDoorController : MonoBehaviour
         {
             player.HandleAttackInput();
 
-            // モーションがドアに当たるまで少し待つ
-            yield return new WaitForSeconds(0.9f);
-
-            // 鍵が必要なドアだった場合は、鍵をインベントリから消してUI更新
+            // 鍵が必要なドアだった場合は、鍵をインベントリから消してUI更新（待機を削除して即時実行）
             if (!string.IsNullOrEmpty(requiredKeyName))
             {
                 player.inventoryManager.RemoveItem(requiredKeyName);
                 player.inventoryManager.UpdateInventoryUI();
-                Debug.Log("鍵を使用してドアを開けました");
             }
         }
 
-        // ドアを開くアニメーションへ移行
-        StartCoroutine(OperateDoor());
+        // ドアを開くアニメーションへ即座に移行
+        yield return StartCoroutine(OperateDoor());
     }
 
     private IEnumerator OperateDoor()
     {
-        Debug.Log("Door Start");
-
         Quaternion startRot = targetDoor.localRotation;
         Quaternion endRot = isOpen ? closedRot : openRot;
 
@@ -299,7 +293,6 @@ public class SingleDoorController : MonoBehaviour
         isAnimating = false; // 操作ロック解除
     }
 
-    // 近づいた時
     void OnTriggerEnter(Collider other)
     {
         if (other.CompareTag("Player"))
@@ -312,7 +305,6 @@ public class SingleDoorController : MonoBehaviour
         }
     }
 
-    // 離れた時
     void OnTriggerExit(Collider other)
     {
         if (other.CompareTag("Player"))

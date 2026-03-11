@@ -1,76 +1,108 @@
 using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 
 public class PuzzleButton : MonoBehaviour
 {
-    public int buttonID; // １～４の番号
+    public int buttonID; // 1～4の番号
     public PuzzleManager manager;
 
-    [Header("光る色設定")]
-    public Color normalColor = Color.gray;
-    public Color hoverColor = new Color(0.8f, 0.8f, 0.8f); // ★追加：クロスヘアが合っている時の色（明るいグレー）
-    public Color glowColor = Color.yellow;
-    public Color wrongColor = Color.red;
+    [Header("ボタンの動作設定")]
+    [Tooltip("実際にZ軸方向に動かしたい「ボタンの見た目（モデル）」を登録してください")]
+    public Transform partToMove;
 
-    private Renderer rend;
-    private bool isHovered = false; // ★追加：今見つめられているか
-    private bool isFlashing = false; // 正解/不正解で光っている最中か
+    [Tooltip("押し込まれた時のZ軸のローカル座標（例: -0.0115）")]
+    public float pressedZ = -0.0115f;
+
+    [Tooltip("押し込むのにかかる時間（秒）")]
+    public float pushDuration = 0.15f;
+
+    [Tooltip("押し込んだ後、元の位置に戻るのにかかる時間（秒）")]
+    public float returnDuration = 0.15f;
+
+    [Header("音声設定")]
+    [Tooltip("音を鳴らすためのAudioSource")]
+    public AudioSource audioSource;
+    [Tooltip("ボタンを押した時の「ポチッ」という音")]
+    public AudioClip clickSound;
+
+    // 内部変数
+    private Vector3 originalLocalPos;
+    private bool isMoving = false;
 
     private void Start()
     {
-        rend = GetComponent<Renderer>();
-        rend.material.color = normalColor;
-    }
-
-    private void Update()
-    {
-        // ピカッと光っている最中は色を戻さない
-        if (isFlashing) return;
-
-        // クロスヘアが合っていればホバー色、外れれば通常色にする
-        if (isHovered)
+        // もしInspectorで動かすパーツが設定されていなければ、このスクリプトがついているオブジェクト自身を動かす
+        if (partToMove == null)
         {
-            rend.material.color = hoverColor;
-        }
-        else
-        {
-            rend.material.color = normalColor;
+            partToMove = this.transform;
         }
 
-        // 毎フレーム解除する（クロスヘアが合っていればすぐ下の関数で再びtrueになる）
-        isHovered = false;
+        // 初期位置（Z=0などの元の場所）を記憶しておく
+        originalLocalPos = partToMove.localPosition;
+
+        if (audioSource == null)
+        {
+            audioSource = GetComponent<AudioSource>();
+        }
     }
 
-    // ★追加：クロスヘアが合っている時に外部から毎フレーム呼ばれる
-    public void OnHover()
-    {
-        isHovered = true;
-    }
+    // 外部（ItemUse.cs）から呼ばれるが、色変更をなくしたため中身は空（エラー防止用）
+    public void OnHover() { }
 
     public void PressButton()
     {
-        GlowCorrect();
-        manager.InputButton(buttonID, this);
+        // 既に動いている最中なら、連打できないようにする
+        if (isMoving) return;
+
+        // ボタンが押し込まれるアニメーションを開始
+        StartCoroutine(ButtonPressRoutine());
+
+        // マネージャーに通知する
+        if (manager != null)
+        {
+            manager.InputButton(buttonID, this);
+        }
     }
 
-    public void GlowCorrect()
+    private IEnumerator ButtonPressRoutine()
     {
-        isFlashing = true;
-        rend.material.color = glowColor;
-        Invoke(nameof(ResetColor), 0.3f);
+        isMoving = true;
+
+        // 1. 音を鳴らす
+        if (audioSource != null && clickSound != null)
+        {
+            audioSource.PlayOneShot(clickSound);
+        }
+
+        // 2. 押し込む動き（現在の位置から、指定したpressedZへ）
+        float elapsed = 0f;
+        Vector3 targetPos = new Vector3(originalLocalPos.x, originalLocalPos.y, pressedZ);
+
+        while (elapsed < pushDuration)
+        {
+            elapsed += Time.deltaTime;
+            float t = elapsed / pushDuration;
+            partToMove.localPosition = Vector3.Lerp(originalLocalPos, targetPos, t);
+            yield return null;
+        }
+        partToMove.localPosition = targetPos; // ズレ防止で最後にピッタリ合わせる
+
+        // 3. 元に戻る動き（pressedZから、元の位置へ）
+        elapsed = 0f;
+        while (elapsed < returnDuration)
+        {
+            elapsed += Time.deltaTime;
+            float t = elapsed / returnDuration;
+            partToMove.localPosition = Vector3.Lerp(targetPos, originalLocalPos, t);
+            yield return null;
+        }
+        partToMove.localPosition = originalLocalPos;
+
+        isMoving = false;
     }
 
-    public void GlowWrong()
-    {
-        isFlashing = true;
-        rend.material.color = wrongColor;
-        Invoke(nameof(ResetColor), 0.4f);
-    }
-
-    public void ResetColor()
-    {
-        isFlashing = false;
-        // 色はUpdateメソッドで自動的に戻ります
-    }
+    // マネージャーから呼ばれていた色変更の関数（エラー防止のため中身を空にして残しています）
+    public void GlowCorrect() { }
+    public void GlowWrong() { }
+    public void ResetColor() { }
 }

@@ -58,7 +58,7 @@ public class SimpleSingleDoorController : MonoBehaviour
 
     void Update()
     {
-        // ★ 他の字幕が再生中なら、UIを隠して入力を受け付けない
+        // 他の字幕が再生中なら、UIを隠して入力を受け付けない
         if (GlobalSubtitleState.IsAnySubtitlePlaying && !isAnimating)
         {
             if (guideText != null) guideText.SetActive(false);
@@ -81,7 +81,7 @@ public class SimpleSingleDoorController : MonoBehaviour
         }
     }
 
-    // ドアを開ける際の手を伸ばすアクション処理
+    // ドアを開ける際のアクション処理
     private IEnumerator ForceOpenRoutine()
     {
         isAnimating = true; // ロック
@@ -92,12 +92,12 @@ public class SimpleSingleDoorController : MonoBehaviour
         {
             player.HandleAttackInput();
 
-            // モーションがドアに当たるまで少し待つ
-            yield return new WaitForSeconds(0.9f);
+            // ★変更：ここにあった「0.9秒待つ」処理を削除しました！
+            // 手を動かすと同時にすぐ下の「ドアを開く処理」へ進みます。
         }
 
-        // ドアを開くアニメーションへ移行
-        StartCoroutine(OperateDoor());
+        // ドアを開くアニメーションへ即座に移行
+        yield return StartCoroutine(OperateDoor());
     }
 
     // 実際にドアを回転させる処理

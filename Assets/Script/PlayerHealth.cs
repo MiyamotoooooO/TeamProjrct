@@ -43,7 +43,14 @@ public class PlayerHealth : MonoBehaviour
         if (sandStormUI != null)
         {
             sandStormPlayer = sandStormUI.GetComponent<VideoPlayer>();
-            if (sandStormPlayer != null) sandStormPlayer.Stop();
+            if (sandStormPlayer != null)
+            {
+                sandStormPlayer.Stop();
+                // ========================================================
+                // ★追加：ゲーム開始時に動画を裏で読み込んでおく（ラグ防止）
+                // ========================================================
+                sandStormPlayer.Prepare();
+            }
             sandStormUI.SetActive(false);
         }
     }
@@ -56,6 +63,9 @@ public class PlayerHealth : MonoBehaviour
         if (playerMovementScript != null) playerMovementScript.enabled = false;
         if (lighterSystem != null) lighterSystem.canUseLighter = false;
 
+        // ========================================================
+        // ★映像と音を即座に出す
+        // ========================================================
         if (sandStormUI != null)
         {
             sandStormUI.SetActive(true);
@@ -155,9 +165,7 @@ public class PlayerHealth : MonoBehaviour
             yield return null;
         }
 
-        // ========================================================
-        // ★変更：WakeUpControllerに「もう一度寝かせる」処理を丸投げする
-        // ========================================================
+        // WakeUpControllerに「もう一度寝かせる」処理を丸投げする
         WakeUpController wakeUp = FindAnyObjectByType<WakeUpController>();
         if (wakeUp != null)
         {
@@ -165,28 +173,28 @@ public class PlayerHealth : MonoBehaviour
         }
         else
         {
-            // もし見つからなかった場合の保険
             transform.position = new Vector3(0, 2, 0);
             playerCamera.transform.localRotation = Quaternion.identity;
         }
 
-        // 3. UIやエフェクトを消して元に戻す
+        // UIやエフェクトを消して元に戻す
         if (sandStormUI != null)
         {
             sandStormUI.SetActive(false);
             if (sandStormPlayer != null) sandStormPlayer.Stop();
         }
 
-        // 4. 止めていた敵の動きを再開させる
+        if (audioSource != null)
+        {
+            audioSource.Stop();
+        }
+
+        // 止めていた敵の動きを再開させる
         ResumeAllEnemies();
 
-        // 5. 死亡中のイベントロックも念のため解除
+        // 死亡中のイベントロックも念のため解除
         GlobalSubtitleState.IsAnySubtitlePlaying = false;
 
-        // 注意：ここで操作を true に戻しません！
-        // 「Bキーで起き上がる演出」が終わった後に WakeUpSequence の中で操作可能になります。
-
         isDead = false;
-        Debug.Log("リスポーン地点で寝かされました。アイテム状況はキープされています！");
     }
 }
