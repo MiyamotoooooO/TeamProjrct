@@ -49,13 +49,6 @@ public class InventoryManager : MonoBehaviour
         public string itemName;
         public Sprite icon;
 
-        // ==========================================
-        // ★追加：アイテムアイコンのサイズ調整機能
-        // ==========================================
-        [Header("アイコン表示設定")]
-        [Tooltip("HUDでのアイコンの大きさ (1, 1, 1 が標準)")]
-        public Vector3 iconScale = Vector3.one;
-
         [Header("説明パネル設定")]
         [Tooltip("説明欄に表示する画像")]
         public Sprite description;
@@ -110,6 +103,7 @@ public class InventoryManager : MonoBehaviour
     private Coroutine messageCoroutine;
     private Vector2 originalContainerPosition;
 
+    // ★重要：ここはpublicにしておくと、Inspectorで残り時間を確認できてデバッグしやすいです
     [Header("デバッグ用")]
     public float currentDecoyCooldown = 0f;
 
@@ -146,25 +140,19 @@ public class InventoryManager : MonoBehaviour
 
     private void Update()
     {
-        if (playerController == null)
-        {
-            playerController = FindAnyObjectByType<PlayerController>();
-
-            if (playerController != null)
-            {
-                playerController.UpdateItemModel();
-            }
-
-            if (playerController == null) return;
-        }
-
+        // ★重要：クールダウンの計算は、インベントリが開いているかどうかに関わらず常に行う
         if (currentDecoyCooldown > 0)
         {
             currentDecoyCooldown -= Time.unscaledDeltaTime;
+
             if (currentDecoyCooldown < 0) currentDecoyCooldown = 0;
+
+            // ★UI更新は「インベントリが開いている時」だけ行えば負荷が軽いですが、
+            // 閉じていても呼んで問題ありません（非表示のUIを更新するだけなので）
             UpdateCooldownUI();
         }
 
+        // ここから下はインベントリ操作など
         if (playerController != null && !playerController.isInventoryOpen)
         {
             HandleWeaponSwitchInput();
@@ -188,6 +176,7 @@ public class InventoryManager : MonoBehaviour
         }
     }
 
+    // ... (GetRealDataIndexなどの関数はそのまま) ...
     public int GetRealDataIndex(int uiSlotIndex)
     {
         if (uiSlotIndex < 3) return uiSlotIndex;
@@ -198,9 +187,14 @@ public class InventoryManager : MonoBehaviour
         }
     }
 
+    // --- クールダウンUI更新 ---
+    // ここでUIへの反映を行う
     void UpdateCooldownUI()
     {
         if (allSlots == null) return;
+
+        // インベントリ画面（inventoryUIPanel）が非アクティブなら、UI操作をスキップしても良い
+        // ただし、UpdateInventoryUIが呼ばれた直後は強制的に更新したいので、ここではチェックしないでおく
 
         float fillValue = currentDecoyCooldown / decoyCooldownTime;
         int remainingSeconds = Mathf.CeilToInt(currentDecoyCooldown);
@@ -210,6 +204,7 @@ public class InventoryManager : MonoBehaviour
         {
             int realIndex = GetRealDataIndex(allSlots[i].slotIndex);
 
+            // アイテム名の一致確認
             if (realIndex < currentItems.Count && currentItems[realIndex] == decoyItemName)
             {
                 if (allSlots[i].cooldownImage != null)
@@ -234,6 +229,7 @@ public class InventoryManager : MonoBehaviour
         }
     }
 
+    // ... (UseDecoy, IsDecoyReadyはそのまま) ...
     public void UseDecoy()
     {
         currentDecoyCooldown = decoyCooldownTime;
@@ -245,6 +241,7 @@ public class InventoryManager : MonoBehaviour
         return currentDecoyCooldown <= 0;
     }
 
+    // ... (以下、既存の関数群。変更なし) ...
     public void OnNextPageButton()
     {
         if (isAnimatingPage) return;
@@ -321,18 +318,14 @@ public class InventoryManager : MonoBehaviour
             {
                 int realIndex = GetRealDataIndex(i);
                 if (realIndex < currentItems.Count && !string.IsNullOrEmpty(currentItems[realIndex]))
-                {
                     allSlots[i].SetItem(GetItemIcon(currentItems[realIndex]));
-                }
                 else
-                {
                     allSlots[i].ClearSlot();
-                }
             }
         }
 
         UpdateDescriptionPanel();
-        UpdateCooldownUI();
+        UpdateCooldownUI(); // ★重要：インベントリを開いた時やページ切り替え時に必ず呼び出して、最新の残り時間を反映する
 
         if (pageNumberText != null) pageNumberText.text = (currentPage + 1) + " / " + maxPages;
 
@@ -344,15 +337,11 @@ public class InventoryManager : MonoBehaviour
                 if (!string.IsNullOrEmpty(currentItems[i]))
                 {
                     hudHotbarIcons[i].sprite = GetItemIcon(currentItems[i]);
-                    // ★追加：ここでHUDアイコンの大きさを設定したサイズに変更する
-                    hudHotbarIcons[i].rectTransform.localScale = GetItemIconScale(currentItems[i]);
                     hudHotbarIcons[i].enabled = true;
                 }
                 else
                 {
                     hudHotbarIcons[i].sprite = null;
-                    // ★追加：アイテムが無いスロットは標準の大きさ(1,1,1)に戻しておく
-                    hudHotbarIcons[i].rectTransform.localScale = Vector3.one;
                     hudHotbarIcons[i].enabled = false;
                 }
             }
@@ -362,6 +351,8 @@ public class InventoryManager : MonoBehaviour
         if (nextPageButton != null) nextPageButton.gameObject.SetActive(currentPage < maxPages - 1);
     }
 
+    // ... (残りの関数群：UpdateDescriptionPanel, GetItemData, HandleSpaceKeyAction, MoveItemToBackpack, SwapItems, HandleCursorMovement, HandleSwapInput, EndSwapMode, ShowFullMessage, FadeOutMessageRoutine, HandleWeaponSwitchInput, UpdateCursorPosition, UpdateHUDSlotSelection, InitializeInventorySlots, ChangeSelectedSlot, PickUpItem, AddItem, DropItem, RemoveItem, GetItemIcon, GetItemTag, HasItem, GetEquippedItem, GetItemDataForSave, LoadItemData, ReflectInventoryToScene) ...
+    // これらは変更せず、そのまま記述してください（前回のコードと同じです）。
     public void UpdateDescriptionPanel()
     {
         if (descriptionDisplayImage == null) return;
@@ -386,74 +377,50 @@ public class InventoryManager : MonoBehaviour
         return null;
     }
 
-    void HandleSpaceKeyAction()
-    {
-        int realCurrentIndex = GetRealDataIndex(currentCursorIndex);
-        if (realCurrentIndex >= currentItems.Count || string.IsNullOrEmpty(currentItems[realCurrentIndex])) return;
-        if (currentCursorIndex < 3) MoveItemToBackpack(realCurrentIndex);
-        else
-        {
-            isSwapMode = true;
-            if (swapPromptPanel != null) swapPromptPanel.SetActive(true);
-            if (playerController != null) playerController.SetBlurState(true);
-        }
+    void HandleSpaceKeyAction() 
+    { int realCurrentIndex = GetRealDataIndex(currentCursorIndex); 
+        if (realCurrentIndex >= currentItems.Count || string.IsNullOrEmpty(currentItems[realCurrentIndex])) return; 
+        if (currentCursorIndex < 3) MoveItemToBackpack(realCurrentIndex); 
+        else { isSwapMode = true; 
+        if (swapPromptPanel != null) swapPromptPanel.SetActive(true); 
+        if (playerController != null) playerController.SetBlurState(true); }
     }
-    void MoveItemToBackpack(int fromIndex)
-    {
-        int emptySlot = -1;
-        for (int i = 3; i < currentItems.Count; i++)
+    void MoveItemToBackpack(int fromIndex) 
+    { int emptySlot = -1; 
+        for (int i = 3; i < currentItems.Count; i++) 
         { if (string.IsNullOrEmpty(currentItems[i])) { emptySlot = i; break; } }
-        if (emptySlot != -1)
-        {
-            currentItems[emptySlot] = currentItems[fromIndex];
-            currentItems[fromIndex] = ""; UpdateInventoryUI();
-            if (playerController != null) playerController.UpdateItemModel();
-        }
-        else ShowFullMessage();
-    }
-    public void SwapItems(int uiIndexA, int uiIndexB)
-    {
-        int realIndexA = GetRealDataIndex(uiIndexA);
-        int realIndexB = GetRealDataIndex(uiIndexB); if (realIndexA >= currentItems.Count || realIndexB >= currentItems.Count) return;
-        string temp = currentItems[realIndexA];
-        currentItems[realIndexA] = currentItems[realIndexB];
-        currentItems[realIndexB] = temp; UpdateInventoryUI();
-        if (playerController != null) playerController.UpdateItemModel();
-    }
-    void HandleCursorMovement()
-    {
-        int prevIndex = currentCursorIndex; if (Input.GetKeyDown(KeyCode.W))
-        {
-            if (currentCursorIndex == 1) currentCursorIndex = 0;
-            else if (currentCursorIndex == 2) currentCursorIndex = 1;
-            else if (currentCursorIndex >= 6) currentCursorIndex -= 3;
-        }
-        if (Input.GetKeyDown(KeyCode.S))
-        {
-            if (currentCursorIndex == 0) currentCursorIndex = 1;
-            else if (currentCursorIndex == 1) currentCursorIndex = 2;
-            else if (currentCursorIndex >= 3 && currentCursorIndex < 9) currentCursorIndex += 3;
-        }
-        if (Input.GetKeyDown(KeyCode.A))
-        {
-            if (currentCursorIndex >= 3)
-            {
-                if (currentCursorIndex == 3) currentCursorIndex = 0;
+        if (emptySlot != -1) { currentItems[emptySlot] = currentItems[fromIndex]; 
+        currentItems[fromIndex] = ""; UpdateInventoryUI(); 
+        if (playerController != null) playerController.UpdateItemModel(); }
+        else ShowFullMessage(); }
+    public void SwapItems(int uiIndexA, int uiIndexB) 
+    { int realIndexA = GetRealDataIndex(uiIndexA); 
+        int realIndexB = GetRealDataIndex(uiIndexB); if (realIndexA >= currentItems.Count || realIndexB >= currentItems.Count) return; 
+        string temp = currentItems[realIndexA]; 
+        currentItems[realIndexA] = currentItems[realIndexB]; 
+        currentItems[realIndexB] = temp; UpdateInventoryUI(); 
+        if (playerController != null) playerController.UpdateItemModel(); }
+    void HandleCursorMovement() 
+    { int prevIndex = currentCursorIndex; if (Input.GetKeyDown(KeyCode.W)) 
+        { if (currentCursorIndex == 1) currentCursorIndex = 0; else if (currentCursorIndex == 2) currentCursorIndex = 1; 
+            else if (currentCursorIndex >= 6) currentCursorIndex -= 3; } 
+        if (Input.GetKeyDown(KeyCode.S)) 
+        { if (currentCursorIndex == 0) currentCursorIndex = 1; 
+            else if (currentCursorIndex == 1) currentCursorIndex = 2; 
+            else if (currentCursorIndex >= 3 && currentCursorIndex < 9) currentCursorIndex += 3; }
+        if (Input.GetKeyDown(KeyCode.A)) 
+        { if (currentCursorIndex >= 3) 
+            { if (currentCursorIndex == 3) currentCursorIndex = 0;
                 else if (currentCursorIndex == 6) currentCursorIndex = 1;
                 else if (currentCursorIndex == 9) currentCursorIndex = 2;
-                else currentCursorIndex -= 1;
-            }
-        }
-        if (Input.GetKeyDown(KeyCode.D))
-        {
-            if (currentCursorIndex == 0) currentCursorIndex = 3;
-            else if (currentCursorIndex == 1) currentCursorIndex = 6;
-            else if (currentCursorIndex == 2) currentCursorIndex = 9;
-            else if (currentCursorIndex >= 3)
-            { if (currentCursorIndex != 5 && currentCursorIndex != 8 && currentCursorIndex != 11) currentCursorIndex += 1; }
-        }
-        if (prevIndex != currentCursorIndex) { UpdateCursorPosition(); UpdateDescriptionPanel(); }
-    }
+                else currentCursorIndex -= 1; } 
+        } if (Input.GetKeyDown(KeyCode.D)) 
+        { if (currentCursorIndex == 0) currentCursorIndex = 3; 
+            else if (currentCursorIndex == 1) currentCursorIndex = 6; 
+            else if (currentCursorIndex == 2) currentCursorIndex = 9; 
+            else if (currentCursorIndex >= 3) 
+            { if (currentCursorIndex != 5 && currentCursorIndex != 8 && currentCursorIndex != 11) currentCursorIndex += 1; } } 
+        if (prevIndex != currentCursorIndex) { UpdateCursorPosition(); UpdateDescriptionPanel(); } }
     void HandleSwapInput() { int targetUiSlot = -1; if (Input.GetKeyDown(KeyCode.Alpha1)) targetUiSlot = 0; if (Input.GetKeyDown(KeyCode.Alpha2)) targetUiSlot = 1; if (Input.GetKeyDown(KeyCode.Alpha3)) targetUiSlot = 2; if (Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.Escape)) { EndSwapMode(); return; } if (targetUiSlot != -1) { SwapItems(currentCursorIndex, targetUiSlot); EndSwapMode(); } }
     void EndSwapMode() { isSwapMode = false; if (swapPromptPanel != null) swapPromptPanel.SetActive(false); if (playerController != null) playerController.SetBlurState(false); }
     void ShowFullMessage() { if (fullMessageText == null) return; if (messageCoroutine != null) StopCoroutine(messageCoroutine); messageCoroutine = StartCoroutine(FadeOutMessageRoutine()); }
@@ -463,8 +430,7 @@ public class InventoryManager : MonoBehaviour
     void UpdateHUDSlotSelection() { if (hudHotbarFrames == null) return; for (int i = 0; i < hudHotbarFrames.Length; i++) { if (hudHotbarFrames[i] == null) continue; Color c = hudHotbarFrames[i].color; float alpha = (i == equippedIndex) ? selectedAlpha : unselectedAlpha; c.a = alpha / 255f; hudHotbarFrames[i].color = c; } }
     private void InitializeInventorySlots() { if (allSlots == null) return; for (int i = 0; i < allSlots.Length; i++) { allSlots[i].slotIndex = i; allSlots[i].manager = this; } }
     public void ChangeSelectedSlot(int slotIndex) { if (slotIndex < 0 || slotIndex >= currentItems.Count || string.IsNullOrEmpty(currentItems[slotIndex])) { return; } equippedIndex = slotIndex; if (playerController != null) playerController.UpdateItemModel(); UpdateHUDSlotSelection(); }
-    public void PickUpItem(GameObject itemObj)
-    {
+    public void PickUpItem(GameObject itemObj) {
         string cleanName = itemObj.name.Replace("(Clone)", "").Trim();
         string tag = itemObj.tag;
         int emptyIndex = currentItems.IndexOf("");
@@ -493,42 +459,15 @@ public class InventoryManager : MonoBehaviour
         }
     }
     public void AddItem(string itemName) { int emptyIndex = currentItems.IndexOf(""); if (emptyIndex != -1) { currentItems[emptyIndex] = itemName; if (!itemTagDatabase.ContainsKey(itemName)) itemTagDatabase.Add(itemName, "Untagged"); UpdateInventoryUI(); UpdateHUDSlotSelection(); if (emptyIndex == equippedIndex && playerController != null) playerController.UpdateItemModel(); } else { ShowFullMessage(); } }
-    public GameObject DropItem(string itemName, Vector3 position) { int index = currentItems.IndexOf(itemName); if (index == -1) return null; currentItems[index] = ""; UpdateInventoryUI(); if (!consumedItems.Contains(itemName)) { consumedItems.Add(itemName); } foreach (var pair in itemPrefabs) { if (pair.itemName == itemName || itemName.Contains(pair.itemName)) { GameObject droppedObj = Instantiate(pair.prefab, position, Quaternion.identity); droppedItemsList.Add(new DroppedItemInfo { itemName = itemName, position = position }); return droppedObj; } } return null; }
-    public void RemoveItem(string itemName) { if (currentItems.Contains(itemName)) currentItems.Remove(itemName); if (!consumedItems.Contains(itemName)) { consumedItems.Add(itemName); } }
-
+    public GameObject DropItem(string itemName, Vector3 position){int index = currentItems.IndexOf(itemName); if (index == -1) return null; currentItems[index] = ""; UpdateInventoryUI(); if (!consumedItems.Contains(itemName)) { consumedItems.Add(itemName); }foreach (var pair in itemPrefabs){if (pair.itemName == itemName || itemName.Contains(pair.itemName)){GameObject droppedObj = Instantiate(pair.prefab, position, Quaternion.identity);droppedItemsList.Add(new DroppedItemInfo { itemName = itemName, position = position });return droppedObj;}}return null;}
+    public void RemoveItem(string itemName) { if (currentItems.Contains(itemName)) currentItems.Remove(itemName); if (!consumedItems.Contains(itemName)){consumedItems.Add(itemName);}}
     public Sprite GetItemIcon(string itemName) { foreach (var d in itemDataList) if (itemName.Contains(d.itemName)) return d.icon; return null; }
-
-    // ★追加：アイテムのアイコンサイズを取得する関数
-    public Vector3 GetItemIconScale(string itemName) { foreach (var d in itemDataList) if (itemName.Contains(d.itemName)) return d.iconScale; return Vector3.one; }
-
     public string GetItemTag(string itemName) { if (itemTagDatabase.ContainsKey(itemName)) return itemTagDatabase[itemName]; return "Untagged"; }
     public bool HasItem(string itemName) { return currentItems.Contains(itemName); }
     public string GetEquippedItem() { if (currentItems != null && equippedIndex >= 0 && equippedIndex < currentItems.Count) return currentItems[equippedIndex]; return ""; }
     public List<string> GetItemDataForSave() { return currentItems; }
-
-    public void LoadItemData(List<string> loadedItems)
-    {
-        currentItems = loadedItems;
-        while (currentItems.Count < maxSlots) currentItems.Add("");
-        itemTagDatabase.Clear();
-
-        foreach (var item in currentItems)
-        {
-            if (!string.IsNullOrEmpty(item)) GetItemTag(item);
-        }
-
-        ReflectInventoryToScene();
-        UpdateInventoryUI();
-        UpdateHUDSlotSelection();
-
-        if (playerController == null) playerController = FindAnyObjectByType<PlayerController>();
-        if (playerController != null)
-        {
-            playerController.UpdateItemModel();
-        }
-    }
-    private void ReflectInventoryToScene()
-    {
+    public void LoadItemData(List<string> loadedItems) { currentItems = loadedItems; while (currentItems.Count < maxSlots) currentItems.Add(""); itemTagDatabase.Clear(); foreach (var item in currentItems) if (!string.IsNullOrEmpty(item)) GetItemTag(item); ReflectInventoryToScene(); UpdateInventoryUI(); UpdateHUDSlotSelection(); }
+    private void ReflectInventoryToScene() {
         foreach (string itemName in currentItems)
         {
             if (string.IsNullOrEmpty(itemName)) continue;
@@ -536,6 +475,7 @@ public class InventoryManager : MonoBehaviour
             if (obj != null) obj.SetActive(false);
         }
 
+        // ② すでに使って無くなった（消費した）アイテムも元の場所から消す
         foreach (string itemName in consumedItems)
         {
             if (string.IsNullOrEmpty(itemName)) continue;
@@ -543,12 +483,14 @@ public class InventoryManager : MonoBehaviour
             if (obj != null) obj.SetActive(false);
         }
 
+        // ③ ★追加：ドロップして地面に落ちているアイテムを、ドロップした場所に復元する
         foreach (DroppedItemInfo info in droppedItemsList)
         {
             foreach (var pair in itemPrefabs)
             {
                 if (pair.itemName == info.itemName || info.itemName.Contains(pair.itemName))
                 {
+                    // 記憶しておいた座標にアイテムを生み出す
                     Instantiate(pair.prefab, info.position, Quaternion.identity);
                     break;
                 }

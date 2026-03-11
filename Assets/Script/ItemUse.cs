@@ -33,28 +33,15 @@ public class ItemUse : MonoBehaviour
     public float bubble_duration = 2f;
 
     // ==========================================
-    // 演出・字幕・暗転設定
+    // ★追加：演出・字幕・暗転設定
     // ==========================================
     [Header("【演出】暗転設定")]
     [Tooltip("画面を真っ暗にするためのPostProcessVolume")]
     public PostProcessVolume blackFadeVolume;
     [Tooltip("暗転にかかる時間（秒）")]
     public float blackFadeDuration = 1.5f;
-
-    // ==========================================
-    // ★追加：音声演出の設定
-    // ==========================================
-    [Header("【演出】音声設定")]
-    [Tooltip("音を鳴らすためのAudioSource（プレイヤーやカメラに付けたものを登録）")]
-    public AudioSource audioSource;
-    [Tooltip("暗転直後に鳴らす1つ目の音")]
-    public AudioClip firstSound;
-    [Tooltip("1つ目の後に鳴らす2つ目の音")]
-    public AudioClip secondSound;
-    [Tooltip("2つ目の音をそのまま鳴らす時間（秒）")]
-    public float secondSoundDuration = 3.0f;
-    [Tooltip("2つ目の音がフェードアウトして消えるまでの時間（秒）")]
-    public float audioFadeDuration = 2.0f;
+    [Tooltip("真っ暗な状態を維持する時間（秒）")]
+    public float blackWaitTime = 1.0f;
 
     [Header("字幕：時間・フェード共通設定")]
     public float duration = 0.8f;
@@ -70,7 +57,7 @@ public class ItemUse : MonoBehaviour
     public Image[] endSubtitleImages;
 
     // ==========================================
-    // 選択肢UI設定
+    // ★追加：選択肢UI設定
     // ==========================================
     [Header("【Bloodlump】選択肢UI設定")]
     [Tooltip("クイズの問題文とボタンが含まれる親パネル")]
@@ -93,7 +80,7 @@ public class ItemUse : MonoBehaviour
         // 暗転ボリュームの初期化
         if (blackFadeVolume != null) blackFadeVolume.weight = 0f;
 
-        // 選択肢UIの初期化とボタン機能の登録
+        // ★選択肢UIの初期化とボタン機能の登録
         if (choicePanel != null) choicePanel.SetActive(false);
         if (yesButton != null) yesButton.onClick.AddListener(() => { isChoiceMade = true; isYesChosen = true; });
         if (noButton != null) noButton.onClick.AddListener(() => { isChoiceMade = true; isYesChosen = false; });
@@ -118,6 +105,7 @@ public class ItemUse : MonoBehaviour
 
     private void Update()
     {
+        // 他の字幕が再生中なら入力を受け付けない
         if (GlobalSubtitleState.IsAnySubtitlePlaying)
         {
             UseText.enabled = false;
@@ -144,16 +132,18 @@ public class ItemUse : MonoBehaviour
         Ray ray = new Ray(cam.transform.position, cam.transform.forward);
         RaycastHit hit;
 
+        // 何も当たらなかったら即終了
         if (!Physics.Raycast(ray, out hit, useDistance, Physics.AllLayers, QueryTriggerInteraction.Ignore))
         {
             return;
         }
 
-        // Bloodlump 処理
+        // ★ Bloodlump 処理
         if (hit.collider.CompareTag("Bloodlump"))
         {
             if (player.inventoryManager.HasItem(detergentName))
             {
+                // 演出用のコルーチンを呼び出す
                 StartCoroutine(BloodlumpSequence(hit.collider.gameObject, hit.point));
             }
             return;
@@ -181,11 +171,13 @@ public class ItemUse : MonoBehaviour
             string dirtykeyName = "Dirtykey";
             string cleankeyName = "Key";
 
+            // Dirtykeyを持っているか
             if (player.inventoryManager.HasItem(dirtykeyName))
             {
-                player.PlayItemSwing();
+                player.PlayItemSwing(); // 動作
                 await Task.Delay(800);
 
+                // Dirtykeyを削除してKeyを追加
                 player.inventoryManager.RemoveItem(dirtykeyName);
                 player.inventoryManager.AddItem(cleankeyName);
 
@@ -194,22 +186,37 @@ public class ItemUse : MonoBehaviour
 
                 return;
             }
+
             return;
         }
 
-        // Door
+        // Door 以外なら鍵処理は絶対にしない
         var door = hit.collider.GetComponentInParent<DoubleDoorController>();
-        if (door == null) return;
+        if (door == null)
+        {
+            return;
+        }
 
+        // 鍵名
         string requiredKeyName = keyObject.name.Replace("(Clone)", "").Trim();
 
-        if (!player.inventoryManager.HasItem(requiredKeyName)) return;
+        // 鍵を持っていなければ振らない
+        if (!player.inventoryManager.HasItem(requiredKeyName))
+        {
+            Debug.Log("鍵を持っていません：" + requiredKeyName);
+            return;
+        }
 
+        // 鍵のタグ確認
         string tag = player.inventoryManager.GetItemTag(requiredKeyName);
-        if (tag != "Key") return;
+        if (tag != "Key")
+        {
+            return; // 鍵じゃないなら振らない
+        }
 
-        player.canControl = false;
-        player.canLock = false;
+        // ここまで来て初めて鍵を振る（ドア確定）
+        player.canControl = false; // 移動停止
+        player.canLock = false; // 視点移動
 
         player.PlayKeySwing();
         await Task.Delay(1000);
@@ -233,8 +240,8 @@ public class ItemUse : MonoBehaviour
         if (hit.collider.CompareTag("PuzzleButton"))
         {
             PuzzleButton btn = hit.collider.GetComponent<PuzzleButton>();
-            if (btn != null) btn.OnHover();
-            return;
+            if (btn != null) btn.OnHover(); // ボタンの色を明るくする
+            return; // ボタンを見つめている時は他の判定をしない
         }
 
         if (hit.collider.CompareTag("RotateObject"))
@@ -244,33 +251,47 @@ public class ItemUse : MonoBehaviour
             return;
         }
 
+        // Bloodlump
         if (hit.collider.CompareTag("Bloodlump"))
         {
-            if (player.inventoryManager.HasItem(detergentName)) UseText.enabled = true;
+            if (player.inventoryManager.HasItem(detergentName))
+            {
+                UseText.enabled = true;
+            }
             return;
         }
 
+        // Door
         var door = hit.collider.GetComponentInParent<DoubleDoorController>();
         if (door != null)
         {
             string requiredKeyName = keyObject.name.Replace("(Clone)", "").Trim();
-            if (player.inventoryManager.HasItem(requiredKeyName)) UseText.enabled = true;
+
+            if (player.inventoryManager.HasItem(requiredKeyName))
+            {
+                UseText.enabled = true;
+            }
         }
 
+        // Sink
         if (hit.collider.CompareTag("Sink"))
         {
-            if (player.inventoryManager.HasItem("Dirtykey")) UseText.enabled = true;
+            if (player.inventoryManager.HasItem("Dirtykey"))
+            {
+                UseText.enabled = true;
+            }
             return;
         }
     }
 
     // ==========================================
-    // 血の塊の演出シーケンス
+    // 血の塊の演出シーケンス（選択肢付き）
     // ==========================================
     private IEnumerator BloodlumpSequence(GameObject bloodlumpObj, Vector3 hitPoint)
     {
-        GlobalSubtitleState.IsAnySubtitlePlaying = true;
+        GlobalSubtitleState.IsAnySubtitlePlaying = true; // 他の字幕やUIをロック
 
+        // プレイヤーの操作をロックして立ち止まらせる
         if (player != null)
         {
             player.canControl = false;
@@ -289,21 +310,24 @@ public class ItemUse : MonoBehaviour
         UnityEngine.Cursor.lockState = CursorLockMode.None;
         UnityEngine.Cursor.visible = true;
 
-        yield return new WaitUntil(() => isChoiceMade);
+        yield return new WaitUntil(() => isChoiceMade); // どちらかのボタンが押されるまで待機
 
+        // ボタンが押されたのでUIとカーソルを隠す
         if (choicePanel != null) choicePanel.SetActive(false);
         UnityEngine.Cursor.lockState = CursorLockMode.Locked;
         UnityEngine.Cursor.visible = false;
 
+        // ★「いいえ」が選ばれた場合はそのまま終了する
         if (!isYesChosen)
         {
             if (player != null) player.canControl = true;
             GlobalSubtitleState.IsAnySubtitlePlaying = false;
-            yield break;
+            yield break; // ここで処理を完全にストップ
         }
 
+        // ★「はい」が選ばれた場合：アイテムを振るアニメーションと泡を出す
         player.PlayItemSwing();
-        StartCoroutine(PlayForSeconds());
+        StartCoroutine(PlayForSeconds()); // ここで泡を出す
         yield return new WaitForSeconds(0.9f);
 
         // 3. 画面を徐々に暗転させる
@@ -320,61 +344,22 @@ public class ItemUse : MonoBehaviour
         }
 
         // 4. 真っ暗な間に血の塊を消して、鍵を出す
-        if (bloodlumpObj != null) Destroy(bloodlumpObj);
+        if (bloodlumpObj != null)
+        {
+            Destroy(bloodlumpObj);
+        }
+
         GameObject spawnedObj = Instantiate(spawnSpherePrefab, hitPoint + spawnOffset, Quaternion.identity);
         spawnedObj.transform.localScale = spawnScale;
 
+        // インベントリから洗剤を消す
         player.inventoryManager.RemoveItem(detergentName);
         player.UpdateItemModel();
 
-        // ==========================================
-        // ★追加：音声シーケンス（暗転中に実行）
-        // ==========================================
-        if (audioSource != null)
-        {
-            audioSource.volume = 1f; // 音量を最大にしておく
+        // そのまま少し待機
+        yield return new WaitForSeconds(blackWaitTime);
 
-            // ① 1つ目の音を鳴らす
-            if (firstSound != null)
-            {
-                audioSource.PlayOneShot(firstSound);
-                // 鳴り終わるまで待機
-                yield return new WaitForSeconds(firstSound.length);
-            }
-
-            // ② 2つ目の音を鳴らす
-            if (secondSound != null)
-            {
-                audioSource.clip = secondSound;
-                audioSource.Play();
-
-                // 3秒間そのまま鳴らし続ける
-                yield return new WaitForSeconds(secondSoundDuration);
-
-                // ③ 音量を徐々に小さくする（フェードアウト）
-                float fadeElapsed = 0f;
-                float startVolume = audioSource.volume;
-
-                while (fadeElapsed < audioFadeDuration)
-                {
-                    fadeElapsed += Time.deltaTime;
-                    audioSource.volume = Mathf.Lerp(startVolume, 0f, fadeElapsed / audioFadeDuration);
-                    yield return null;
-                }
-
-                // 完全に音が消えたら停止する
-                audioSource.volume = 0f;
-                audioSource.Stop();
-                audioSource.clip = null; // クリップを外しておく
-            }
-        }
-        else
-        {
-            // もしAudioSourceが設定されていない場合は、とりあえず1秒待つ
-            yield return new WaitForSeconds(1.0f);
-        }
-
-        // 5. 画面を徐々に明転させる（音が完全に消えた後）
+        // 5. 画面を徐々に明転させる
         if (blackFadeVolume != null)
         {
             float elapsed = 0f;
@@ -387,14 +372,18 @@ public class ItemUse : MonoBehaviour
             blackFadeVolume.weight = 0f;
         }
 
-        // 6. 終了時の字幕を表示
+        // 6. 終了時の字幕（暗転後）を表示
         yield return StartCoroutine(ShowImagesRoutine(endSubtitleImages));
 
-        // 7. 完了処理
-        if (player != null) player.canControl = true;
-        GlobalSubtitleState.IsAnySubtitlePlaying = false;
+        // 7. 完了処理（操作を戻す）
+        if (player != null)
+        {
+            player.canControl = true;
+        }
+        GlobalSubtitleState.IsAnySubtitlePlaying = false; // ロック解除
     }
 
+    // 画像表示部分の共通コルーチン
     IEnumerator ShowImagesRoutine(Image[] images)
     {
         if (images != null && images.Length > 0)

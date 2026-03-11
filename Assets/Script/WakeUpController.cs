@@ -18,52 +18,75 @@ public class WakeUpController : MonoBehaviour
     public Transform playerTransform;
     public Transform playerCamera;
     public MonoBehaviour playerMovementScript;
-    public MonoBehaviour inventoryUI;
-
-    // ※ここはもうInspectorで設定し忘れても自動で探すので大丈夫です！
+    public InventryUI inventoryUI;
     public LighterSystem lighterSystem;
     public FlashlightSystem flashlightSystem;
 
+    // ★ 他のスクリプト（クイズ等）から読み取れるように public に変更
     [HideInInspector] public bool isSleeping = false;
     [HideInInspector] public bool isWakingUp = false;
 
     void Awake()
     {
+        // プレイヤーのTransformが設定されていなければ、このオブジェクト自身を使う（保険）
         if (playerTransform == null) playerTransform = transform;
 
+        // CharacterControllerがあると強制移動を邪魔することがあるので、一旦オフにする
         CharacterController cc = playerTransform.GetComponent<CharacterController>();
         if (cc != null) cc.enabled = false;
 
+        // ロードデータがあるかチェック
         bool isLoadGame = IsLoadGame();
 
         if (isLoadGame)
         {
+            // --- パターンA：セーブデータがある場合（続きから） ---
             if (SaveManager.Instance != null && SaveManager.Instance.currentData != null)
             {
+                // 保存された位置と向きを適用
                 playerTransform.position = SaveManager.Instance.currentData.playerPosition;
                 playerTransform.rotation = SaveManager.Instance.currentData.playerRotation;
-                Physics.SyncTransforms();
+                Physics.SyncTransforms(); // 物理位置を即座に同期
+
+                Debug.Log("ロード地点にスポーン: " + playerTransform.position);
             }
 
-            if (playerCamera != null) playerCamera.localRotation = Quaternion.Euler(0f, 0f, 0f);
+            // カメラを正面に向ける
+            if (playerCamera != null)
+            {
+                playerCamera.localRotation = Quaternion.Euler(0f, 0f, 0f);
+            }
 
+            // 状態設定
             isSleeping = false;
+
+            // 操作許可などの初期化
             InitializeControls(true);
         }
         else
         {
+            // --- パターンB：ニューゲームの場合（最初から） ---
+
+            // 1. ベッドの位置へ強制移動
             playerTransform.position = spawnPosition;
             playerTransform.rotation = Quaternion.Euler(0, bedRotationY, 0);
-            Physics.SyncTransforms();
+            Physics.SyncTransforms(); // 物理位置を即座に同期
 
-            if (playerCamera != null) playerCamera.localRotation = Quaternion.Euler(-90f, 0f, 0f);
+            Debug.Log("ニューゲーム地点(ベッド)にスポーン: " + playerTransform.position);
 
+            // 2. カメラを真上に向ける（寝ている視点）
+            if (playerCamera != null)
+            {
+                playerCamera.localRotation = Quaternion.Euler(-90f, 0f, 0f);
+            }
+
+            // 状態設定
             isSleeping = true;
+
+            // 操作禁止などの初期化
             InitializeControls(false);
 
-            if (flashlightSystem == null) flashlightSystem = FindAnyObjectByType<FlashlightSystem>();
-            if (lighterSystem == null) lighterSystem = FindAnyObjectByType<LighterSystem>();
-
+            // ニューゲーム特有のアイテム状態設定
             if (flashlightSystem != null)
             {
                 flashlightSystem.isFlashlightOn = true;
@@ -74,17 +97,23 @@ public class WakeUpController : MonoBehaviour
                 lighterSystem.isLighterOn = false;
                 lighterSystem.ApplyState();
             }
-            if (inventoryUI != null) inventoryUI.enabled = false;
+            if (inventoryUI != null)
+            {
+                inventoryUI.enabled = false;
+            }
         }
 
+        // 移動が終わったのでCharacterControllerをオンに戻す
         if (cc != null) cc.enabled = true;
 
+        // カーソル設定（共通）
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
     }
 
     void Update()
     {
+        // 寝ていて、まだ起き上がり中でない時に Bキー を押したら
         if (isSleeping && !isWakingUp)
         {
             if (Input.GetKeyDown(KeyCode.B))
@@ -94,90 +123,47 @@ public class WakeUpController : MonoBehaviour
         }
     }
 
+    // 操作の有効/無効を一括設定する関数
     void InitializeControls(bool isEnabled)
     {
         if (playerMovementScript != null) playerMovementScript.enabled = isEnabled;
 
-        if (lighterSystem == null) lighterSystem = FindAnyObjectByType<LighterSystem>();
-        if (lighterSystem != null) lighterSystem.canUseLighter = isEnabled;
+        if (lighterSystem != null)
+        {
+            // ニューゲーム(false)の時は使用禁止、ロード(true)の時は使用許可
+            lighterSystem.canUseLighter = isEnabled;
+        }
     }
 
+    // 「セーブデータの続きかどうか」を判定する関数
     bool IsLoadGame()
     {
         if (SaveManager.Instance != null && SaveManager.Instance.currentData != null)
         {
-            if (!string.IsNullOrEmpty(SaveManager.Instance.currentData.sceneName)) return true;
+            // シーン名が保存されている = 一度はセーブされているとみなす
+            if (!string.IsNullOrEmpty(SaveManager.Instance.currentData.sceneName))
+            {
+                return true;
+            }
         }
         return false;
     }
 
-    // =========================================================
-    // ゲームオーバー時に呼び出される「もう一度寝かせる」専用関数
-    // =========================================================
-    public void SetupRespawnState()
-    {
-        CharacterController cc = playerTransform.GetComponent<CharacterController>();
-        if (cc != null) cc.enabled = false;
-
-        // 1. ベッドの位置へ強制移動
-        playerTransform.position = spawnPosition;
-        playerTransform.rotation = Quaternion.Euler(0, bedRotationY, 0);
-        Physics.SyncTransforms();
-
-        if (cc != null) cc.enabled = true;
-
-        // 2. カメラを真上に向ける（寝ている視点）
-        if (playerCamera != null)
-        {
-            playerCamera.localRotation = Quaternion.Euler(-90f, 0f, 0f);
-        }
-
-        // 3. 状態を「寝ている」に戻す
-        isSleeping = true;
-        isWakingUp = false;
-
-        // 操作を一時的に禁止（起き上がるまで）
-        InitializeControls(false);
-        if (inventoryUI != null) inventoryUI.enabled = false;
-
-        // =========================================================
-        // ★絶対消すマン：シーン内のライトシステムを自動で探し出して強制OFFにする
-        // =========================================================
-        FlashlightSystem[] allFlashlights = FindObjectsByType<FlashlightSystem>(FindObjectsSortMode.None);
-        foreach (var fs in allFlashlights)
-        {
-            fs.isFlashlightOn = false;
-            fs.ApplyState();
-        }
-
-        LighterSystem[] allLighters = FindObjectsByType<LighterSystem>(FindObjectsSortMode.None);
-        foreach (var ls in allLighters)
-        {
-            ls.isLighterOn = false;
-            ls.ApplyState();
-        }
-
-        // ★追加：寝ている間は、目の前にモデルが出ないように手ぶらにしておく
-        PlayerController pc = FindAnyObjectByType<PlayerController>();
-        if (pc != null)
-        {
-            if (pc.FlashlightModel != null) pc.FlashlightModel.SetActive(false);
-            if (pc.LighterModel != null) pc.LighterModel.SetActive(false);
-        }
-    }
-
+    // ゆっくり起き上がるコルーチン
     IEnumerator WakeUpSequence()
     {
         isWakingUp = true;
+        Debug.Log("起き上がります...");
 
         float elapsed = 0f;
-        Quaternion startRot = playerCamera.localRotation;
-        Quaternion endRot = Quaternion.Euler(0f, 0f, 0f);
+        Quaternion startRot = playerCamera.localRotation; // 真上（-90度）
+        Quaternion endRot = Quaternion.Euler(0f, 0f, 0f); // 正面（0度）
 
         while (elapsed < wakeUpDuration)
         {
             elapsed += Time.deltaTime;
             float t = elapsed / wakeUpDuration;
+            // イージング（滑らかに）
             t = Mathf.SmoothStep(0f, 1f, t);
 
             playerCamera.localRotation = Quaternion.Slerp(startRot, endRot, t);
@@ -186,21 +172,21 @@ public class WakeUpController : MonoBehaviour
 
         playerCamera.localRotation = endRot;
 
+        // 起き上がった後の状態設定
         if (playerMovementScript != null) playerMovementScript.enabled = true;
 
-        if (lighterSystem == null) lighterSystem = FindAnyObjectByType<LighterSystem>();
-        if (lighterSystem != null) lighterSystem.canUseLighter = true;
-
-        if (inventoryUI != null) inventoryUI.enabled = true;
-
-        // ★追加：起き上がったら、死ぬ前に持っていたアイテムを構え直す
-        PlayerController pc = FindAnyObjectByType<PlayerController>();
-        if (pc != null)
+        if (lighterSystem != null)
         {
-            pc.UpdateItemModel();
+            lighterSystem.canUseLighter = true;
+        }
+
+        if (inventoryUI != null)
+        {
+            inventoryUI.enabled = true;
         }
 
         isSleeping = false;
-        isWakingUp = false;
+        isWakingUp = false; // ★ 起き上がり完了フラグをリセット
+        Debug.Log("おはようございます！操作可能です。");
     }
 }
