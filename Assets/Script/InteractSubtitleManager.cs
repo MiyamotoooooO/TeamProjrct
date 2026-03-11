@@ -3,10 +3,29 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
-// ★ 追加：すべての字幕システムで「現在字幕が再生中か」を共有するためのクラス
+// すべての字幕システムで「現在字幕が再生中か」を共有するためのクラス
 public static class GlobalSubtitleState
 {
     public static bool IsAnySubtitlePlaying = false;
+}
+
+// ====================================================
+// ★追加：イベント発生地専用の「個別に設定できる」字幕データ
+// ====================================================
+[System.Serializable]
+public class SpecialSubtitleData
+{
+    [Tooltip("表示するUIのImage画像")]
+    public Image subtitleImage;
+
+    [Tooltip("この字幕が全部出るまでにかかる時間（秒）")]
+    public float duration = 0.8f;
+
+    [Tooltip("文字数（何段階で表示するか。0なら滑らか）")]
+    public int characterCount = 8;
+
+    [Tooltip("文字が全部出た後に表示したままにする時間（秒）")]
+    public float displayTime = 1.0f;
 }
 
 // ====================================================
@@ -43,8 +62,9 @@ public class SpecialInteractData
     [Tooltip("このエリア（BoxCollider等のTrigger）を設定します")]
     public Collider triggerArea;
 
-    [Tooltip("この場所でEキーを押したときに順番に表示させる画像（＋ボタンで追加）")]
-    public Image[] subtitleImages;
+    // ★変更：専用の個別データ配列に差し替え
+    [Tooltip("この場所でEキーを押したときに表示させる字幕データ（＋ボタンで追加）")]
+    public SpecialSubtitleData[] subtitles;
 
     [Tooltip("一度見たら、二度と調べられないようにするか（イベント用などにチェック）")]
     public bool playOnlyOnce = false;
@@ -67,7 +87,6 @@ public class SpecialInteractData
     public bool hasPlayed = false; // 再生済みかどうかの内部フラグ
 }
 
-
 public class InteractSubtitleManager : MonoBehaviour
 {
     // 死んでも消えない、完了したイベントIDの歴史リスト
@@ -81,13 +100,15 @@ public class InteractSubtitleManager : MonoBehaviour
     [Tooltip("特別なイベントが起こる場所を設定します")]
     public SpecialInteractData specialInteractPoint;
 
-    [Header("字幕：時間・フェード共通設定")]
+    [Header("字幕：時間・フェード共通設定（【1】でのみ使用）")]
     [Tooltip("1つの画像を表示にかける時間（秒）")]
     public float duration = 0.8f;
     [Tooltip("文字数（画像を何段階で表示するか）")]
     public int characterCount = 8;
     [Tooltip("すべて表示された後、消え始めるまでの待機時間（秒）")]
     public float displayTime = 1.0f;
+
+    [Header("フェード・待機共通設定（【1】【2】両方で使用）")]
     [Tooltip("最後の字幕がうっすら消えていくフェードアウトの時間（秒）")]
     public float fadeDuration = 1.0f;
     [Tooltip("前の字幕が消えてから、次の字幕が表示されるまでの間隔（秒）")]
@@ -144,7 +165,7 @@ public class InteractSubtitleManager : MonoBehaviour
                     specialInteractPoint.objectToMove.position = specialInteractPoint.objectToMove.position + specialInteractPoint.moveOffset;
                 }
 
-                // ★追加：リスポーン時も、邪魔なコライダーをしっかり無効化しておく
+                // 邪魔なコライダーをしっかり無効化しておく
                 if (specialInteractPoint.collidersToDisable != null)
                 {
                     foreach (Collider col in specialInteractPoint.collidersToDisable)
@@ -156,7 +177,6 @@ public class InteractSubtitleManager : MonoBehaviour
                 specialInteractPoint.triggerArea.enabled = false;
                 specialInteractPoint.hasPlayed = true;
 
-                // すでにクリア済みの場合も、このオブジェクトのチェックを外して非アクティブにする
                 gameObject.SetActive(false);
                 return;
             }
@@ -167,7 +187,22 @@ public class InteractSubtitleManager : MonoBehaviour
                 handler.manager = this;
                 handler.specialData = specialInteractPoint;
 
-                InitImages(specialInteractPoint.subtitleImages);
+                // ★個別データ用の初期化
+                if (specialInteractPoint.subtitles != null)
+                {
+                    foreach (var sub in specialInteractPoint.subtitles)
+                    {
+                        if (sub.subtitleImage != null)
+                        {
+                            sub.subtitleImage.type = Image.Type.Filled;
+                            sub.subtitleImage.fillMethod = Image.FillMethod.Horizontal;
+                            sub.subtitleImage.fillOrigin = (int)Image.OriginHorizontal.Left;
+                            sub.subtitleImage.fillAmount = 0f;
+                            sub.subtitleImage.gameObject.SetActive(false);
+                            SetAlpha(sub.subtitleImage, 1f);
+                        }
+                    }
+                }
             }
         }
 
@@ -246,44 +281,14 @@ public class InteractSubtitleManager : MonoBehaviour
         }
     }
 
-    // ==========================================
-    // プレイヤーのエリア出入り管理（Normal用）
-    // ==========================================
-    public void OnPlayerEnterNormal(NormalInteractData data)
-    {
-        if (data.playOnlyOnce && data.hasPlayed) return;
-        currentNormalData = data;
-    }
+    public void OnPlayerEnterNormal(NormalInteractData data) { if (data.playOnlyOnce && data.hasPlayed) return; currentNormalData = data; }
+    public void OnPlayerExitNormal(NormalInteractData data) { if (currentNormalData == data) { currentNormalData = null; if (interactPromptUI != null && currentSpecialData == null) interactPromptUI.SetActive(false); } }
 
-    public void OnPlayerExitNormal(NormalInteractData data)
-    {
-        if (currentNormalData == data)
-        {
-            currentNormalData = null;
-            if (interactPromptUI != null && currentSpecialData == null) interactPromptUI.SetActive(false);
-        }
-    }
+    public void OnPlayerEnterSpecial(SpecialInteractData data) { if (data.playOnlyOnce && data.hasPlayed) return; currentSpecialData = data; }
+    public void OnPlayerExitSpecial(SpecialInteractData data) { if (currentSpecialData == data) { currentSpecialData = null; if (interactPromptUI != null && currentNormalData == null) interactPromptUI.SetActive(false); } }
 
     // ==========================================
-    // プレイヤーのエリア出入り管理（Special用）
-    // ==========================================
-    public void OnPlayerEnterSpecial(SpecialInteractData data)
-    {
-        if (data.playOnlyOnce && data.hasPlayed) return;
-        currentSpecialData = data;
-    }
-
-    public void OnPlayerExitSpecial(SpecialInteractData data)
-    {
-        if (currentSpecialData == data)
-        {
-            currentSpecialData = null;
-            if (interactPromptUI != null && currentNormalData == null) interactPromptUI.SetActive(false);
-        }
-    }
-
-    // ==========================================
-    // 字幕シーケンス（Normal用：棚移動なし）
+    // 字幕シーケンス（Normal用：共通設定を使用）
     // ==========================================
     IEnumerator PlayNormalSequence(NormalInteractData data)
     {
@@ -315,7 +320,7 @@ public class InteractSubtitleManager : MonoBehaviour
     }
 
     // ==========================================
-    // 字幕シーケンス（Special用：棚移動あり）
+    // 字幕シーケンス（Special用：個別設定を使用）
     // ==========================================
     IEnumerator PlaySpecialSequence(SpecialInteractData data)
     {
@@ -329,7 +334,8 @@ public class InteractSubtitleManager : MonoBehaviour
             if (rb != null) rb.velocity = Vector3.zero;
         }
 
-        yield return StartCoroutine(ShowImagesRoutine(data.subtitleImages));
+        // ★変更：個別設定を読み込む専用のコルーチンを呼ぶ
+        yield return StartCoroutine(ShowSpecialImagesRoutine(data.subtitles));
 
         // --- オプションのオブジェクト移動 ---
         if (data.objectToMove != null && data.moveOffset != Vector3.zero)
@@ -348,12 +354,11 @@ public class InteractSubtitleManager : MonoBehaviour
             data.objectToMove.position = endPos;
         }
 
-        // --- ★追加：邪魔な壁（Collider）の無効化 ---
+        // --- 邪魔な壁（Collider）の無効化 ---
         if (data.collidersToDisable != null)
         {
             foreach (Collider col in data.collidersToDisable)
             {
-                // 指定されたColliderを無効化して、通れるようにする！
                 if (col != null) col.enabled = false;
             }
         }
@@ -372,11 +377,10 @@ public class InteractSubtitleManager : MonoBehaviour
 
         if (currentSpecialData == data && data.playOnlyOnce) currentSpecialData = null;
 
-        // 棚を動かす処理をしたら、このスクリプトがついているオブジェクトのチェックマークを外す！
         gameObject.SetActive(false);
     }
 
-    // 画像表示部分の共通コルーチン
+    // Normal用の共通設定コルーチン
     IEnumerator ShowImagesRoutine(Image[] images)
     {
         if (images != null && images.Length > 0)
@@ -429,6 +433,60 @@ public class InteractSubtitleManager : MonoBehaviour
         }
     }
 
+    // ★追加：Special用の個別設定コルーチン
+    IEnumerator ShowSpecialImagesRoutine(SpecialSubtitleData[] subs)
+    {
+        if (subs != null && subs.Length > 0)
+        {
+            for (int i = 0; i < subs.Length; i++)
+            {
+                SpecialSubtitleData currentData = subs[i];
+                Image currentImage = currentData.subtitleImage;
+                if (currentImage == null) continue;
+
+                currentImage.gameObject.SetActive(true);
+                currentImage.fillAmount = 0f;
+                SetAlpha(currentImage, 1f);
+
+                float timer = 0f;
+
+                while (timer < currentData.duration)
+                {
+                    timer += Time.deltaTime;
+                    float progress = timer / currentData.duration;
+
+                    if (currentData.characterCount > 0) currentImage.fillAmount = Mathf.Floor(progress * currentData.characterCount) / currentData.characterCount;
+                    else currentImage.fillAmount = progress;
+
+                    yield return null;
+                }
+
+                currentImage.fillAmount = 1.0f;
+                yield return new WaitForSeconds(currentData.displayTime);
+
+                if (i == subs.Length - 1)
+                {
+                    timer = 0f;
+                    while (timer < fadeDuration)
+                    {
+                        timer += Time.deltaTime;
+                        float alpha = Mathf.Lerp(1f, 0f, timer / fadeDuration);
+                        SetAlpha(currentImage, alpha);
+                        yield return null;
+                    }
+                }
+
+                SetAlpha(currentImage, 0f);
+                currentImage.gameObject.SetActive(false);
+
+                if (i < subs.Length - 1)
+                {
+                    yield return new WaitForSeconds(delayBetweenSubtitles);
+                }
+            }
+        }
+    }
+
     private void SetAlpha(Image img, float alpha)
     {
         if (img != null)
@@ -440,9 +498,6 @@ public class InteractSubtitleManager : MonoBehaviour
     }
 }
 
-// =========================================================
-// ★ 対象のBoxColliderに自動でくっついてプレイヤーを検知する補助スクリプト
-// =========================================================
 public class SubtitleTriggerHandler : MonoBehaviour
 {
     [HideInInspector] public InteractSubtitleManager manager;

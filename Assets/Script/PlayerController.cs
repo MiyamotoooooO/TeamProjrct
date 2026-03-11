@@ -67,12 +67,8 @@ public class PlayerController : MonoBehaviour
     [Header("UI関連")]
     [SerializeField] private GameObject pauseMenu;
     [SerializeField] private GameObject option;
-    [SerializeField] private GameObject key;
-    [SerializeField] private UnityEngine.UI.Image backGround;
-    [SerializeField] private UnityEngine.UI.Image panel;
-    [SerializeField] string[] keycode;
-    [SerializeField][TextArea(3, 5)] string[] summury;
-    [SerializeField] private TextMeshProUGUI text;
+    [SerializeField] private Image backGround;
+    [SerializeField] private Image panel;
     public TMP_Text pickUpText;
     public float pickUpDistance = 3f;
 
@@ -109,7 +105,7 @@ public class PlayerController : MonoBehaviour
     public GameObject Key2Model;
     public GameObject Key3Model;
     public GameObject Key4Model;
-    public GameObject Key5Model; // ★追加
+    public GameObject Key5Model;
     public GameObject ItemModel;
     public GameObject CrowbarModel;
     public GameObject FlashlightModel;
@@ -155,7 +151,6 @@ public class PlayerController : MonoBehaviour
 
     public float audioFadeSpeed = 5.0f;
 
-    //[Header("ActiveなUIを記録しておくリスト")]
     private List<GameObject> ActiveUI = new List<GameObject>();
 
     [Header("Canvasを参照")]
@@ -175,7 +170,7 @@ public class PlayerController : MonoBehaviour
     private Vector3 Key2ModelDefaultPos;
     private Vector3 Key3ModelDefaultPos;
     private Vector3 Key4ModelDefaultPos;
-    private Vector3 Key5ModelDefaultPos; // ★追加
+    private Vector3 Key5ModelDefaultPos;
     private Vector3 itemModelDefaultPos;
     private Vector3 crowbarModelDefaultPos;
     private Vector3 flashlightModelDefaultPos;
@@ -250,12 +245,11 @@ public class PlayerController : MonoBehaviour
             breathingAudioSource.Play();
         }
 
-        // 初期位置保存
         if (Key1Model != null) Key1ModelDefaultPos = Key1Model.transform.localPosition;
         if (Key2Model != null) Key2ModelDefaultPos = Key2Model.transform.localPosition;
         if (Key3Model != null) Key3ModelDefaultPos = Key3Model.transform.localPosition;
         if (Key4Model != null) Key4ModelDefaultPos = Key4Model.transform.localPosition;
-        if (Key5Model != null) Key5ModelDefaultPos = Key5Model.transform.localPosition; // ★追加
+        if (Key5Model != null) Key5ModelDefaultPos = Key5Model.transform.localPosition;
 
         if (ItemModel != null)
         {
@@ -274,7 +268,6 @@ public class PlayerController : MonoBehaviour
         if (rust_keyModel != null) rust_keyModelDefaultPos = rust_keyModel.transform.localPosition;
         if (FrogModel != null) frogModelDefaultPos = FrogModel.transform.localPosition;
 
-        //Invoke(nameof(UpdateItemModel), 0.1f);
         StartCoroutine(InitInventoryNextFrame());
 
         animator = GetComponent<Animator>();
@@ -288,11 +281,9 @@ public class PlayerController : MonoBehaviour
 
     private IEnumerator InitInventoryNextFrame()
     {
-        yield return new WaitForSeconds(0.2f); // 少しだけ待つ
-
+        yield return new WaitForSeconds(0.2f);
         if (inventoryManager == null)
             inventoryManager = FindAnyObjectByType<InventoryManager>();
-
         UpdateItemModel();
     }
 
@@ -344,11 +335,9 @@ public class PlayerController : MonoBehaviour
         if (!isInventoryOpen)
         {
             CheckPickUp();
-            if (Input.GetKeyDown(KeyCode.Q)) DropCurrentItem();
 
-            //if (Input.GetKeyDown(KeyCode.Alpha1)) inventoryManager.ChangeSelectedSlot(0);
-            //if (Input.GetKeyDown(KeyCode.Alpha2)) inventoryManager.ChangeSelectedSlot(1);
-            //if (Input.GetKeyDown(KeyCode.Alpha3)) inventoryManager.ChangeSelectedSlot(2);
+            // ★Qキーでドロップ
+            if (Input.GetKeyDown(KeyCode.Q)) DropCurrentItem();
 
             if (Input.GetKeyDown(KeyCode.Alpha1)) { inventoryManager.ChangeSelectedSlot(0); UpdateItemModel(); }
             if (Input.GetKeyDown(KeyCode.Alpha2)) { inventoryManager.ChangeSelectedSlot(1); UpdateItemModel(); }
@@ -385,7 +374,6 @@ public class PlayerController : MonoBehaviour
         if (wantsToDash && currentStamina > 0)
         {
             isDashing = true;
-
             float drainRate = 1.0f / maxDashDuration;
             currentStamina -= drainRate * Time.deltaTime;
             if (currentStamina < 0) currentStamina = 0;
@@ -413,7 +401,6 @@ public class PlayerController : MonoBehaviour
                 }
             }
         }
-
         currentStaminaPercent = currentStamina * 100f;
     }
 
@@ -453,12 +440,11 @@ public class PlayerController : MonoBehaviour
 
     public void HandleAttackInput()
     {
-        // ★ Key1〜5のどれかがアクティブなら振る
         if ((Key1Model != null && Key1Model.activeSelf) ||
             (Key2Model != null && Key2Model.activeSelf) ||
             (Key3Model != null && Key3Model.activeSelf) ||
             (Key4Model != null && Key4Model.activeSelf) ||
-            (Key5Model != null && Key5Model.activeSelf)) // ★追加
+            (Key5Model != null && Key5Model.activeSelf))
         {
             PlayKeySwing();
         }
@@ -470,18 +456,12 @@ public class PlayerController : MonoBehaviour
     public void UseSpiderDecoy()
     {
         if (inventoryManager == null) return;
-
-        if (!inventoryManager.IsDecoyReady())
-        {
-            Debug.Log("まだ使えません！クールダウン中");
-            return;
-        }
+        if (!inventoryManager.IsDecoyReady()) return;
 
         if (decoy != null)
         {
             Vector3 spawnPos = transform.position + transform.forward * decoySpawnDistance;
             Instantiate(decoy, spawnPos, Quaternion.identity);
-            Debug.Log("🕷 クモを設置しました！");
         }
 
         inventoryManager.UseDecoy();
@@ -590,98 +570,43 @@ public class PlayerController : MonoBehaviour
     {
         switch (command)
         {
-            case "Title":
-                SceneManager.LoadScene("TitleScene");
-                break;
-
+            case "Title": SceneManager.LoadScene("TitleScene"); break;
             case "Option":
-                option.SetActive(true);
-                pauseMenu.SetActive(false);
-                backGround.fillAmount = 0;
-                break;
-
+                option.SetActive(true); pauseMenu.SetActive(false); backGround.fillAmount = 0; break;
             case "Save":
-                if (SaveManager.Instance != null)
-                {
-                    SaveManager.Instance.SaveGame();
-                    Debug.Log("ゲームをセーブしました！");
-                }
-                else
-                {
-                    Debug.LogError("エラー: シーン上に SaveManager が見つかりません！");
-                }
-                break;
-
+                if (SaveManager.Instance != null) SaveManager.Instance.SaveGame(); break;
             case "Return":
-                canControl = true;
-                pauseMenu.SetActive(false);
-                backGround.fillAmount = 0;
-                panelAlpha(0);
-                if (crosshairUI != null) crosshairUI.SetActive(true);
-                break;
-
+                canControl = true; pauseMenu.SetActive(false); backGround.fillAmount = 0; panelAlpha(0);
+                if (crosshairUI != null) crosshairUI.SetActive(true); break;
             case "Pause":
-                option.SetActive(false);
-                pauseMenu.SetActive(true);
-                if (crosshairUI != null) crosshairUI.SetActive(false);
-                break;
-            case "Key":
-                option.SetActive(false);
-                key.SetActive(true);
-                backGround.fillAmount = 0;
-                break;
-            case "ReturnKey":
-                option.SetActive(true);
-                key.SetActive(false);
-                text.text = string.Empty;
-                backGround.fillAmount = 0;
-                break;
+                option.SetActive(false); pauseMenu.SetActive(true);
+                if (crosshairUI != null) crosshairUI.SetActive(false); break;
         }
     }
 
-    public void backgroundTrue(RectTransform rect)
+    public void backgroundTrue(float pos)
     {
         if (!canControl)
         {
-            backGround.GetComponent<RectTransform>().position = rect.position;
+            backGround.gameObject.transform.position = new Vector3(960, pos + 540, 0);
             StartCoroutine(animBackGround());
         }
     }
 
-    public void backgroundFalse()
-    {
-        backGround.fillAmount = 0;
-    }
+    public void backgroundFalse() { backGround.fillAmount = 0; }
 
     private IEnumerator animBackGround()
     {
         backGround.gameObject.SetActive(true);
         backGround.fillAmount = 0;
-        while (backGround.fillAmount < 1f)
-        {
-            backGround.fillAmount += 5 * Time.deltaTime;
-            yield return null;
-        }
+        while (backGround.fillAmount < 1f) { backGround.fillAmount += 5 * Time.deltaTime; yield return null; }
     }
 
     private void panelAlpha(float alpha)
     {
         if (panel != null)
         {
-            Color c = panel.color;
-            c.a = Mathf.Clamp01(alpha);
-            panel.color = c;
-        }
-    }
-    public void ActiveCommentary(string command)
-    {
-        for (int i = 0; i < keycode.Length; i++)
-        {
-            if (keycode[i] == command)
-            {
-                text.text = summury[i];
-                break;
-            }
+            Color c = panel.color; c.a = Mathf.Clamp01(alpha); panel.color = c;
         }
     }
 
@@ -691,8 +616,7 @@ public class PlayerController : MonoBehaviour
         {
             float scroll = Input.mouseScrollDelta.y * Time.deltaTime * -200;
             cam.fieldOfView += scroll;
-            if (Input.GetMouseButtonDown(2))
-                cam.fieldOfView = 60;
+            if (Input.GetMouseButtonDown(2)) cam.fieldOfView = 60;
         }
     }
 
@@ -711,8 +635,7 @@ public class PlayerController : MonoBehaviour
         }
         else if (!(Input.GetKey(KeyCode.F1)) && ActiveUI.Count != 0)
         {
-            foreach (GameObject obj in ActiveUI)
-                obj.SetActive(true);
+            foreach (GameObject obj in ActiveUI) obj.SetActive(true);
             ActiveUI.Clear();
         }
     }
@@ -726,8 +649,6 @@ public class PlayerController : MonoBehaviour
         RaycastHit hit;
 
         pickUpText.enabled = false;
-
-        // ★ Key5を追加
         string[] pickableTags = { "Item", "Key", "Key1", "Key2", "Key3", "Key4", "Key5", "Flashlight", "Lighter", "Crowbar", "Spider", "Detergent", "rust_key", "Frog" };
 
         if (Physics.Raycast(ray, out hit, pickUpDistance))
@@ -740,43 +661,29 @@ public class PlayerController : MonoBehaviour
                     if (Input.GetKeyDown(KeyCode.E) || Input.GetMouseButtonDown(0))
                     {
                         string cleanName = hit.collider.gameObject.name.Replace("(Clone)", "").Trim();
-
                         inventoryManager.PickUpItem(hit.collider.gameObject);
                         UpdateItemModel();
-
-                        if (itemGetDisplay != null)
-                        {
-                            itemGetDisplay.ShowItemGet(cleanName);
-                        }
+                        if (itemGetDisplay != null) itemGetDisplay.ShowItemGet(cleanName);
                     }
                     return;
                 }
             }
-            if (hit.collider.CompareTag("Stone"))
+            if (hit.collider.CompareTag("Stone") && Input.GetMouseButtonDown(0))
             {
-                if (Input.GetMouseButtonDown(0))
-                {
-                    foreach (SortStone sortStone in sortStones)
-                        if (ObjectInArray(hit.collider.gameObject, sortStone.stones)) sortStone.Stone(hit.collider.gameObject);
-                }
+                foreach (SortStone sortStone in sortStones)
+                    if (ObjectInArray(hit.collider.gameObject, sortStone.stones)) sortStone.Stone(hit.collider.gameObject);
             }
-            if (hit.collider.CompareTag("Picture"))
+            if (hit.collider.CompareTag("Picture") && Input.GetMouseButtonDown(0))
             {
-                if (Input.GetMouseButtonDown(0))
-                {
-                    foreach (SortPicture sortPicture in sortPictures)
-                        if (ObjectInArray(hit.collider.gameObject, sortPicture.pictures)) sortPicture.Picture(hit.collider.gameObject);
-                }
+                foreach (SortPicture sortPicture in sortPictures)
+                    if (ObjectInArray(hit.collider.gameObject, sortPicture.pictures)) sortPicture.Picture(hit.collider.gameObject);
             }
         }
     }
 
     private bool ObjectInArray(GameObject obj, GameObject[] array)
     {
-        for (int i = 0; i < array.Length; i++)
-        {
-            if (array[i] == obj) return true;
-        }
+        for (int i = 0; i < array.Length; i++) if (array[i] == obj) return true;
         return false;
     }
 
@@ -788,9 +695,7 @@ public class PlayerController : MonoBehaviour
             AudioClip targetClip = isRunning ? runSoundLoop : walkSoundLoop;
             if (footstepAudioSource.clip != targetClip)
             {
-                footstepAudioSource.clip = targetClip;
-                footstepAudioSource.time = 0;
-                footstepAudioSource.Play();
+                footstepAudioSource.clip = targetClip; footstepAudioSource.time = 0; footstepAudioSource.Play();
             }
             else if (!footstepAudioSource.isPlaying) footstepAudioSource.Play();
             footstepAudioSource.volume = Mathf.Lerp(footstepAudioSource.volume, 1.0f, Time.deltaTime * audioFadeSpeed);
@@ -800,11 +705,7 @@ public class PlayerController : MonoBehaviour
             if (footstepAudioSource.isPlaying)
             {
                 footstepAudioSource.volume = Mathf.Lerp(footstepAudioSource.volume, 0.0f, Time.deltaTime * audioFadeSpeed);
-                if (footstepAudioSource.volume < 0.01f)
-                {
-                    footstepAudioSource.Pause();
-                    footstepAudioSource.volume = 0;
-                }
+                if (footstepAudioSource.volume < 0.01f) { footstepAudioSource.Pause(); footstepAudioSource.volume = 0; }
             }
         }
     }
@@ -813,40 +714,23 @@ public class PlayerController : MonoBehaviour
     {
         if (isDashing && isMoving)
         {
-            if (maxDashDuration > 0)
-                currentAudioFatigue += Time.deltaTime / maxDashDuration;
+            if (maxDashDuration > 0) currentAudioFatigue += Time.deltaTime / maxDashDuration;
         }
         else
         {
-            if (breathingRecoveryTime > 0)
-                currentAudioFatigue -= Time.deltaTime / breathingRecoveryTime;
-            else
-                currentAudioFatigue = 0f;
+            if (breathingRecoveryTime > 0) currentAudioFatigue -= Time.deltaTime / breathingRecoveryTime;
+            else currentAudioFatigue = 0f;
         }
         currentAudioFatigue = Mathf.Clamp01(currentAudioFatigue);
 
         if (breathingAudioSource != null)
         {
             if (isMoving && !breathingAudioSource.isPlaying) breathingAudioSource.Play();
-
-            float targetVolume = 0f;
-            if (isDashing && isMoving)
-            {
-                targetVolume = breathingRunVolume;
-            }
-            else
-            {
-                float baseVolume = isMoving ? breathingWalkVolume : 0f;
-                targetVolume = Mathf.Lerp(baseVolume, breathingMaxVolume, currentAudioFatigue);
-            }
-
+            float targetVolume = (isDashing && isMoving) ? breathingRunVolume : Mathf.Lerp(isMoving ? breathingWalkVolume : 0f, breathingMaxVolume, currentAudioFatigue);
             breathingAudioSource.volume = Mathf.Lerp(breathingAudioSource.volume, targetVolume, Time.deltaTime * audioFadeSpeed);
         }
 
-        if (fatigueBlurVolume != null)
-        {
-            fatigueBlurVolume.weight = currentAudioFatigue;
-        }
+        if (fatigueBlurVolume != null) fatigueBlurVolume.weight = currentAudioFatigue;
     }
 
     public void FadeOutAudio()
@@ -860,6 +744,9 @@ public class PlayerController : MonoBehaviour
             breathingAudioSource.volume = Mathf.Lerp(breathingAudioSource.volume, 0.0f, Time.deltaTime * audioFadeSpeed);
     }
 
+    // ==========================================
+    // ★ 修正：アイテムをドロップする処理
+    // ==========================================
     public void DropCurrentItem()
     {
         if (inventoryManager == null) return;
@@ -869,13 +756,12 @@ public class PlayerController : MonoBehaviour
         string itemName = inventoryManager.currentItems[targetIndex];
         if (string.IsNullOrEmpty(itemName)) return;
 
-        // ★ 非表示対応
+        // モデルの非表示対応
         if (Key1Model) Key1Model.SetActive(false);
         if (Key2Model) Key2Model.SetActive(false);
         if (Key3Model) Key3Model.SetActive(false);
         if (Key4Model) Key4Model.SetActive(false);
-        if (Key5Model) Key5Model.SetActive(false); // ★追加
-
+        if (Key5Model) Key5Model.SetActive(false);
         if (ItemModel) ItemModel.SetActive(false);
         if (CrowbarModel) CrowbarModel.SetActive(false);
         if (FlashlightModel) FlashlightModel.SetActive(false);
@@ -885,18 +771,30 @@ public class PlayerController : MonoBehaviour
         if (rust_keyModel) rust_keyModel.SetActive(false);
         if (FrogModel) FrogModel.SetActive(false);
 
-        Vector3 dropPos = transform.position + (transform.up * 1.3f) + (transform.forward * 2.0f);
+        // ★ 修正：壁の中にドロップして消滅しないように、安全な座標を計算する
+        Vector3 rayOrigin = transform.position + (transform.up * 1.3f);
+        Vector3 dropDirection = transform.forward;
+        float dropDist = 2.0f;
+        Vector3 dropPos = rayOrigin + (dropDirection * dropDist);
+
+        // もし目の前に壁があったら、壁の手前に落とす
+        if (Physics.Raycast(rayOrigin, dropDirection, out RaycastHit hit, dropDist))
+        {
+            dropPos = hit.point - (dropDirection * 0.2f);
+        }
+
+        // InventoryManagerにドロップを依頼する
         GameObject droppedItem = inventoryManager.DropItem(itemName, dropPos);
 
         if (droppedItem)
         {
-            Rigidbody rb = droppedItem.GetComponent<Rigidbody>();
-            if (rb != null)
+            Rigidbody itemRb = droppedItem.GetComponent<Rigidbody>();
+            if (itemRb != null)
             {
-                rb.velocity = Vector3.zero;
+                itemRb.velocity = Vector3.zero;
                 Vector3 throwForce = (transform.forward * 2f) + (Vector3.down * 5f);
-                rb.AddForce(throwForce, ForceMode.Impulse);
-                rb.AddTorque(Random.insideUnitSphere * 5f, ForceMode.Impulse);
+                itemRb.AddForce(throwForce, ForceMode.Impulse);
+                itemRb.AddTorque(Random.insideUnitSphere * 5f, ForceMode.Impulse);
             }
 
             Collider playerCollider = GetComponent<Collider>();
@@ -907,16 +805,19 @@ public class PlayerController : MonoBehaviour
                 StartCoroutine(ReenableCollision(playerCollider, itemCollider));
             }
         }
+        else
+        {
+            // ★ 原因特定用：もしドロップできなかったら赤いエラーを出す！
+            Debug.LogError($"【ドロップ失敗】アイテム「{itemName}」がドロップできません！\nInventoryManager の Item Prefabs に登録されているか確認してください！");
+        }
+
         UpdateItemModel();
     }
 
     private IEnumerator ReenableCollision(Collider pCol, Collider iCol)
     {
         yield return new WaitForSeconds(1.0f);
-        if (pCol != null && iCol != null)
-        {
-            Physics.IgnoreCollision(pCol, iCol, false);
-        }
+        if (pCol != null && iCol != null) Physics.IgnoreCollision(pCol, iCol, false);
     }
 
     public void UpdateItemModel()
@@ -925,8 +826,7 @@ public class PlayerController : MonoBehaviour
         if (Key2Model != null) Key2Model.SetActive(false);
         if (Key3Model != null) Key3Model.SetActive(false);
         if (Key4Model != null) Key4Model.SetActive(false);
-        if (Key5Model != null) Key5Model.SetActive(false); // ★追加
-
+        if (Key5Model != null) Key5Model.SetActive(false);
         if (ItemModel != null) ItemModel.SetActive(false);
         if (CrowbarModel != null) CrowbarModel.SetActive(false);
         if (FlashlightModel != null) FlashlightModel.SetActive(false);
@@ -948,13 +848,12 @@ public class PlayerController : MonoBehaviour
 
         switch (tag)
         {
-            case "Key": // 古い設定の互換用
+            case "Key":
             case "Key1": if (Key1Model != null) Key1Model.SetActive(true); break;
             case "Key2": if (Key2Model != null) Key2Model.SetActive(true); break;
             case "Key3": if (Key3Model != null) Key3Model.SetActive(true); break;
             case "Key4": if (Key4Model != null) Key4Model.SetActive(true); break;
-            case "Key5": if (Key5Model != null) Key5Model.SetActive(true); break; // ★追加
-
+            case "Key5": if (Key5Model != null) Key5Model.SetActive(true); break;
             case "Crowbar": if (CrowbarModel != null) CrowbarModel.SetActive(true); break;
             case "Flashlight": if (FlashlightModel != null) FlashlightModel.SetActive(true); break;
             case "Lighter": if (LighterModel != null) LighterModel.SetActive(true); break;
@@ -963,7 +862,6 @@ public class PlayerController : MonoBehaviour
             case "Detergent": if (DetergentModel != null) DetergentModel.SetActive(true); break;
             case "rust_key": if (rust_keyModel != null) rust_keyModel.SetActive(true); break;
             case "Frog": if (FrogModel != null) FrogModel.SetActive(true); break;
-            default: Debug.LogWarning($"タグ '{tag}' に対応するモデルなし"); break;
         }
     }
 
@@ -979,8 +877,7 @@ public class PlayerController : MonoBehaviour
             if (Key2Model != null && Key2Model.activeSelf) Key2Model.transform.localPosition = Key2ModelDefaultPos + new Vector3(bobOffsetX, bobOffsetY, 0);
             if (Key3Model != null && Key3Model.activeSelf) Key3Model.transform.localPosition = Key3ModelDefaultPos + new Vector3(bobOffsetX, bobOffsetY, 0);
             if (Key4Model != null && Key4Model.activeSelf) Key4Model.transform.localPosition = Key4ModelDefaultPos + new Vector3(bobOffsetX, bobOffsetY, 0);
-            if (Key5Model != null && Key5Model.activeSelf) Key5Model.transform.localPosition = Key5ModelDefaultPos + new Vector3(bobOffsetX, bobOffsetY, 0); // ★追加
-
+            if (Key5Model != null && Key5Model.activeSelf) Key5Model.transform.localPosition = Key5ModelDefaultPos + new Vector3(bobOffsetX, bobOffsetY, 0);
             if (ItemModel != null && ItemModel.activeSelf) ItemModel.transform.localPosition = itemModelDefaultPos + new Vector3(bobOffsetX, bobOffsetY, 0);
             if (CrowbarModel != null && CrowbarModel.activeSelf) CrowbarModel.transform.localPosition = crowbarModelDefaultPos + new Vector3(bobOffsetX, bobOffsetY, 0);
             if (FlashlightModel != null && FlashlightModel.activeSelf) FlashlightModel.transform.localPosition = flashlightModelDefaultPos + new Vector3(bobOffsetX, bobOffsetY, 0);
@@ -995,8 +892,7 @@ public class PlayerController : MonoBehaviour
             if (Key2Model != null && Key2Model.activeSelf) Key2Model.transform.localPosition = Vector3.Lerp(Key2Model.transform.localPosition, Key2ModelDefaultPos, Time.deltaTime * 10f);
             if (Key3Model != null && Key3Model.activeSelf) Key3Model.transform.localPosition = Vector3.Lerp(Key3Model.transform.localPosition, Key3ModelDefaultPos, Time.deltaTime * 10f);
             if (Key4Model != null && Key4Model.activeSelf) Key4Model.transform.localPosition = Vector3.Lerp(Key4Model.transform.localPosition, Key4ModelDefaultPos, Time.deltaTime * 10f);
-            if (Key5Model != null && Key5Model.activeSelf) Key5Model.transform.localPosition = Vector3.Lerp(Key5Model.transform.localPosition, Key5ModelDefaultPos, Time.deltaTime * 10f); // ★追加
-
+            if (Key5Model != null && Key5Model.activeSelf) Key5Model.transform.localPosition = Vector3.Lerp(Key5Model.transform.localPosition, Key5ModelDefaultPos, Time.deltaTime * 10f);
             if (ItemModel != null && ItemModel.activeSelf) ItemModel.transform.localPosition = Vector3.Lerp(ItemModel.transform.localPosition, itemModelDefaultPos, Time.deltaTime * 10f);
             if (CrowbarModel != null && CrowbarModel.activeSelf) CrowbarModel.transform.localPosition = Vector3.Lerp(CrowbarModel.transform.localPosition, crowbarModelDefaultPos, Time.deltaTime * 10f);
             if (FlashlightModel != null && FlashlightModel.activeSelf) FlashlightModel.transform.localPosition = Vector3.Lerp(FlashlightModel.transform.localPosition, flashlightModelDefaultPos, Time.deltaTime * 10f);
@@ -1014,12 +910,11 @@ public class PlayerController : MonoBehaviour
         swingTimer += Time.deltaTime * swingSpeed;
         float swingOffset = Mathf.Sin(swingTimer) * swingAmount;
 
-        // ★ どのアクティブな鍵でも揺らす
         if (Key1Model != null && Key1Model.activeSelf) Key1Model.transform.localPosition = Key1ModelDefaultPos + new Vector3(0, 0, swingOffset);
         if (Key2Model != null && Key2Model.activeSelf) Key2Model.transform.localPosition = Key2ModelDefaultPos + new Vector3(0, 0, swingOffset);
         if (Key3Model != null && Key3Model.activeSelf) Key3Model.transform.localPosition = Key3ModelDefaultPos + new Vector3(0, 0, swingOffset);
         if (Key4Model != null && Key4Model.activeSelf) Key4Model.transform.localPosition = Key4ModelDefaultPos + new Vector3(0, 0, swingOffset);
-        if (Key5Model != null && Key5Model.activeSelf) Key5Model.transform.localPosition = Key5ModelDefaultPos + new Vector3(0, 0, swingOffset); // ★追加
+        if (Key5Model != null && Key5Model.activeSelf) Key5Model.transform.localPosition = Key5ModelDefaultPos + new Vector3(0, 0, swingOffset);
 
         if (swingTimer >= Mathf.PI)
         {
@@ -1028,7 +923,7 @@ public class PlayerController : MonoBehaviour
             if (Key2Model) { Key2Model.transform.localPosition = Key2ModelDefaultPos; Key2Model.SetActive(false); }
             if (Key3Model) { Key3Model.transform.localPosition = Key3ModelDefaultPos; Key3Model.SetActive(false); }
             if (Key4Model) { Key4Model.transform.localPosition = Key4ModelDefaultPos; Key4Model.SetActive(false); }
-            if (Key5Model) { Key5Model.transform.localPosition = Key5ModelDefaultPos; Key5Model.SetActive(false); } // ★追加
+            if (Key5Model) { Key5Model.transform.localPosition = Key5ModelDefaultPos; Key5Model.SetActive(false); }
         }
     }
 
@@ -1112,12 +1007,11 @@ public class PlayerController : MonoBehaviour
         cameraSwingTimer = 0f;
         await Task.Delay(2000);
 
-        // ★ 使い終わったら非アクティブに
         if (Key1Model) Key1Model.SetActive(false);
         if (Key2Model) Key2Model.SetActive(false);
         if (Key3Model) Key3Model.SetActive(false);
         if (Key4Model) Key4Model.SetActive(false);
-        if (Key5Model) Key5Model.SetActive(false); // ★追加
+        if (Key5Model) Key5Model.SetActive(false);
     }
 
     public void PlayItemSwing()
@@ -1126,11 +1020,7 @@ public class PlayerController : MonoBehaviour
         if (cam != null) cameraSwingStartRot = cam.transform.localRotation;
     }
 
-    void ResetCrowbarCooldown()
-    {
-        canCrowbarSwing = true;
-    }
-
+    void ResetCrowbarCooldown() { canCrowbarSwing = true; }
 
     public void PlayCrowbarSwing()
     {
@@ -1146,7 +1036,6 @@ public class PlayerController : MonoBehaviour
         isCrowbarSwing = true; crowbarSwingTimer = 0f; isCameraSwing = true; cameraSwingTimer = 0f;
         if (cam != null) cameraSwingStartRot = cam.transform.localRotation;
     }
-
 
     void UpdateCameraSwing()
     {

@@ -2,6 +2,23 @@
 using UnityEngine;
 using UnityEngine.UI;
 
+// ★ 新しく作った「字幕1つ1つのデータをまとめる箱」
+[System.Serializable]
+public class WakeUpSubtitleData
+{
+    [Tooltip("表示するUIのImage画像")]
+    public Image subtitleImage;
+
+    [Tooltip("この字幕が全部出るまでにかかる時間（秒）")]
+    public float duration = 2.0f;
+
+    [Tooltip("文字数（何段階で表示するか。0なら滑らか）")]
+    public int characterCount = 8;
+
+    [Tooltip("文字が全部出た後に表示したままにする時間（秒）")]
+    public float displayTime = 1.0f;
+}
+
 public class WakeUpSubtitleManager : MonoBehaviour
 {
     [Header("視点移動演出の設定")]
@@ -15,18 +32,13 @@ public class WakeUpSubtitleManager : MonoBehaviour
     public float lookBackDuration = 1.5f;
 
     [Header("字幕表示設定")]
-    [Tooltip("順番に表示させたいUIのImage画像（+ボタンで複数登録可能）")]
-    public Image[] subtitleImages;
+    [Tooltip("順番に表示させたい字幕の設定（+ボタンで複数登録可能）")]
+    public WakeUpSubtitleData[] subtitles; // ★ 画像だけでなく色々な設定をまとめた配列に変更
 
-    [Tooltip("1つの字幕の文字が全部出るまでにかかる時間（秒）")]
-    public float duration = 2.0f;
-    [Tooltip("文字数（画像を何段階で表示するか。0なら滑らか）")]
-    public int characterCount = 8;
-    [Tooltip("文字が全部出た後に表示したままにする時間（秒）")]
-    public float displayTime = 1.0f;
+    [Header("フェード・待機設定（全体共通）")]
     [Tooltip("★最後の字幕が消える時のフェードアウト時間（秒）")]
     public float fadeDuration = 1.0f;
-    [Tooltip("次の字幕が出るまでの待機時間（秒）")]
+    [Tooltip("前の字幕が消えてから、次の字幕が出るまでの待機時間（秒）")]
     public float delayBetweenSubtitles = 0.5f;
 
     [Header("参照設定")]
@@ -40,7 +52,7 @@ public class WakeUpSubtitleManager : MonoBehaviour
     private bool isWaitingForWakeUp = false;
     private bool hasTriggered = false;
 
-    // ★追加：ゲーム起動後に1度でも表示したかを記憶する魔法の変数
+    // ゲーム起動後に1度でも表示したかを記憶する魔法の変数
     private static bool hasPlayedOnce = false;
 
     void Start()
@@ -50,18 +62,18 @@ public class WakeUpSubtitleManager : MonoBehaviour
         if (wakeUpController == null) wakeUpController = FindAnyObjectByType<WakeUpController>();
 
         // 画像群の初期化
-        if (subtitleImages != null)
+        if (subtitles != null)
         {
-            foreach (Image img in subtitleImages)
+            foreach (var data in subtitles)
             {
-                if (img != null)
+                if (data.subtitleImage != null)
                 {
-                    img.type = Image.Type.Filled;
-                    img.fillMethod = Image.FillMethod.Horizontal;
-                    img.fillOrigin = (int)Image.OriginHorizontal.Left;
-                    img.fillAmount = 0f;
-                    img.gameObject.SetActive(false);
-                    SetAlpha(img, 1f);
+                    data.subtitleImage.type = Image.Type.Filled;
+                    data.subtitleImage.fillMethod = Image.FillMethod.Horizontal;
+                    data.subtitleImage.fillOrigin = (int)Image.OriginHorizontal.Left;
+                    data.subtitleImage.fillAmount = 0f;
+                    data.subtitleImage.gameObject.SetActive(false);
+                    SetAlpha(data.subtitleImage, 1f);
                 }
             }
         }
@@ -155,11 +167,13 @@ public class WakeUpSubtitleManager : MonoBehaviour
         }
 
         // --- ②自動字幕表示開始 ---
-        if (subtitleImages != null && subtitleImages.Length > 0)
+        if (subtitles != null && subtitles.Length > 0)
         {
-            for (int i = 0; i < subtitleImages.Length; i++)
+            for (int i = 0; i < subtitles.Length; i++)
             {
-                Image currentImage = subtitleImages[i];
+                WakeUpSubtitleData currentData = subtitles[i];
+                Image currentImage = currentData.subtitleImage;
+
                 if (currentImage == null) continue;
 
                 currentImage.gameObject.SetActive(true);
@@ -169,12 +183,12 @@ public class WakeUpSubtitleManager : MonoBehaviour
                 float timer = 0f;
 
                 // 1. タイプライター表示
-                while (timer < duration)
+                while (timer < currentData.duration)
                 {
                     timer += Time.deltaTime;
-                    float progress = timer / duration;
+                    float progress = timer / currentData.duration;
 
-                    if (characterCount > 0) currentImage.fillAmount = Mathf.Floor(progress * characterCount) / characterCount;
+                    if (currentData.characterCount > 0) currentImage.fillAmount = Mathf.Floor(progress * currentData.characterCount) / currentData.characterCount;
                     else currentImage.fillAmount = progress;
 
                     yield return null;
@@ -182,10 +196,10 @@ public class WakeUpSubtitleManager : MonoBehaviour
                 currentImage.fillAmount = 1.0f;
 
                 // 2. 表示状態をキープ
-                yield return new WaitForSeconds(displayTime);
+                yield return new WaitForSeconds(currentData.displayTime);
 
                 // 3. 最後の字幕だけフェードアウト
-                if (i == subtitleImages.Length - 1)
+                if (i == subtitles.Length - 1)
                 {
                     timer = 0f;
                     while (timer < fadeDuration)
@@ -202,7 +216,7 @@ public class WakeUpSubtitleManager : MonoBehaviour
                 currentImage.gameObject.SetActive(false);
 
                 // 5. 次の字幕への待機（最後でなければ）
-                if (i < subtitleImages.Length - 1)
+                if (i < subtitles.Length - 1)
                 {
                     yield return new WaitForSeconds(delayBetweenSubtitles);
                 }
