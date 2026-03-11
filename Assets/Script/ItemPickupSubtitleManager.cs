@@ -98,15 +98,17 @@ public class ItemPickupSubtitleManager : MonoBehaviour
     {
         GlobalSubtitleState.IsAnySubtitlePlaying = true; // グローバルロックON
 
-        // ★ 変更：拾った瞬間に、真っ先にプレイヤーの操作をロックして動けなくする！
+        // ★ 変更：拾った（Eキーを押した）瞬間に、移動も視点も完全にロックする！
         if (playerController != null)
         {
-            playerController.canControl = false;
+            playerController.canControl = false; // 移動ロック
+            playerController.canLock = false;    // ★追加：視点（カメラ）移動も完全にロック
+
             Rigidbody rb = playerController.GetComponent<Rigidbody>();
             if (rb != null) rb.velocity = Vector3.zero;
         }
 
-        // その状態で、アイテム入手演出（クルクル回るUI）が終わるのを待つ
+        // アイテム入手演出（クルクル回るUIなど）が終わるのを待つ
         if (itemGetDisplay != null)
         {
             yield return new WaitWhile(() => itemGetDisplay.isDisplaying);
@@ -168,10 +170,11 @@ public class ItemPickupSubtitleManager : MonoBehaviour
             }
         }
 
-        // 字幕がすべて終わったら、プレイヤーを再び動けるようにする
+        // ★ 変更：字幕がすべて終わったら、プレイヤーの移動と視点を再び解き放つ！
         if (playerController != null)
         {
             playerController.canControl = true;
+            playerController.canLock = true; // ★追加：視点ロック解除
         }
 
         GlobalSubtitleState.IsAnySubtitlePlaying = false; // グローバルロックOFF
