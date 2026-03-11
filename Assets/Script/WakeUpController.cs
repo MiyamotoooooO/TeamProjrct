@@ -164,6 +164,15 @@ public class WakeUpController : MonoBehaviour
             if (pc.FlashlightModel != null) pc.FlashlightModel.SetActive(false);
             if (pc.LighterModel != null) pc.LighterModel.SetActive(false);
         }
+        // ===============================
+        // “GAI‚ðƒŠƒZƒbƒg
+        // ===============================
+        EnemyChaseKiller[] enemies = FindObjectsByType<EnemyChaseKiller>(FindObjectsSortMode.None);
+
+        foreach (var e in enemies)
+        {
+            e.ResetEnemyState();
+        }
     }
 
     IEnumerator WakeUpSequence()

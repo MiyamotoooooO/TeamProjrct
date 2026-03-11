@@ -20,8 +20,8 @@ public class EnemyChaseKiller : MonoBehaviour
     // 検知/移動
     //==============================
     [Header("検知/速度")]
-    [SerializeField] private float detectRadius = 15f;
-    [SerializeField] private float runRadius = 8f;
+    [SerializeField] private float detectRadius = 30f;
+    [SerializeField] private float runRadius = 30f;
     [SerializeField] private float walkSpeed = 1.8f;
     [SerializeField] private float runSpeed = 3.6f;
 
@@ -246,7 +246,8 @@ public class EnemyChaseKiller : MonoBehaviour
 
                 if (lostTimer >= loseSightTime)
                 {
-                    WarpToRandomPoint();
+                    WarpToOppositePoint();
+                    agent.isStopped = false;
                 }
             }
         }
@@ -767,5 +768,67 @@ public class EnemyChaseKiller : MonoBehaviour
         // プレイヤー方向
         Gizmos.color = Color.green;
         Gizmos.DrawLine(transform.position, player.position);
+    }
+    public void ResetEnemyState()
+    {
+        killing = false;
+        chasing = false;
+        lostTimer = 0f;
+
+        // ★ランダムワープ
+        if (warpPoints != null && warpPoints.Length > 0)
+        {
+            int r = Random.Range(0, warpPoints.Length);
+            agent.Warp(warpPoints[r].position);
+        }
+
+        if (agent != null)
+        {
+            agent.isStopped = false;
+            agent.ResetPath();
+            agent.velocity = Vector3.zero;
+        }
+
+        speedParamCurrent = 0f;
+
+        if (anim != null)
+        {
+            anim.speed = 1f;
+            anim.SetFloat("Speed", 0f);
+            anim.ResetTrigger("Attack");
+        }
+
+        StopChaseLoop();
+
+        FreezeEnemy(false);
+    }
+    void WarpToOppositePoint()
+    {
+        if (warpPoints.Length < 2) return;
+
+        float distA = Vector3.Distance(player.position, warpPoints[0].position);
+        float distB = Vector3.Distance(player.position, warpPoints[1].position);
+
+        Transform targetPoint;
+
+        // プレイヤーに近い方の「反対」を選ぶ
+        if (distA < distB)
+            targetPoint = warpPoints[1];
+        else
+            targetPoint = warpPoints[0];
+
+        agent.Warp(targetPoint.position);
+
+        // 状態リセット
+        chasing = false;
+        lostTimer = 0f;
+
+        agent.ResetPath();
+        agent.velocity = Vector3.zero;
+
+        speedParamCurrent = 0f;
+        if (anim) anim.SetFloat("Speed", 0f);
+
+        StopChaseLoop();
     }
 }

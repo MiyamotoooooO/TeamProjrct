@@ -17721,13 +17721,13 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 463231848}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 1, z: 0, w: 0}
-  m_LocalPosition: {x: 166.51, y: 46.65, z: -21}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 166.51, y: 46.65, z: -49.47}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 180, z: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &465323128 stripped
 MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 7588511975692390695, guid: c85ea53bd526aed4c8dbae5e02512eae, type: 3}
@@ -83416,7 +83416,7 @@ Transform:
   m_GameObject: {fileID: 1365066423}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 143.91, y: 46.65, z: -39.25}
+  m_LocalPosition: {x: 117.93, y: 46.65, z: -47.78}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -85513,7 +85513,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7633003817206134488, guid: 2b369d8a002dd7e40abcdd90173705a7, type: 3}
       propertyPath: chaseFadeIn
-      value: 0.25
+      value: 0.1
       objectReference: {fileID: 0}
     - target: {fileID: 7633003817206134488, guid: 2b369d8a002dd7e40abcdd90173705a7, type: 3}
       propertyPath: detectRadius
@@ -85524,12 +85524,16 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 8300000, guid: 3e4d0cdde8bb5744eb65655f11f8282f, type: 3}
     - target: {fileID: 7633003817206134488, guid: 2b369d8a002dd7e40abcdd90173705a7, type: 3}
+      propertyPath: audioMaxDistance
+      value: 20
+      objectReference: {fileID: 0}
+    - target: {fileID: 7633003817206134488, guid: 2b369d8a002dd7e40abcdd90173705a7, type: 3}
       propertyPath: audioMinDistance
-      value: 10
+      value: 20
       objectReference: {fileID: 0}
     - target: {fileID: 7633003817206134488, guid: 2b369d8a002dd7e40abcdd90173705a7, type: 3}
       propertyPath: warpPoints.Array.size
-      value: 1
+      value: 2
       objectReference: {fileID: 0}
     - target: {fileID: 7633003817206134488, guid: 2b369d8a002dd7e40abcdd90173705a7, type: 3}
       propertyPath: 'warpPoints.Array.data[0]'
