@@ -1,33 +1,43 @@
-using UnityEngine;
+ï»¿using UnityEngine;
 using UnityEngine.AI;
 
 public class StatueEnemy : MonoBehaviour
 {
-    [Header("Player‚ğQÆ")]
+    [Header("Playerã‚’å‚ç…§")]
     public Transform player;
 
-    [Header("“G‚ÌˆÚ“®‘¬“x")]
+    [Header("æ•µã®ç§»å‹•é€Ÿåº¦")]
     public float moveSpeed = 10.0f;
 
-    [Header("“G‚ªPlayer‚É‹C‚Ã‚­Š´’m”ÍˆÍ")]
+    [Header("æ•µãŒPlayerã«æ°—ã¥ãæ„ŸçŸ¥ç¯„å›²")]
     public float detectionRadius = 20.0f;
 
-    [Tooltip("•Ç‚ÌLayer")]
+    [Tooltip("å£ã®Layer")]
     public LayerMask obstacleLayer;
 
+    [Header("æ¥è§¦éŸ³")]
+    public AudioClip catchSound;
+
+    private AudioSource audioSource;
     // private
-    private NavMeshAgent agent; // AiˆÚ“®ƒVƒXƒeƒ€‚ğ‘€‚éƒRƒ“ƒgƒ[ƒ‰[
-    private Renderer myRenderer; // “G‚ÌŒ©‚½–Ú‚ğ•\¦‚µ‚Ä‚¢‚éƒp[ƒc
-    private Camera playerCamera; // Player‚Ì‹“_
-    private bool hasCaughtPlayer = false; // •ß‚Ü‚¦‚½‚©‚Ç‚¤‚©‚Ìƒtƒ‰ƒO
+    private NavMeshAgent agent; // Aiç§»å‹•ã‚·ã‚¹ãƒ†ãƒ ã‚’æ“ã‚‹ã‚³ãƒ³ãƒˆãƒ­ãƒ¼ãƒ©ãƒ¼
+    private Renderer myRenderer; // æ•µã®è¦‹ãŸç›®ã‚’è¡¨ç¤ºã—ã¦ã„ã‚‹ãƒ‘ãƒ¼ãƒ„
+    private Camera playerCamera; // Playerã®è¦–ç‚¹
+    private bool hasCaughtPlayer = false; // æ•ã¾ãˆãŸã‹ã©ã†ã‹ã®ãƒ•ãƒ©ã‚°
 
     void Start()
     {
         agent = GetComponent<NavMeshAgent>();
         myRenderer = GetComponent<Renderer>();
         agent.speed = moveSpeed;
-        agent.acceleration = 100f; // ‰Á‘¬“x‚ğã‚°‚Ä‚·‚®‚É“®‚­‚æ‚¤‚É‚·‚é
+        agent.acceleration = 100f; // åŠ é€Ÿåº¦ã‚’ä¸Šã’ã¦ã™ãã«å‹•ãã‚ˆã†ã«ã™ã‚‹
 
+        audioSource = GetComponent<AudioSource>();
+
+        if (audioSource == null)
+        {
+            audioSource = gameObject.AddComponent<AudioSource>();
+        }
         if (player == null)
         {
             GameObject p = GameObject.FindGameObjectWithTag("Player");
@@ -47,44 +57,44 @@ public class StatueEnemy : MonoBehaviour
 
         if (player == null || playerCamera == null) return;
 
-        // ó‘Ôƒ`ƒFƒbƒN
+        // çŠ¶æ…‹ãƒã‚§ãƒƒã‚¯
         bool canConnect = CanEnemySeePlayer();
         bool isSeen = IsVisibleToPlayer();
 
-        if (canConnect) // •Ç‚È‚Ç‚ÌÕ‚è‚ª‚È‚¢
+        if (canConnect) // å£ãªã©ã®é®ã‚ŠãŒãªã„
         {
             if (isSeen)
             {
-                // Œ©‚ç‚ê‚Ä‚¢‚é ¨ ~‚Ü‚é
-                StopMoving("Œ©‚ç‚ê‚Ä‚¢‚éI");
+                // è¦‹ã‚‰ã‚Œã¦ã„ã‚‹ â†’ æ­¢ã¾ã‚‹
+                StopMoving("è¦‹ã‚‰ã‚Œã¦ã„ã‚‹ï¼");
                 myRenderer.material.color = Color.white;
             }
             else
             {
-                // Œ©‚ç‚ê‚Ä‚¢‚È‚¢ ¨ “®‚­I
-                StartChasing("’ÇÕ’†I");
+                // è¦‹ã‚‰ã‚Œã¦ã„ãªã„ â†’ å‹•ãï¼
+                StartChasing("è¿½è·¡ä¸­ï¼");
                 myRenderer.material.color = Color.red;
             }
         }
         else
         {
-            // •Ç‚ª‚ ‚é or ‰“‚¢ ¨ ~‚Ü‚é
-            StopMoving("•Ç‚ª‚ ‚éi‚Ü‚½‚Í©•ª‚É“–‚½‚Á‚Ä‚éj");
+            // å£ãŒã‚ã‚‹ or é ã„ â†’ æ­¢ã¾ã‚‹
+            StopMoving("å£ãŒã‚ã‚‹ï¼ˆã¾ãŸã¯è‡ªåˆ†ã«å½“ãŸã£ã¦ã‚‹ï¼‰");
             myRenderer.material.color = Color.gray;
         }
     }
 
     bool IsVisibleToPlayer()
     {
-        // ƒJƒƒ‰‚Ì‹ŠE“à‚É“ü‚Á‚Ä‚¢‚é‚©
+        // ã‚«ãƒ¡ãƒ©ã®è¦–ç•Œå†…ã«å…¥ã£ã¦ã„ã‚‹ã‹
         Plane[] planes = GeometryUtility.CalculateFrustumPlanes(playerCamera);
         if (!GeometryUtility.TestPlanesAABB(planes, myRenderer.bounds)) return false;
 
-        // •Ç”»’è
+        // å£åˆ¤å®š
         Vector3 dir = transform.position - playerCamera.transform.position;
         if (Physics.Raycast(playerCamera.transform.position, dir, out RaycastHit hit, dir.magnitude, obstacleLayer))
         {
-            if (hit.transform != transform) return false; // è‘O‚É•Ç‚ª‚ ‚é
+            if (hit.transform != transform) return false; // æ‰‹å‰ã«å£ãŒã‚ã‚‹
         }
         return true;
     }
@@ -94,34 +104,34 @@ public class StatueEnemy : MonoBehaviour
         float dist = Vector3.Distance(transform.position, player.position);
         if (dist > detectionRadius) return false;
 
-        // ‘«Œ³‚Å‚Í‚È‚­A­‚µãi–Ú‚Ì‚‚³j‚©‚çƒŒƒC‚ğ”ò‚Î‚·
+        // è¶³å…ƒã§ã¯ãªãã€å°‘ã—ä¸Šï¼ˆç›®ã®é«˜ã•ï¼‰ã‹ã‚‰ãƒ¬ã‚¤ã‚’é£›ã°ã™
         Vector3 origin = transform.position + Vector3.up * 0.5f;
         Vector3 target = playerCamera.transform.position;
         Vector3 direction = target - origin;
 
         RaycastHit hit;
 
-        // ƒŒƒC‚ğ”ò‚Î‚·
+        // ãƒ¬ã‚¤ã‚’é£›ã°ã™
         if (Physics.Raycast(origin, direction, out hit, dist, obstacleLayer))
         {
-            // ƒpƒ^[ƒ“1F©•ª©g‚É“–‚½‚Á‚½i–³‹‚µ‚ÄOKj
+            // ãƒ‘ã‚¿ãƒ¼ãƒ³1ï¼šè‡ªåˆ†è‡ªèº«ã«å½“ãŸã£ãŸï¼ˆç„¡è¦–ã—ã¦OKï¼‰
             if (hit.transform == transform) return true;
 
-            // ƒpƒ^[ƒ“2FƒvƒŒƒCƒ„[‚É“–‚½‚Á‚½
+            // ãƒ‘ã‚¿ãƒ¼ãƒ³2ï¼šãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ã«å½“ãŸã£ãŸ
             if (hit.transform.CompareTag("Player") || hit.transform == player || hit.transform.root == player.root)
             {
-                Debug.DrawLine(origin, target, Color.green); // —ÎüŒ©‚¦‚éI
+                Debug.DrawLine(origin, target, Color.green); // ç·‘ç·šï¼è¦‹ãˆã‚‹ï¼
                 return true;
             }
 
-            // ƒpƒ^[ƒ“3F‚»‚êˆÈŠO‚É“–‚½‚Á‚½i‚±‚ê‚Í–{“–‚É•Ç‚¾Ij
-            Debug.DrawLine(origin, hit.point, Color.red); // Ôü•Ç‚ª‚ ‚é
-            // ‰½‚É“–‚½‚Á‚Ä~‚Ü‚Á‚½‚©ƒƒO‚Éo‚·
-            Debug.Log("•Ç”»’è‚Å’â~’†B“–‚½‚Á‚½‚à‚Ì: " + hit.transform.name);
+            // ãƒ‘ã‚¿ãƒ¼ãƒ³3ï¼šãã‚Œä»¥å¤–ã«å½“ãŸã£ãŸï¼ˆã“ã‚Œã¯æœ¬å½“ã«å£ã ï¼ï¼‰
+            Debug.DrawLine(origin, hit.point, Color.red); // èµ¤ç·šï¼å£ãŒã‚ã‚‹
+            // ä½•ã«å½“ãŸã£ã¦æ­¢ã¾ã£ãŸã‹ãƒ­ã‚°ã«å‡ºã™
+            Debug.Log("å£åˆ¤å®šã§åœæ­¢ä¸­ã€‚å½“ãŸã£ãŸã‚‚ã®: " + hit.transform.name);
             return false;
         }
 
-        // ‰½‚É‚à“–‚½‚ç‚¸“Í‚¢‚½
+        // ä½•ã«ã‚‚å½“ãŸã‚‰ãšå±Šã„ãŸ
         Debug.DrawLine(origin, target, Color.green);
         return true;
     }
@@ -146,29 +156,33 @@ public class StatueEnemy : MonoBehaviour
 
     void OnCollisionEnter(Collision collision)
     {
-        // Šù‚É•ß‚Ü‚¦‚Ä‚¢‚é‚È‚ç‰½‚à‚µ‚È‚¢
+        // æ—¢ã«æ•ã¾ãˆã¦ã„ã‚‹ãªã‚‰ä½•ã‚‚ã—ãªã„
         if (hasCaughtPlayer) return;
 
         if (collision.gameObject.CompareTag("Player"))
         {
-            // 1. ƒtƒ‰ƒO‚ğƒIƒ“‚É‚·‚é
+            // 1. ãƒ•ãƒ©ã‚°ã‚’ã‚ªãƒ³ã«ã™ã‚‹
             hasCaughtPlayer = true;
 
-            // 2. Š®‘S‚É“®‚«‚ğ~‚ß‚é
+            // 2. å®Œå…¨ã«å‹•ãã‚’æ­¢ã‚ã‚‹
             if (agent != null)
             {
-                agent.isStopped = true;       // ˆÚ“®‹Ö~
-                agent.velocity = Vector3.zero; // ¨‚¢‚ğE‚·
+                agent.isStopped = true;       // ç§»å‹•ç¦æ­¢
+                agent.velocity = Vector3.zero; // å‹¢ã„ã‚’æ®ºã™
             }
 
-            // 3. ƒAƒjƒ[ƒVƒ‡ƒ“‚ª‚ ‚ê‚Î‚±‚±‚Å~‚ß‚éiCube‚È‚ç•s—vj
+            // 3. ã‚¢ãƒ‹ãƒ¡ãƒ¼ã‚·ãƒ§ãƒ³ãŒã‚ã‚Œã°ã“ã“ã§æ­¢ã‚ã‚‹ï¼ˆCubeãªã‚‰ä¸è¦ï¼‰
             // GetComponent<Animator>().enabled = false; 
 
-            // 4. ƒvƒŒƒCƒ„[‚ğE‚·
+            // 4. ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ã‚’æ®ºã™
             PlayerHealth health = collision.gameObject.GetComponent<PlayerHealth>();
             if (health != null)
             {
-                Debug.Log("•ß‚Ü‚Á‚½I’â~‚µ‚Ü‚·B");
+                Debug.Log("æ•ã¾ã£ãŸï¼åœæ­¢ã—ã¾ã™ã€‚");
+                if (catchSound != null)
+                {
+                    audioSource.PlayOneShot(catchSound);
+                }
                 health.Die();
             }
         }
