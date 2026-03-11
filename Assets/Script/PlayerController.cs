@@ -6,6 +6,7 @@ using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using System.Threading.Tasks;
 using UnityEngine.Rendering.PostProcessing;
+using static System.Net.Mime.MediaTypeNames;
 
 [RequireComponent(typeof(Rigidbody))]
 [RequireComponent(typeof(AudioSource))]
@@ -67,8 +68,12 @@ public class PlayerController : MonoBehaviour
     [Header("UI関連")]
     [SerializeField] private GameObject pauseMenu;
     [SerializeField] private GameObject option;
-    [SerializeField] private Image backGround;
-    [SerializeField] private Image panel;
+    [SerializeField] private GameObject key;
+    [SerializeField] private UnityEngine.UI.Image backGround;
+    [SerializeField] private UnityEngine.UI.Image panel;
+    [SerializeField] string[] keycode;
+    [SerializeField][TextArea(3, 7)] string[] summury;
+    [SerializeField] private TextMeshProUGUI text;
     public TMP_Text pickUpText;
     public float pickUpDistance = 3f;
 
@@ -621,14 +626,24 @@ public class PlayerController : MonoBehaviour
                 pauseMenu.SetActive(true);
                 if (crosshairUI != null) crosshairUI.SetActive(false);
                 break;
+            case "Key":
+                option.SetActive(false);
+                key.SetActive(true);
+                backGround.fillAmount = 0;
+                break;
+            case "ReturnKey":
+                option.SetActive(true);
+                key.SetActive(false);
+                backGround.fillAmount = 0;
+                break;
         }
     }
 
-    public void backgroundTrue(float pos)
+    public void backgroundTrue(RectTransform rect)
     {
         if (!canControl)
         {
-            backGround.gameObject.transform.position = new Vector3(960, pos + 540, 0);
+            backGround.GetComponent<RectTransform>().position = rect.position;
             StartCoroutine(animBackGround());
         }
     }
@@ -656,6 +671,18 @@ public class PlayerController : MonoBehaviour
             Color c = panel.color;
             c.a = Mathf.Clamp01(alpha);
             panel.color = c;
+        }
+    }
+    public void ActiveCommentary(string command)
+    {
+        for (int i = 0; i < keycode.Length; i++)
+        {
+            if (keycode[i] == command)
+            {
+                text.text = summury[i];
+                Debug.Log(keycode);
+                break;
+            }
         }
     }
 
