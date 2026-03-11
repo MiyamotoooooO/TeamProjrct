@@ -6,7 +6,6 @@ using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using System.Threading.Tasks;
 using UnityEngine.Rendering.PostProcessing;
-using static System.Net.Mime.MediaTypeNames;
 
 [RequireComponent(typeof(Rigidbody))]
 [RequireComponent(typeof(AudioSource))]
@@ -72,7 +71,7 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private UnityEngine.UI.Image backGround;
     [SerializeField] private UnityEngine.UI.Image panel;
     [SerializeField] string[] keycode;
-    [SerializeField][TextArea(3, 7)] string[] summury;
+    [SerializeField][TextArea(3, 5)] string[] summury;
     [SerializeField] private TextMeshProUGUI text;
     public TMP_Text pickUpText;
     public float pickUpDistance = 3f;
@@ -634,6 +633,7 @@ public class PlayerController : MonoBehaviour
             case "ReturnKey":
                 option.SetActive(true);
                 key.SetActive(false);
+                text.text = string.Empty;
                 backGround.fillAmount = 0;
                 break;
         }
@@ -680,7 +680,6 @@ public class PlayerController : MonoBehaviour
             if (keycode[i] == command)
             {
                 text.text = summury[i];
-                Debug.Log(keycode);
                 break;
             }
         }
