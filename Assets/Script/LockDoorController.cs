@@ -6,22 +6,18 @@ public class LockDoorController : MonoBehaviour
     [Header("鍵がかかっているかの確認")]
     public bool isLocked = true;
 
-    [Header("左のドア")]
-    public Transform door1;
-
-    [Header("右のドア")]
-    public Transform door2;
+    [Header("ドアの設定")]
+    [Tooltip("動かしたい1枚のドアを入れます")]
+    public Transform targetDoor;
 
     [Header("ドアを開けられる時に出る案内文字")]
     public GameObject guideText;
     [Header("鍵がかかっている時に出る案内文字")]
     public GameObject lockedText;
 
-    [Header("左のドアの目標角度設定")]
-    public Vector3 door1OpenAngle = new Vector3(0, 90, 0);
-
-    [Header("右のドアの目標角度設定")]
-    public Vector3 door2OpenAngle = new Vector3(0, -90, 0);
+    [Header("ドアの目標角度設定")]
+    [Tooltip("ドアが開く角度（例：0, 90, 0 または 0, -90, 0）")]
+    public Vector3 openAngle = new Vector3(0, 90, 0);
 
     [Header("ドアの開閉スピード")]
     public float moveDuration = 1.0f;
@@ -36,24 +32,17 @@ public class LockDoorController : MonoBehaviour
     private bool isOpen = false; // 今ドアは開いているかのフラグ
     private bool isPlayerInside = false; // Playerはドアの近くにいるかのフラグ
     private bool isAnimating = false; // 今ドアは動いている最中かのフラグ
-    private Quaternion door1ClosedRot; // 閉まっているときの角度
-    private Quaternion door2ClosedRot; // 閉まっているときの角度
-    private Quaternion door1OpenRot; // 開いたときの目標角度
-    private Quaternion door2OpenRot; // 開いたときの目標角度
+    private Quaternion closedRot; // 閉まっているときの角度
+    private Quaternion openRot; // 開いたときの目標角度
     private AudioSource audioSource; // 音を鳴らすスピーカー
 
     void Start()
     {
         // 初期の角度を記憶
-        if (door1 != null)
+        if (targetDoor != null)
         {
-            door1ClosedRot = door1.localRotation;
-            door1OpenRot = Quaternion.Euler(door1OpenAngle);
-        }
-        if (door2 != null)
-        {
-            door2ClosedRot = door2.localRotation;
-            door2OpenRot = Quaternion.Euler(door2OpenAngle);
+            closedRot = targetDoor.localRotation;
+            openRot = Quaternion.Euler(openAngle);
         }
 
         if (guideText != null) guideText.SetActive(false);
@@ -76,7 +65,7 @@ public class LockDoorController : MonoBehaviour
             else
             {
                 // ロック解除済みならドアを開閉
-                StartCoroutine(OperateDoors());
+                StartCoroutine(OperateDoor());
             }
         }
     }
@@ -103,15 +92,13 @@ public class LockDoorController : MonoBehaviour
         }
     }
 
-    IEnumerator OperateDoors()
+    IEnumerator OperateDoor()
     {
         isAnimating = true;
         if (guideText != null) guideText.SetActive(false);
 
-        Quaternion d1Start = door1.localRotation;
-        Quaternion d2Start = door2.localRotation;
-        Quaternion d1End = isOpen ? door1ClosedRot : door1OpenRot;
-        Quaternion d2End = isOpen ? door2ClosedRot : door2OpenRot;
+        Quaternion startRot = targetDoor.localRotation;
+        Quaternion endRot = isOpen ? closedRot : openRot;
 
         if (audioSource != null && doorSound != null)
         {
@@ -125,13 +112,11 @@ public class LockDoorController : MonoBehaviour
             elapsed += Time.deltaTime;
             float t = Mathf.SmoothStep(0f, 1f, elapsed / moveDuration);
 
-            if (door1 != null) door1.localRotation = Quaternion.Slerp(d1Start, d1End, t);
-            if (door2 != null) door2.localRotation = Quaternion.Slerp(d2Start, d2End, t);
+            if (targetDoor != null) targetDoor.localRotation = Quaternion.Slerp(startRot, endRot, t);
             yield return null;
         }
 
-        if (door1 != null) door1.localRotation = d1End;
-        if (door2 != null) door2.localRotation = d2End;
+        if (targetDoor != null) targetDoor.localRotation = endRot;
 
         isOpen = !isOpen;
         isAnimating = false;
