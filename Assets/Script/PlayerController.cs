@@ -209,6 +209,9 @@ public class PlayerController : MonoBehaviour
 
     private void Start()
     {
+        GlobalSubtitleState.IsAnySubtitlePlaying = false;
+        canControl = true;
+
         rb = GetComponent<Rigidbody>();
         rb.freezeRotation = true;
 
@@ -267,7 +270,8 @@ public class PlayerController : MonoBehaviour
         if (rust_keyModel != null) rust_keyModelDefaultPos = rust_keyModel.transform.localPosition;
         if (FrogModel != null) frogModelDefaultPos = FrogModel.transform.localPosition;
 
-        Invoke(nameof(UpdateItemModel), 0.1f);
+        //Invoke(nameof(UpdateItemModel), 0.1f);
+        StartCoroutine(InitInventoryNextFrame());
 
         animator = GetComponent<Animator>();
     }
@@ -276,6 +280,16 @@ public class PlayerController : MonoBehaviour
     {
         if (footstepAudioSource != null) footstepAudioSource.Stop();
         if (breathingAudioSource != null) breathingAudioSource.Stop();
+    }
+
+    private IEnumerator InitInventoryNextFrame()
+    {
+        yield return new WaitForSeconds(0.2f); // 少しだけ待つ
+
+        if (inventoryManager == null)
+            inventoryManager = FindAnyObjectByType<InventoryManager>();
+
+        UpdateItemModel();
     }
 
     private void Update()
@@ -328,9 +342,13 @@ public class PlayerController : MonoBehaviour
             CheckPickUp();
             if (Input.GetKeyDown(KeyCode.Q)) DropCurrentItem();
 
-            if (Input.GetKeyDown(KeyCode.Alpha1)) inventoryManager.ChangeSelectedSlot(0);
-            if (Input.GetKeyDown(KeyCode.Alpha2)) inventoryManager.ChangeSelectedSlot(1);
-            if (Input.GetKeyDown(KeyCode.Alpha3)) inventoryManager.ChangeSelectedSlot(2);
+            //if (Input.GetKeyDown(KeyCode.Alpha1)) inventoryManager.ChangeSelectedSlot(0);
+            //if (Input.GetKeyDown(KeyCode.Alpha2)) inventoryManager.ChangeSelectedSlot(1);
+            //if (Input.GetKeyDown(KeyCode.Alpha3)) inventoryManager.ChangeSelectedSlot(2);
+
+            if (Input.GetKeyDown(KeyCode.Alpha1)) { inventoryManager.ChangeSelectedSlot(0); UpdateItemModel(); }
+            if (Input.GetKeyDown(KeyCode.Alpha2)) { inventoryManager.ChangeSelectedSlot(1); UpdateItemModel(); }
+            if (Input.GetKeyDown(KeyCode.Alpha3)) { inventoryManager.ChangeSelectedSlot(2); UpdateItemModel(); }
         }
 
         bool isGrounded = Physics.Raycast(transform.position + Vector3.up * 0.1f, Vector3.down, groundCheckDistance);

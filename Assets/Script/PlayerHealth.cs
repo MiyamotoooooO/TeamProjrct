@@ -4,20 +4,14 @@ using UnityEngine;
 using UnityEngine.AI;
 using UnityEngine.UI;
 using UnityEngine.Video;
-using UnityEngine.SceneManagement;
 
 [RequireComponent(typeof(AudioSource))]
 public class PlayerHealth : MonoBehaviour
 {
     public bool isDead = false;
 
-    // ★追加：シーンをまたいで（死んでも）持ち物を記憶しておくための魔法の変数
-    public static List<string> keptItemsOnDeath = null;
-
     [Header("設定")]
-    [Tooltip("プレイヤーの移動制御スクリプト")]
     public MonoBehaviour playerMovementScript;
-    [Tooltip("プレイヤーのカメラ")]
     public Camera playerCamera;
 
     [Header("アイテム連携")]
@@ -25,20 +19,13 @@ public class PlayerHealth : MonoBehaviour
     public FlashlightSystem flashlightSystem;
 
     [Header("砂嵐エフェクト")]
-    [Tooltip("砂嵐を表示するUIオブジェクト")]
     public GameObject sandStormUI;
-    [Tooltip("砂嵐の音")]
     public AudioClip sandStormSound;
 
     [Header("死亡演出の設定")]
-    [Tooltip("死亡してからリスポーンするまでの時間（秒）")]
     public float timeToRespawn = 4.0f;
-
-    [Tooltip("ふらつきの激しさ（全体）")]
     public float wobbleIntensity = 15.0f;
-    [Tooltip("ふらつきの回転スピード")]
     public float wobbleSpeed = 2.0f;
-    [Tooltip("Z軸（視界の傾き）の揺れ幅")]
     public float zAxisWobbleAmount = 30.0f;
 
     private Rigidbody rb;
@@ -56,35 +43,8 @@ public class PlayerHealth : MonoBehaviour
         if (sandStormUI != null)
         {
             sandStormPlayer = sandStormUI.GetComponent<VideoPlayer>();
-
-            if (sandStormPlayer != null)
-            {
-                sandStormPlayer.Stop();
-            }
+            if (sandStormPlayer != null) sandStormPlayer.Stop();
             sandStormUI.SetActive(false);
-        }
-
-        // ★追加：リスポーン時に記憶しておいたアイテムを復元する
-        StartCoroutine(RestoreInventoryRoutine());
-    }
-
-    // ★追加：他のスクリプトの準備が終わった後にアイテムを復元する処理
-    IEnumerator RestoreInventoryRoutine()
-    {
-        yield return null; // 1フレーム待機して、InventoryManagerのStartが終わるのを待つ
-
-        if (keptItemsOnDeath != null)
-        {
-            InventoryManager inv = FindAnyObjectByType<InventoryManager>();
-            if (inv != null)
-            {
-                // 記憶しておいた持ち物を復元する。
-                // （LoadItemDataの中で ReflectInventoryToScene が呼ばれるので、マップのアイテムも自動で消えます！）
-                inv.LoadItemData(new List<string>(keptItemsOnDeath));
-                Debug.Log("死亡時の持ち物を復元し、マップのアイテムを消去しました！");
-            }
-            // 復元が終わったらリセットしておく（ニューゲーム時に影響しないように）
-            keptItemsOnDeath = null;
         }
     }
 
@@ -93,17 +53,12 @@ public class PlayerHealth : MonoBehaviour
         if (isDead) return;
         isDead = true;
 
-        Debug.Log("プレイヤー死亡");
-
-        if (playerMovementScript != null)
-            playerMovementScript.enabled = false;
-
+        if (playerMovementScript != null) playerMovementScript.enabled = false;
         if (lighterSystem != null) lighterSystem.canUseLighter = false;
 
         if (sandStormUI != null)
         {
             sandStormUI.SetActive(true);
-
             if (sandStormPlayer != null)
             {
                 sandStormPlayer.time = 0;
@@ -143,13 +98,40 @@ public class PlayerHealth : MonoBehaviour
             foreach (var script in scripts)
             {
                 if (script == null) continue;
-
                 string name = script.GetType().Name;
                 if (name == "EnemyAI" || name == "StatueEnemy" || name == "EnemyAttack" || name == "NavMeshAgent")
                 {
                     script.enabled = false;
                 }
             }
+        }
+    }
+
+    void ResumeAllEnemies()
+    {
+        NavMeshAgent[] allAgents = FindObjectsByType<NavMeshAgent>(FindObjectsSortMode.None);
+        foreach (NavMeshAgent agent in allAgents)
+        {
+            if (agent.gameObject == this.gameObject) continue;
+
+            MonoBehaviour[] scripts = agent.GetComponents<MonoBehaviour>();
+            foreach (var script in scripts)
+            {
+                if (script == null) continue;
+                string name = script.GetType().Name;
+                if (name == "EnemyAI" || name == "StatueEnemy" || name == "EnemyAttack" || name == "NavMeshAgent")
+                {
+                    script.enabled = true;
+                }
+            }
+
+            if (agent.isOnNavMesh) agent.isStopped = false;
+
+            Animator anim = agent.GetComponent<Animator>();
+            if (anim != null) anim.speed = 1;
+
+            Rigidbody enemyRb = agent.GetComponent<Rigidbody>();
+            if (enemyRb != null) enemyRb.isKinematic = false;
         }
     }
 
@@ -170,20 +152,41 @@ public class PlayerHealth : MonoBehaviour
             float z = Mathf.Sin(timer * wobbleSpeed * 0.8f) * zAxisWobbleAmount * progress;
 
             playerCamera.transform.localRotation = startRot * Quaternion.Euler(x, y, z);
-
             yield return null;
         }
 
-        // ★追加：シーンをリロードする直前に、今の持ち物を記憶しておく！
-        InventoryManager inv = FindAnyObjectByType<InventoryManager>();
-        if (inv != null)
+        // ========================================================
+        // ★変更：WakeUpControllerに「もう一度寝かせる」処理を丸投げする
+        // ========================================================
+        WakeUpController wakeUp = FindAnyObjectByType<WakeUpController>();
+        if (wakeUp != null)
         {
-            keptItemsOnDeath = new List<string>(inv.currentItems);
+            wakeUp.SetupRespawnState();
+        }
+        else
+        {
+            // もし見つからなかった場合の保険
+            transform.position = new Vector3(0, 2, 0);
+            playerCamera.transform.localRotation = Quaternion.identity;
         }
 
-        Time.timeScale = 1f;
+        // 3. UIやエフェクトを消して元に戻す
+        if (sandStormUI != null)
+        {
+            sandStormUI.SetActive(false);
+            if (sandStormPlayer != null) sandStormPlayer.Stop();
+        }
 
-        string currentSceneName = SceneManager.GetActiveScene().name;
-        SceneManager.LoadScene(currentSceneName);
+        // 4. 止めていた敵の動きを再開させる
+        ResumeAllEnemies();
+
+        // 5. 死亡中のイベントロックも念のため解除
+        GlobalSubtitleState.IsAnySubtitlePlaying = false;
+
+        // 注意：ここで操作を true に戻しません！
+        // 「Bキーで起き上がる演出」が終わった後に WakeUpSequence の中で操作可能になります。
+
+        isDead = false;
+        Debug.Log("リスポーン地点で寝かされました。アイテム状況はキープされています！");
     }
 }
