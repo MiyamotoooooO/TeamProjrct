@@ -32,13 +32,6 @@ public class SaveManager : MonoBehaviour
         }
 
         savePath = Path.Combine(Application.persistentDataPath, "save.json");
-
-        if (inventoryManager == null)
-        {
-            inventoryManager = Object.FindAnyObjectByType<InventoryManager>();
-        }
-
-        LoadDataFromDisk();
     }
 
     void OnDestroy()
@@ -49,7 +42,6 @@ public class SaveManager : MonoBehaviour
     void Start()
     {
         SceneManager.sceneLoaded += OnSceneLoaded;
-        ApplyLoadData();
     }
 
     void Update()
@@ -62,6 +54,9 @@ public class SaveManager : MonoBehaviour
 
     void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
+        // タイトルシーンでは何もしない
+        if (scene.name == "TitleScene") return;
+
         // ① 【最重要】シーンが切り替わったら「古い参照」を捨てて必ず最新を探し直す！
         inventoryManager = Object.FindAnyObjectByType<InventoryManager>();
 
@@ -72,7 +67,41 @@ public class SaveManager : MonoBehaviour
         PlayerController pc = Object.FindAnyObjectByType<PlayerController>();
         if (pc != null) pc.canControl = true;
 
-        ApplyLoadData();
+        // =========================================================
+        // ★追加：タイトル画面からの指示（新規かロードか）を受け取る
+        // =========================================================
+        int isLoadGame = PlayerPrefs.GetInt("IsLoadGame", 0);
+
+        if (isLoadGame == 1) // 「LOAD GAME」を選んだ場合
+        {
+            Debug.Log("ロードゲームとして開始します");
+            LoadDataFromDisk();
+            ApplyLoadData();
+
+            // プレイヤーの位置と向きをセーブデータから復元
+            GameObject player = GameObject.FindGameObjectWithTag("Player");
+            if (player != null && currentData != null && currentData.playerPosition != Vector3.zero)
+            {
+                // プレイヤーの物理演算による暴走を防ぐため、一時的に無効化
+                CharacterController cc = player.GetComponent<CharacterController>();
+                if (cc != null) cc.enabled = false;
+
+                player.transform.position = currentData.playerPosition;
+                player.transform.rotation = currentData.playerRotation;
+
+                if (cc != null) cc.enabled = true;
+
+                // 視点の同期
+                if (pc != null) pc.SyncRotationToCurrent();
+            }
+        }
+        else // 「START GAME」を選んだ場合、または直接シーンを再生した場合
+        {
+            Debug.Log("新規ゲームとして開始します");
+            DeleteSaveData(); // 古いデータを消してまっさらにする
+            LoadDataFromDisk();
+            ApplyLoadData();
+        }
     }
 
     // ファイル読み込み専用関数
@@ -134,6 +163,12 @@ public class SaveManager : MonoBehaviour
         string json = JsonUtility.ToJson(currentData, true);
         File.WriteAllText(savePath, json);
 
+        // =========================================================
+        // ★追加：セーブデータが存在するという証拠をシステムに刻む
+        // =========================================================
+        PlayerPrefs.SetInt("HasSaveData", 1);
+        PlayerPrefs.Save();
+
         Debug.Log("セーブしました！ 位置: " + currentData.playerPosition);
     }
 
@@ -144,6 +179,11 @@ public class SaveManager : MonoBehaviour
             File.Delete(savePath);
         }
         currentData = new SaveData();
+
+        // セーブデータが存在しない状態に戻す
+        PlayerPrefs.SetInt("HasSaveData", 0);
+        PlayerPrefs.Save();
+        Debug.Log("セーブデータを削除しました");
     }
 
     public void MarkEventAsCompleted(string eventID)

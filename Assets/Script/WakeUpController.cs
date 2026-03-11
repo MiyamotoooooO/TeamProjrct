@@ -34,24 +34,43 @@ public class WakeUpController : MonoBehaviour
         CharacterController cc = playerTransform.GetComponent<CharacterController>();
         if (cc != null) cc.enabled = false;
 
-        bool isLoadGame = IsLoadGame();
+        // ★ タイトル画面からのフラグをチェック
+        bool isLoading = PlayerPrefs.GetInt("IsLoadGame", 0) == 1;
 
-        if (isLoadGame)
+        if (isLoading)
         {
-            if (SaveManager.Instance != null && SaveManager.Instance.currentData != null)
+            // ==========================================
+            // ロード時の処理
+            // ==========================================
+            if (SaveManager.Instance != null)
             {
-                playerTransform.position = SaveManager.Instance.currentData.playerPosition;
-                playerTransform.rotation = SaveManager.Instance.currentData.playerRotation;
-                Physics.SyncTransforms();
+                // ① セーブファイルをディスクから読み込む
+                SaveManager.Instance.LoadGame();
+
+                if (SaveManager.Instance.currentData != null)
+                {
+                    // ② 保存されていた座標と回転を反映
+                    playerTransform.position = SaveManager.Instance.currentData.playerPosition;
+                    playerTransform.rotation = SaveManager.Instance.currentData.playerRotation;
+                    Physics.SyncTransforms();
+                }
             }
 
+            // ロード時はカメラを水平に戻す
             if (playerCamera != null) playerCamera.localRotation = Quaternion.Euler(0f, 0f, 0f);
 
             isSleeping = false;
             InitializeControls(true);
+
+            // ★ 使い終わったフラグをリセット（次回は普通に始まるように）
+            PlayerPrefs.SetInt("IsLoadGame", 0);
+            PlayerPrefs.Save();
         }
         else
         {
+            // ==========================================
+            // ニューゲーム（ベッドから）の処理
+            // ==========================================
             playerTransform.position = spawnPosition;
             playerTransform.rotation = Quaternion.Euler(0, bedRotationY, 0);
             Physics.SyncTransforms();
@@ -61,24 +80,17 @@ public class WakeUpController : MonoBehaviour
             isSleeping = true;
             InitializeControls(false);
 
+            // アイテムやUIの初期化
             if (flashlightSystem == null) flashlightSystem = FindAnyObjectByType<FlashlightSystem>();
             if (lighterSystem == null) lighterSystem = FindAnyObjectByType<LighterSystem>();
 
-            if (flashlightSystem != null)
-            {
-                flashlightSystem.isFlashlightOn = true;
-                flashlightSystem.ApplyState();
-            }
-            if (lighterSystem != null)
-            {
-                lighterSystem.isLighterOn = false;
-                lighterSystem.ApplyState();
-            }
+            if (flashlightSystem != null) { flashlightSystem.isFlashlightOn = false; flashlightSystem.ApplyState(); }
+            if (lighterSystem != null) { lighterSystem.isLighterOn = false; lighterSystem.ApplyState(); }
+
             if (inventoryUI != null) inventoryUI.enabled = false;
         }
 
         if (cc != null) cc.enabled = true;
-
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
     }

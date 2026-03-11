@@ -81,6 +81,12 @@ public class PlayerHealth : MonoBehaviour
             audioSource.PlayOneShot(sandStormSound);
         }
 
+        EnemyAI[] zombies = FindObjectsOfType<EnemyAI>();
+        foreach (EnemyAI zombie in zombies)
+        {
+            zombie.ResetToInitialPosition();
+        }
+
         StopAllEnemies();
         StartCoroutine(DeathSequence());
     }

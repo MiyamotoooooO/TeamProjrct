@@ -1,55 +1,52 @@
-using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.AI;
+using System.Collections.Generic;
 
 public class EnemyAI : MonoBehaviour
 {
-    [Header("Playerを参照")]
-    public Transform player;
+    [Header("ターゲット設定")]
+    [Tooltip("本来のプレイヤーを登録（デコイがない時のデフォルト）")]
+    public Transform defaultPlayer;
+
+    private Transform currentTarget; // 現在狙っているターゲット
     NavMeshAgent agent;
     Animator animator;
-    CapsuleCollider col;
+    AudioSource audioSource;
 
-    [Header("走る速度")]
+    [Header("移動・攻撃設定")]
     public float runDistance = 10f;
-
-    [Header("攻撃が当たる範囲")]
     public float attackDistance = 2.5f;
-
-    [Header("徘徊半径")]
-    public float wanderRadius = 2f;
-
-    [Header("徘徊間隔")]
-    public float wanderInterval = 10f;
-
-    //[Header("ジャンプスケア用")]
-    //public Transform cameraFacePoint;
+    public float wanderRadius = 5f;
+    public float wanderInterval = 5f;
 
     [Header("音の設定")]
-    [Tooltip("ボスの音（ここに音源を入れる）")]
     public AudioClip zombieSound;
-    private AudioSource audioSource;
-    [Header("ジャンプスケア")]
     public AudioClip jumpScareSound;
 
     bool isChasing = false;
-
     float timer;
     bool isAttacking;
     public bool IsAttacking { get; private set; }
 
+    // ★ 追加：初期位置と回転を記憶する変数
+    private Vector3 initialPosition;
+    private Quaternion initialRotation;
+
     void Start()
     {
         agent = GetComponent<NavMeshAgent>();
-        animator = GetComponentInChildren<Animator>(); // Zombie用
-        col = GetComponent<CapsuleCollider>();
+        animator = GetComponentInChildren<Animator>();
         audioSource = GetComponent<AudioSource>();
+
+        // ★ ゲーム開始時の位置と向きを保存
+        initialPosition = transform.position;
+        initialRotation = transform.rotation;
 
         if (audioSource != null)
         {
-            audioSource.playOnAwake = false; // 勝手に鳴らないように
-            audioSource.loop = true;        // ループしないように
-            audioSource.clip = zombieSound; //ここでセット
+            audioSource.playOnAwake = false;
+            audioSource.loop = true;
+            audioSource.clip = zombieSound;
         }
         timer = wanderInterval;
     }
@@ -57,104 +54,138 @@ public class EnemyAI : MonoBehaviour
     void Update()
     {
         if (!agent.isOnNavMesh) return;
-        float distance = Vector3.Distance(transform.position, player.position);
 
-        //攻撃フェーズ
+        // 一番近い「Player」タグを探す
+        FindClosestTarget();
+
+        if (currentTarget == null)
+        {
+            Wander();
+            return;
+        }
+
+        float distance = Vector3.Distance(transform.position, currentTarget.position);
+
+        // 攻撃フェーズ
         if (distance <= attackDistance)
         {
-            if (!isAttacking) //毎フレーム攻撃はいらないように
+            if (!isAttacking)
             {
                 agent.isStopped = true;
                 animator.SetBool("IsAttacking", true);
                 isAttacking = true;
-                IsAttacking = true; // ←追加
+                IsAttacking = true;
             }
-
         }
-        //追撃フェーズ
+        // 追撃フェーズ
         else if (distance <= runDistance)
         {
-            ExitAttack(); //攻撃解除処理
-                          // ★ 追いかけ開始した瞬間
+            ExitAttack();
             if (!isChasing)
             {
-                Debug.Log("追いかけ開始");
                 isChasing = true;
-
-                if (audioSource != null && zombieSound != null)
-                {
-                    audioSource.Play();   // ループ再生
-                }
+                if (audioSource != null && zombieSound != null) audioSource.Play();
             }
             agent.isStopped = false;
             agent.speed = 3.5f;
-            if (agent.destination != player.position)
+            agent.SetDestination(currentTarget.position);
+        }
+        // 徘徊フェーズ
+        else
+        {
+            if (isChasing)
             {
-                agent.SetDestination(player.position);
+                isChasing = false;
+                if (audioSource != null) audioSource.Stop();
             }
-
-            else
-            {
-                ExitAttack();
-
-                if (isChasing)
-                {
-                    isChasing = false;
-
-                    if (audioSource != null)
-                    {
-                        audioSource.Stop();
-                    }
-                }
-                Wander();
-            }
-            //Animator制御
-            animator.SetFloat("Speed", agent.velocity.magnitude);
+            Wander();
         }
 
-        //徘徊処理
-        void Wander()
-        {
-            timer += Time.deltaTime;
-            //移動中は新しい目的地を出さない
-            if (agent.hasPath && agent.remainingDistance > 0.5f)
-                return;
+        animator.SetFloat("Speed", agent.velocity.magnitude);
+    }
 
-            if (timer >= wanderInterval)
+    // ★ 追加：プレイヤーが死んだときに呼ばれるリセット関数
+    public void ResetToInitialPosition()
+    {
+        // 追跡や攻撃の状態をすべて解除
+        isChasing = false;
+        isAttacking = false;
+        IsAttacking = false;
+
+        if (audioSource != null) audioSource.Stop();
+        if (animator != null)
+        {
+            animator.SetBool("IsAttacking", false);
+            animator.SetFloat("Speed", 0);
+        }
+
+        // NavMeshAgentを一時止めてワープさせる
+        if (agent != null && agent.isOnNavMesh)
+        {
+            agent.isStopped = true;
+            agent.ResetPath();
+            // 直接transformを書き換えるとNavMeshが壊れることがあるためWarpを使う
+            agent.Warp(initialPosition);
+        }
+
+        transform.rotation = initialRotation;
+        Debug.Log("ゾンビを初期位置に戻しました");
+    }
+
+    void FindClosestTarget()
+    {
+        GameObject[] targets = GameObject.FindGameObjectsWithTag("Player");
+        float minDistance = Mathf.Infinity;
+        Transform closest = null;
+
+        foreach (GameObject t in targets)
+        {
+            float dist = Vector3.Distance(transform.position, t.transform.position);
+            if (dist < minDistance)
             {
-                Vector3 newPos = RandomNavSphere(transform.position, wanderRadius);
-                agent.speed = 1.5f;
-                agent.SetDestination(newPos);
-                timer = 0;
+                minDistance = dist;
+                closest = t.transform;
             }
         }
-        // NavMesh上のランダム地点取得
-        Vector3 RandomNavSphere(Vector3 origin, float dist)
-        {
-            Vector3 randDir = Random.insideUnitSphere * dist + origin;
-            NavMesh.SamplePosition(randDir, out NavMeshHit hit, dist, NavMesh.AllAreas);
-            return hit.position;
-        }
-        void ExitAttack()
-        {
-            if (isAttacking)
-            {
-                animator.SetBool("IsAttacking", false);
-                agent.isStopped = false;
-                isAttacking = false;
-                IsAttacking = false;
 
-            }
+        currentTarget = closest;
+    }
 
+    void Wander()
+    {
+        timer += Time.deltaTime;
+        if (agent.hasPath && agent.remainingDistance > 0.5f) return;
+
+        if (timer >= wanderInterval)
+        {
+            Vector3 newPos = RandomNavSphere(transform.position, wanderRadius);
+            agent.speed = 1.5f;
+            agent.SetDestination(newPos);
+            timer = 0;
         }
     }
+
+    Vector3 RandomNavSphere(Vector3 origin, float dist)
+    {
+        Vector3 randDir = Random.insideUnitSphere * dist + origin;
+        NavMesh.SamplePosition(randDir, out NavMeshHit hit, dist, NavMesh.AllAreas);
+        return hit.position;
+    }
+
+    void ExitAttack()
+    {
+        if (isAttacking)
+        {
+            animator.SetBool("IsAttacking", false);
+            agent.isStopped = false;
+            isAttacking = false;
+            IsAttacking = false;
+        }
+    }
+
     public void StopChaseSound()
     {
-        if (audioSource != null && audioSource.isPlaying)
-        {
-            audioSource.Stop();
-        }
-
+        if (audioSource != null && audioSource.isPlaying) audioSource.Stop();
         isChasing = false;
     }
 }

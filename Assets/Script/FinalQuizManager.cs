@@ -19,20 +19,12 @@ public class FinalQuizManager : MonoBehaviour
 
     [Header("【重要】敵の演出設定")]
     public GameObject enemyModel;
-
-    [Tooltip("クイズ中にうっすら見える位置")]
     public Transform shadowPosition;
-
-    [Tooltip("目の前に現れる位置")]
     public Transform closePosition;
-
-    [Tooltip("★プレイヤーの顔面に飛んでくる部位（敵の顔や手などに設置した空オブジェクト）")]
     public Transform attackPoint;
 
     [Header("オーディオ設定")]
-    [Tooltip("不正解時、敵が現れてUIを壊す音")]
     public AudioClip uiBreakSound;
-    [Tooltip("飛びかかってくる時のジャンプスケア音")]
     public AudioClip jumpScareSound;
 
     [Header("タイマー・エリア設定")]
@@ -41,20 +33,13 @@ public class FinalQuizManager : MonoBehaviour
     public bool isTimerActive = true;
 
     [Header("時間・カメラ設定")]
-    [Tooltip("クイズ開始時、カメラが向く上下の角度（マイナスで上向き、プラスで下向き。例：-15 で少し上を向く）")]
     public float quizCameraPitchAngle = -15f;
-
-    [Tooltip("不正解時に敵が飛びかかってくるスピード（秒）")]
     public float jumpScareDuration = 0.2f;
-
-    [Tooltip("敵についているAnimator")]
     public Animator enemyAnimator;
 
     [Header("★オブジェクトの非表示設定")]
-    [Tooltip("クイズ中だけ非表示にしたいオブジェクトを登録してください")]
     public GameObject[] objectsToHideDuringQuiz;
 
-    // 内部変数
     private float timer = 0f;
     private bool isQuizTriggered = false;
     private AudioSource audioSource;
@@ -64,6 +49,9 @@ public class FinalQuizManager : MonoBehaviour
     private WakeUpController wakeUpController;
 
     private Vector3 actualShadowPos;
+
+    // ★追加：元の音量を記憶しておくためのリスト
+    private Dictionary<AudioSource, float> originalVolumes = new Dictionary<AudioSource, float>();
 
     void Start()
     {
@@ -76,22 +64,14 @@ public class FinalQuizManager : MonoBehaviour
         if (answerCanvasGroup != null) answerCanvasGroup.gameObject.SetActive(false);
         if (enemyModel != null) enemyModel.SetActive(false);
 
-        foreach (Button correctBtn in correctButtons)
-        {
-            if (correctBtn != null) correctBtn.onClick.AddListener(OnCorrectAnswer);
-        }
-
-        foreach (Button wrongBtn in wrongButtons)
-        {
-            if (wrongBtn != null) wrongBtn.onClick.AddListener(OnWrongAnswer);
-        }
+        foreach (Button correctBtn in correctButtons) if (correctBtn != null) correctBtn.onClick.AddListener(OnCorrectAnswer);
+        foreach (Button wrongBtn in wrongButtons) if (wrongBtn != null) wrongBtn.onClick.AddListener(OnWrongAnswer);
     }
 
     void Update()
     {
         if (!isTimerActive || isQuizTriggered) return;
 
-        // プレイヤーが死んでいる時、または寝ている時はタイマーを進めない
         if (playerHealth != null && playerHealth.isDead) return;
         if (wakeUpController != null && (wakeUpController.isSleeping || wakeUpController.isWakingUp)) return;
 
@@ -131,10 +111,7 @@ public class FinalQuizManager : MonoBehaviour
     private Vector3 GetGroundedPosition(Vector3 pos)
     {
         RaycastHit hit;
-        if (Physics.Raycast(new Vector3(pos.x, pos.y + 2f, pos.z), Vector3.down, out hit, 10f))
-        {
-            return hit.point;
-        }
+        if (Physics.Raycast(new Vector3(pos.x, pos.y + 2f, pos.z), Vector3.down, out hit, 10f)) return hit.point;
         return pos;
     }
 
@@ -143,6 +120,9 @@ public class FinalQuizManager : MonoBehaviour
         isQuizTriggered = true;
 
         if (playerController != null) playerController.canControl = false;
+
+        // ★強力版ミュートを実行
+        SetPlayerAudioMute(true);
 
         if (playerController != null && playerController.cam != null)
         {
@@ -178,27 +158,19 @@ public class FinalQuizManager : MonoBehaviour
             blurVolume.weight = 1f;
         }
 
-        // ★追加：指定されたオブジェクトを非表示にする
         if (objectsToHideDuringQuiz != null)
         {
-            foreach (GameObject obj in objectsToHideDuringQuiz)
-            {
-                if (obj != null) obj.SetActive(false);
-            }
+            foreach (GameObject obj in objectsToHideDuringQuiz) if (obj != null) obj.SetActive(false);
         }
 
         if (enemyModel != null && shadowPosition != null && playerController != null && playerController.cam != null)
         {
-            Transform camTransform = playerController.cam.transform;
-
-            actualShadowPos = GetSafePosition(camTransform.position, shadowPosition.position);
+            actualShadowPos = GetSafePosition(playerController.cam.transform.position, shadowPosition.position);
             actualShadowPos = GetGroundedPosition(actualShadowPos);
-
             enemyModel.transform.position = actualShadowPos;
 
-            Vector3 lookTarget = new Vector3(camTransform.position.x, enemyModel.transform.position.y, camTransform.position.z);
+            Vector3 lookTarget = new Vector3(playerController.cam.transform.position.x, enemyModel.transform.position.y, playerController.cam.transform.position.z);
             enemyModel.transform.LookAt(lookTarget);
-
             enemyModel.SetActive(true);
         }
     }
@@ -216,13 +188,12 @@ public class FinalQuizManager : MonoBehaviour
 
         Time.timeScale = 1f;
 
-        // ★追加：非表示にしていたオブジェクトを元に戻す
+        // ★強力版ミュートを解除
+        SetPlayerAudioMute(false);
+
         if (objectsToHideDuringQuiz != null)
         {
-            foreach (GameObject obj in objectsToHideDuringQuiz)
-            {
-                if (obj != null) obj.SetActive(true);
-            }
+            foreach (GameObject obj in objectsToHideDuringQuiz) if (obj != null) obj.SetActive(true);
         }
 
         if (playerController != null)
@@ -231,10 +202,7 @@ public class FinalQuizManager : MonoBehaviour
             playerController.UpdateCursorLock();
         }
 
-        if (enemyAnimator != null)
-        {
-            enemyAnimator.enabled = false;
-        }
+        if (enemyAnimator != null) enemyAnimator.enabled = false;
 
         if (enemyModel != null && closePosition != null && playerController != null)
         {
@@ -256,13 +224,12 @@ public class FinalQuizManager : MonoBehaviour
     {
         Time.timeScale = 1f;
 
-        // ★追加：死ぬ（ゲームオーバー）時にも一応表示を戻しておく
+        // ★強力版ミュートを解除
+        SetPlayerAudioMute(false);
+
         if (objectsToHideDuringQuiz != null)
         {
-            foreach (GameObject obj in objectsToHideDuringQuiz)
-            {
-                if (obj != null) obj.SetActive(true);
-            }
+            foreach (GameObject obj in objectsToHideDuringQuiz) if (obj != null) obj.SetActive(true);
         }
 
         Vector3 safeClosePos = enemyModel.transform.position;
@@ -274,13 +241,9 @@ public class FinalQuizManager : MonoBehaviour
 
             Vector3 lookTarget = new Vector3(playerController.cam.transform.position.x, enemyModel.transform.position.y, playerController.cam.transform.position.z);
             enemyModel.transform.LookAt(lookTarget);
-
             enemyModel.SetActive(true);
 
-            if (enemyAnimator != null)
-            {
-                enemyAnimator.SetTrigger("Punch");
-            }
+            if (enemyAnimator != null) enemyAnimator.SetTrigger("Punch");
         }
 
         if (audioSource != null && uiBreakSound != null) audioSource.PlayOneShot(uiBreakSound);
@@ -300,7 +263,6 @@ public class FinalQuizManager : MonoBehaviour
 
         Vector3 enemyStartPos = safeClosePos;
         Quaternion enemyStartRot = enemyModel.transform.rotation;
-
         Vector3 windupPos = enemyStartPos + (enemyModel.transform.forward * -0.5f) + (Vector3.up * 0.2f);
         Quaternion windupRot = enemyStartRot * Quaternion.Euler(20f, 0, 0);
 
@@ -326,7 +288,6 @@ public class FinalQuizManager : MonoBehaviour
                 enemyModel.transform.position = Vector3.Lerp(enemyStartPos, windupPos, t);
                 enemyModel.transform.rotation = Quaternion.Slerp(enemyStartRot, windupRot, t);
             }
-
             yield return null;
         }
 
@@ -354,19 +315,45 @@ public class FinalQuizManager : MonoBehaviour
             {
                 elapsed += Time.deltaTime;
                 float t = elapsed / attackDuration;
-
                 t = t * t * t;
 
                 enemyModel.transform.position = Vector3.Lerp(windupPos, targetRootPos, t);
                 enemyModel.transform.rotation = Quaternion.Slerp(windupRot, attackRot, t);
-
                 yield return null;
             }
         }
 
-        if (playerHealth != null)
+        if (playerHealth != null) playerHealth.Die();
+    }
+
+    // ===============================================
+    // ★超強力版：プレイヤーの音を一時停止し、音量も0にする関数
+    // ===============================================
+    private void SetPlayerAudioMute(bool isMuted)
+    {
+        if (playerController != null)
         {
-            playerHealth.Die();
+            AudioSource[] audios = playerController.GetComponentsInChildren<AudioSource>(true);
+            foreach (AudioSource audio in audios)
+            {
+                if (isMuted)
+                {
+                    if (!originalVolumes.ContainsKey(audio))
+                    {
+                        originalVolumes[audio] = audio.volume;
+                    }
+                    audio.Pause();
+                    audio.volume = 0f;
+                }
+                else
+                {
+                    if (originalVolumes.ContainsKey(audio))
+                    {
+                        audio.volume = originalVolumes[audio];
+                    }
+                    audio.UnPause();
+                }
+            }
         }
     }
 }

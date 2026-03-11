@@ -1,54 +1,39 @@
 using System.Collections;
-using System.Collections.Generic;
+using System.Collections.Generic; // ★追加
 using UnityEngine;
 using UnityEngine.UI;
 
+[System.Serializable]
+public class LookAtSubtitleData
+{
+    public Image subtitleImage;
+    public float duration = 2.0f;
+    public int characterCount = 8;
+    public float displayTime = 3.0f;
+}
+
 public class LookAtSubtitleEventManager : MonoBehaviour
 {
-    [Header("【重要】イベント設定")]
-    [Tooltip("プレイヤーが強制的に向く対象のオブジェクト（空オブジェクト等）")]
     public Transform lookTarget;
-
-    [Tooltip("振り向く速さ")]
     public float turnSpeed = 3.0f;
-
-    [Tooltip("リスポーンしても「終わった事」を記憶させるための名前（例: LookEvent1）。空欄なら毎回発動します")]
     public string eventID;
 
-    [Header("表示設定")]
-    [Tooltip("順番に表示させたいUIのImage画像（＋ボタンで何個でも登録できます）")]
-    public Image[] targetImages;
-
-    [Tooltip("1つの画像を表示にかける時間（秒）")]
-    public float duration = 2.0f;
-
-    [Tooltip("文字数（画像を何段階で表示するか）")]
-    public int characterCount = 8;
-
-    [Header("自動消去・フェード・間隔設定")]
-    [Tooltip("すべて表示された後、消え始めるまでの待機時間（秒）")]
-    public float displayTime = 3.0f;
-
-    [Tooltip("最後の字幕がうっすら消えていくフェードアウトの時間（秒）")]
+    public LookAtSubtitleData[] subtitles;
     public float fadeDuration = 1.0f;
-
-    [Tooltip("前の字幕が消えてから、次の字幕が表示されるまでの間隔（秒）")]
     public float delayBetweenSubtitles = 0.5f;
 
-    [Header("参照設定")]
     public PlayerController playerController;
 
-    // 内部変数
     private bool hasTriggered = false;
-
-    // 完了したイベントIDの歴史リスト
     public static List<string> clearedLookEvents = new List<string>();
+
+    // ★追加：元の音量を記憶するリスト
+    private Dictionary<AudioSource, float> originalVolumes = new Dictionary<AudioSource, float>();
 
     void Start()
     {
         if (playerController == null) playerController = FindAnyObjectByType<PlayerController>();
 
-        // すでに終わっているイベントなら、このトリガーをオフにする
         if (!string.IsNullOrEmpty(eventID) && clearedLookEvents.Contains(eventID))
         {
             hasTriggered = true;
@@ -57,18 +42,18 @@ public class LookAtSubtitleEventManager : MonoBehaviour
             return;
         }
 
-        if (targetImages != null)
+        if (subtitles != null)
         {
-            foreach (Image img in targetImages)
+            foreach (var data in subtitles)
             {
-                if (img != null)
+                if (data.subtitleImage != null)
                 {
-                    img.type = Image.Type.Filled;
-                    img.fillMethod = Image.FillMethod.Horizontal;
-                    img.fillOrigin = (int)Image.OriginHorizontal.Left;
-                    img.fillAmount = 0f;
-                    img.gameObject.SetActive(false);
-                    SetAlpha(img, 1f);
+                    data.subtitleImage.type = Image.Type.Filled;
+                    data.subtitleImage.fillMethod = Image.FillMethod.Horizontal;
+                    data.subtitleImage.fillOrigin = (int)Image.OriginHorizontal.Left;
+                    data.subtitleImage.fillAmount = 0f;
+                    data.subtitleImage.gameObject.SetActive(false);
+                    SetAlpha(data.subtitleImage, 1f);
                 }
             }
         }
@@ -78,9 +63,7 @@ public class LookAtSubtitleEventManager : MonoBehaviour
     {
         if (!hasTriggered && other.CompareTag("Player"))
         {
-            // 他の字幕が再生中なら完全に無視する
             if (GlobalSubtitleState.IsAnySubtitlePlaying) return;
-
             hasTriggered = true;
             StartCoroutine(PlayLookAtAndSubtitle());
         }
@@ -88,9 +71,7 @@ public class LookAtSubtitleEventManager : MonoBehaviour
 
     IEnumerator PlayLookAtAndSubtitle()
     {
-        GlobalSubtitleState.IsAnySubtitlePlaying = true; // グローバルロックON
-
-        // ★時間を止めて、敵もプレイヤーも動けなくする！
+        GlobalSubtitleState.IsAnySubtitlePlaying = true;
         Time.timeScale = 0f;
 
         if (playerController != null)
@@ -100,22 +81,19 @@ public class LookAtSubtitleEventManager : MonoBehaviour
             if (rb != null) rb.velocity = Vector3.zero;
         }
 
-        // --- ① ターゲットの方を強制的に向く処理 ---
+        // ★強力版ミュート実行
+        SetPlayerAudioMute(true);
+
         if (lookTarget != null && playerController != null)
         {
             Transform playerTransform = playerController.transform;
             Transform camTransform = playerController.cam.transform;
 
-            // プレイヤーの体の回転（Y軸のみ）を計算
             Vector3 direction = lookTarget.position - playerTransform.position;
-            direction.y = 0; // 上下は無視
+            direction.y = 0;
             Quaternion targetBodyRot = playerTransform.rotation;
-            if (direction != Vector3.zero)
-            {
-                targetBodyRot = Quaternion.LookRotation(direction);
-            }
+            if (direction != Vector3.zero) targetBodyRot = Quaternion.LookRotation(direction);
 
-            // カメラの回転（X軸：上下のみ）を計算
             Vector3 camDirection = lookTarget.position - camTransform.position;
             Quaternion targetCamLookRot = Quaternion.LookRotation(camDirection);
             Vector3 camEuler = targetCamLookRot.eulerAngles;
@@ -127,28 +105,24 @@ public class LookAtSubtitleEventManager : MonoBehaviour
             float t = 0f;
             while (t < 1.0f)
             {
-                // 時間が止まっているので Time.unscaledDeltaTime を使う
                 t += Time.unscaledDeltaTime * turnSpeed;
-
                 playerTransform.rotation = Quaternion.Slerp(startBodyRot, targetBodyRot, t);
                 camTransform.localRotation = Quaternion.Slerp(startCamRot, targetCamRot, t);
                 playerController.SyncRotationToCurrent();
-
                 yield return null;
             }
 
-            // 最後にピッタリ合わせる
             playerTransform.rotation = targetBodyRot;
             camTransform.localRotation = targetCamRot;
             playerController.SyncRotationToCurrent();
         }
 
-        // --- ② 字幕の処理 ---
-        if (targetImages != null && targetImages.Length > 0)
+        if (subtitles != null && subtitles.Length > 0)
         {
-            for (int i = 0; i < targetImages.Length; i++)
+            for (int i = 0; i < subtitles.Length; i++)
             {
-                Image currentImage = targetImages[i];
+                LookAtSubtitleData currentData = subtitles[i];
+                Image currentImage = currentData.subtitleImage;
                 if (currentImage == null) continue;
 
                 currentImage.gameObject.SetActive(true);
@@ -156,31 +130,19 @@ public class LookAtSubtitleEventManager : MonoBehaviour
                 SetAlpha(currentImage, 1f);
 
                 float timer = 0f;
-
-                // 時間停止中なので Time.unscaledDeltaTime を使う
-                while (timer < duration)
+                while (timer < currentData.duration)
                 {
                     timer += Time.unscaledDeltaTime;
-                    float progress = timer / duration;
-
-                    if (characterCount > 0)
-                    {
-                        float steppedProgress = Mathf.Floor(progress * characterCount) / characterCount;
-                        currentImage.fillAmount = steppedProgress;
-                    }
-                    else
-                    {
-                        currentImage.fillAmount = progress;
-                    }
+                    float progress = timer / currentData.duration;
+                    if (currentData.characterCount > 0) currentImage.fillAmount = Mathf.Floor(progress * currentData.characterCount) / currentData.characterCount;
+                    else currentImage.fillAmount = progress;
                     yield return null;
                 }
 
                 currentImage.fillAmount = 1.0f;
+                yield return new WaitForSecondsRealtime(currentData.displayTime);
 
-                // 時間停止中なので WaitForSecondsRealtime を使う
-                yield return new WaitForSecondsRealtime(displayTime);
-
-                if (i == targetImages.Length - 1)
+                if (i == subtitles.Length - 1)
                 {
                     timer = 0f;
                     while (timer < fadeDuration)
@@ -191,45 +153,59 @@ public class LookAtSubtitleEventManager : MonoBehaviour
                         yield return null;
                     }
                 }
-
                 SetAlpha(currentImage, 0f);
                 currentImage.gameObject.SetActive(false);
 
-                if (i < targetImages.Length - 1)
-                {
-                    yield return new WaitForSecondsRealtime(delayBetweenSubtitles);
-                }
+                if (i < subtitles.Length - 1) yield return new WaitForSecondsRealtime(delayBetweenSubtitles);
             }
         }
 
-        // --- ③ 終了処理 ---
         if (!string.IsNullOrEmpty(eventID) && !clearedLookEvents.Contains(eventID))
         {
             clearedLookEvents.Add(eventID);
         }
 
-        // このトリガーを二度と踏めないように無効化する
         Collider col = GetComponent<Collider>();
         if (col != null) col.enabled = false;
 
-        // ★時間を元に戻して敵も動けるようにする
         Time.timeScale = 1f;
+
+        // ★強力版ミュート解除
+        SetPlayerAudioMute(false);
 
         if (playerController != null)
         {
             playerController.canControl = true;
         }
 
-        GlobalSubtitleState.IsAnySubtitlePlaying = false; // ★ グローバルロックOFF
+        GlobalSubtitleState.IsAnySubtitlePlaying = false;
     }
 
     private void SetAlpha(Image img, float alpha)
     {
-        if (img != null)
+        if (img != null) { Color c = img.color; c.a = alpha; img.color = c; }
+    }
+
+    // ★超強力版ミュート関数
+    private void SetPlayerAudioMute(bool isMuted)
+    {
+        if (playerController != null)
         {
-            Color c = img.color;
-            c.a = alpha;
-            img.color = c;
+            AudioSource[] audios = playerController.GetComponentsInChildren<AudioSource>(true);
+            foreach (AudioSource audio in audios)
+            {
+                if (isMuted)
+                {
+                    if (!originalVolumes.ContainsKey(audio)) originalVolumes[audio] = audio.volume;
+                    audio.Pause();
+                    audio.volume = 0f;
+                }
+                else
+                {
+                    if (originalVolumes.ContainsKey(audio)) audio.volume = originalVolumes[audio];
+                    audio.UnPause();
+                }
+            }
         }
     }
 }

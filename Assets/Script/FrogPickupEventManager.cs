@@ -1,47 +1,35 @@
 using System.Collections;
+using System.Collections.Generic; // ★追加
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.Rendering.PostProcessing;
 
 public class FrogPickupEventManager : MonoBehaviour
 {
-    [Header("トリガー設定")]
-    [Tooltip("虫の山を覆うBoxCollider（IsTriggerをオンにしてください）")]
     public Collider triggerArea;
-    [Tooltip("エリア内に入った時に表示する「Eキー」などの案内UI")]
     public GameObject interactPromptUI;
 
-    [Header("字幕：時間・フェード共通設定")]
     public float duration = 0.8f;
     public int characterCount = 8;
     public float displayTime = 1.0f;
     public float fadeDuration = 1.0f;
     public float delayBetweenSubtitles = 0.5f;
 
-    [Header("字幕データ（順番に表示）")]
-    [Tooltip("Eキーを押した直後に出る字幕")]
     public Image[] startSubtitleImages;
-
-    [Header("クイズUI設定")]
-    [Tooltip("クイズの問題文とボタンが含まれる親パネル")]
     public GameObject quizPanel;
-    [Tooltip("正解のボタン")]
     public Button correctButton;
-    [Tooltip("不正解のボタン")]
     public Button wrongButton;
-
-    [Header("アイテム入手設定")]
-    [Tooltip("入手させる「Spider」の実体オブジェクト（シーン上のもの。非表示でOK）")]
     public GameObject spiderItemObject;
 
-    [Header("参照設定")]
     public PlayerController playerController;
     public InventoryManager inventoryManager;
 
-    // 内部変数
     private bool isPlayerInRange = false;
-    private bool hasCleared = false; // クリア済みか
-    private bool isEventActive = false; // イベント進行中か
+    private bool hasCleared = false;
+    private bool isEventActive = false;
+
+    // ★追加：元の音量を記憶するリスト
+    private Dictionary<AudioSource, float> originalVolumes = new Dictionary<AudioSource, float>();
 
     void Start()
     {
@@ -51,10 +39,8 @@ public class FrogPickupEventManager : MonoBehaviour
         if (interactPromptUI != null) interactPromptUI.SetActive(false);
         if (quizPanel != null) quizPanel.SetActive(false);
 
-        // 画像の初期化
         InitImages(startSubtitleImages);
 
-        // ボタンのクリックイベント登録
         if (correctButton != null) correctButton.onClick.AddListener(OnCorrectButtonClicked);
         if (wrongButton != null) wrongButton.onClick.AddListener(OnWrongButtonClicked);
     }
@@ -80,7 +66,6 @@ public class FrogPickupEventManager : MonoBehaviour
     {
         if (hasCleared) return;
 
-        // 他の字幕が再生中なら入力を受け付けない
         if (GlobalSubtitleState.IsAnySubtitlePlaying && !isEventActive)
         {
             if (interactPromptUI != null) interactPromptUI.SetActive(false);
@@ -89,8 +74,7 @@ public class FrogPickupEventManager : MonoBehaviour
 
         if (isPlayerInRange && !isEventActive && !GlobalSubtitleState.IsAnySubtitlePlaying)
         {
-            if (interactPromptUI != null && !interactPromptUI.activeSelf)
-                interactPromptUI.SetActive(true);
+            if (interactPromptUI != null && !interactPromptUI.activeSelf) interactPromptUI.SetActive(true);
 
             if (Input.GetKeyDown(KeyCode.E))
             {
@@ -106,23 +90,14 @@ public class FrogPickupEventManager : MonoBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
-        if (!hasCleared && other.CompareTag("Player"))
-        {
-            isPlayerInRange = true;
-        }
+        if (!hasCleared && other.CompareTag("Player")) isPlayerInRange = true;
     }
 
     private void OnTriggerExit(Collider other)
     {
-        if (other.CompareTag("Player"))
-        {
-            isPlayerInRange = false;
-        }
+        if (other.CompareTag("Player")) isPlayerInRange = false;
     }
 
-    // ==========================================
-    // イベント：クイズ開始
-    // ==========================================
     IEnumerator StartQuizEvent()
     {
         isEventActive = true;
@@ -130,28 +105,19 @@ public class FrogPickupEventManager : MonoBehaviour
 
         LockPlayer(true);
 
-        // 1. 開始時の字幕を表示
         yield return StartCoroutine(ShowImagesRoutine(startSubtitleImages));
 
-        // 2. クイズUIを表示してカーソルを表示する
         if (quizPanel != null) quizPanel.SetActive(true);
         UnityEngine.Cursor.lockState = CursorLockMode.None;
         UnityEngine.Cursor.visible = true;
-
-        // ※ ここでコルーチンは一時終了し、ボタンが押されるのを待つ
     }
 
-    // ==========================================
-    // ボタンクリック時の処理
-    // ==========================================
     private void OnWrongButtonClicked()
     {
-        // ★「いいえ」を押した時の処理
         if (quizPanel != null) quizPanel.SetActive(false);
         UnityEngine.Cursor.lockState = CursorLockMode.Locked;
         UnityEngine.Cursor.visible = false;
 
-        // アイテムは取得せず、イベント状態だけを解除してプレイヤーを動かせるようにする
         LockPlayer(false);
         isEventActive = false;
         GlobalSubtitleState.IsAnySubtitlePlaying = false;
@@ -159,30 +125,19 @@ public class FrogPickupEventManager : MonoBehaviour
 
     private void OnCorrectButtonClicked()
     {
-        // ★「はい」を押した時の処理
         if (quizPanel != null) quizPanel.SetActive(false);
         UnityEngine.Cursor.lockState = CursorLockMode.Locked;
         UnityEngine.Cursor.visible = false;
 
-        // アイテム取得シーケンスへ移行
         StartCoroutine(CorrectSequence());
     }
 
-
-    // ==========================================
-    // イベント：正解（はい）の場合
-    // ==========================================
     IEnumerator CorrectSequence()
     {
         if (spiderItemObject != null && inventoryManager != null && playerController != null)
         {
             string cleanName = spiderItemObject.name.Replace("(Clone)", "").Trim();
-
-            // ★ PickUpItem に実体を渡す（これでInventoryManagerがタグを確実に読める）
             inventoryManager.PickUpItem(spiderItemObject);
-
-            // ★ PickUpItemの中でオブジェクトが破壊されてしまう場合は、これ以上処理できないので、
-            // 破壊される前に手持ちモデルを更新させる
             playerController.UpdateItemModel();
 
             if (playerController.itemGetDisplay != null)
@@ -192,24 +147,15 @@ public class FrogPickupEventManager : MonoBehaviour
             }
         }
 
-        // 完了処理（二度と調べられないようにする）
         hasCleared = true;
         if (triggerArea != null) triggerArea.enabled = false;
-
-        // ★ カエルのオブジェクトがシーンに残っているなら、ここで非表示にする
-        if (spiderItemObject != null)
-        {
-            spiderItemObject.SetActive(false);
-        }
+        if (spiderItemObject != null) spiderItemObject.SetActive(false);
 
         LockPlayer(false);
         isEventActive = false;
         GlobalSubtitleState.IsAnySubtitlePlaying = false;
     }
 
-    // ==========================================
-    // 補助機能
-    // ==========================================
     private void LockPlayer(bool isLocked)
     {
         if (playerController != null)
@@ -220,10 +166,35 @@ public class FrogPickupEventManager : MonoBehaviour
                 Rigidbody rb = playerController.GetComponent<Rigidbody>();
                 if (rb != null) rb.velocity = Vector3.zero;
             }
+
+            // ★音を消す/戻す
+            SetPlayerAudioMute(isLocked);
         }
     }
 
-    // 画像表示部分の共通コルーチン
+    // ★超強力版ミュート関数
+    private void SetPlayerAudioMute(bool isMuted)
+    {
+        if (playerController != null)
+        {
+            AudioSource[] audios = playerController.GetComponentsInChildren<AudioSource>(true);
+            foreach (AudioSource audio in audios)
+            {
+                if (isMuted)
+                {
+                    if (!originalVolumes.ContainsKey(audio)) originalVolumes[audio] = audio.volume;
+                    audio.Pause();
+                    audio.volume = 0f;
+                }
+                else
+                {
+                    if (originalVolumes.ContainsKey(audio)) audio.volume = originalVolumes[audio];
+                    audio.UnPause();
+                }
+            }
+        }
+    }
+
     IEnumerator ShowImagesRoutine(Image[] images)
     {
         if (images != null && images.Length > 0)
@@ -238,15 +209,12 @@ public class FrogPickupEventManager : MonoBehaviour
                 SetAlpha(currentImage, 1f);
 
                 float timer = 0f;
-
                 while (timer < duration)
                 {
                     timer += Time.deltaTime;
                     float progress = timer / duration;
-
                     if (characterCount > 0) currentImage.fillAmount = Mathf.Floor(progress * characterCount) / characterCount;
                     else currentImage.fillAmount = progress;
-
                     yield return null;
                 }
 
@@ -267,22 +235,13 @@ public class FrogPickupEventManager : MonoBehaviour
 
                 SetAlpha(currentImage, 0f);
                 currentImage.gameObject.SetActive(false);
-
-                if (i < images.Length - 1)
-                {
-                    yield return new WaitForSeconds(delayBetweenSubtitles);
-                }
+                if (i < images.Length - 1) yield return new WaitForSeconds(delayBetweenSubtitles);
             }
         }
     }
 
     private void SetAlpha(Image img, float alpha)
     {
-        if (img != null)
-        {
-            Color c = img.color;
-            c.a = alpha;
-            img.color = c;
-        }
+        if (img != null) { Color c = img.color; c.a = alpha; img.color = c; }
     }
 }

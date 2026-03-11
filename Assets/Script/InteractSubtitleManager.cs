@@ -1,182 +1,103 @@
 using System.Collections;
-using System.Collections.Generic;
+using System.Collections.Generic; // ★追加
 using UnityEngine;
 using UnityEngine.UI;
 
-// すべての字幕システムで「現在字幕が再生中か」を共有するためのクラス
 public static class GlobalSubtitleState
 {
     public static bool IsAnySubtitlePlaying = false;
 }
 
-// ====================================================
-// ★追加：イベント発生地専用の「個別に設定できる」字幕データ
-// ====================================================
 [System.Serializable]
 public class SpecialSubtitleData
 {
-    [Tooltip("表示するUIのImage画像")]
     public Image subtitleImage;
-
-    [Tooltip("この字幕が全部出るまでにかかる時間（秒）")]
     public float duration = 0.8f;
-
-    [Tooltip("文字数（何段階で表示するか。0なら滑らか）")]
     public int characterCount = 8;
-
-    [Tooltip("文字が全部出た後に表示したままにする時間（秒）")]
     public float displayTime = 1.0f;
 }
 
-// ====================================================
-// 【1】何もないところ用データ（棚移動などのオプション無し）
-// ====================================================
 [System.Serializable]
 public class NormalInteractData
 {
-    [Tooltip("【重要】リスポーンしても「終わった事」を記憶させるための名前。記憶させたい場合は必ず何か入力してください！")]
     public string eventID;
-
-    [Tooltip("このエリア（BoxCollider等のTrigger）を設定します")]
     public Collider triggerArea;
-
-    [Tooltip("この場所でEキーを押したときに順番に表示させる画像（＋ボタンで追加）")]
     public Image[] subtitleImages;
-
-    [Tooltip("一度見たら、二度と調べられないようにするか（イベント用などにチェック）")]
     public bool playOnlyOnce = false;
-
-    [HideInInspector]
-    public bool hasPlayed = false; // 再生済みかどうかの内部フラグ
+    [HideInInspector] public bool hasPlayed = false;
 }
 
-// ====================================================
-// 【2】イベント発生地用データ（棚移動などのオプション有り）
-// ====================================================
 [System.Serializable]
 public class SpecialInteractData
 {
-    [Tooltip("【重要】リスポーンしても「終わった事」を記憶させるための名前。記憶させたい場合は必ず何か入力してください！")]
     public string eventID;
-
-    [Tooltip("このエリア（BoxCollider等のTrigger）を設定します")]
     public Collider triggerArea;
-
-    // ★変更：専用の個別データ配列に差し替え
-    [Tooltip("この場所でEキーを押したときに表示させる字幕データ（＋ボタンで追加）")]
     public SpecialSubtitleData[] subtitles;
-
-    [Tooltip("一度見たら、二度と調べられないようにするか（イベント用などにチェック）")]
     public bool playOnlyOnce = false;
-
-    [Header("【オプション】字幕終了後の移動演出")]
-    [Tooltip("字幕が終わった後に動かしたいオブジェクト（棚など）。動かさない場合は空欄のままでOK")]
     public Transform objectToMove;
-
-    [Tooltip("どれくらい移動させるか（現在の位置からの移動量。例: Xに 1.5 を入れるとX軸方向に1.5m動く）")]
     public Vector3 moveOffset;
-
-    [Tooltip("移動にかける時間（秒）。ゆっくり動かすなら 3 などを設定")]
     public float moveDuration = 2.0f;
-
-    [Header("【オプション】邪魔な壁の無効化")]
-    [Tooltip("棚移動後に通れるようにするため、邪魔になっているBoxCollider等があればここに登録して消去します（＋ボタンで追加）")]
     public Collider[] collidersToDisable;
-
-    [HideInInspector]
-    public bool hasPlayed = false; // 再生済みかどうかの内部フラグ
+    [HideInInspector] public bool hasPlayed = false;
 }
 
 public class InteractSubtitleManager : MonoBehaviour
 {
-    // 死んでも消えない、完了したイベントIDの歴史リスト
     public static List<string> clearedInteractEvents = new List<string>();
 
-    [Header("【1】何もないところ（棚移動なし）")]
-    [Tooltip("複数の調べるポイントを＋ボタンで追加できます")]
     public NormalInteractData[] normalInteractPoints;
-
-    [Header("【2】イベント発生地（棚移動あり）")]
-    [Tooltip("特別なイベントが起こる場所を設定します")]
     public SpecialInteractData specialInteractPoint;
 
-    [Header("字幕：時間・フェード共通設定（【1】でのみ使用）")]
-    [Tooltip("1つの画像を表示にかける時間（秒）")]
     public float duration = 0.8f;
-    [Tooltip("文字数（画像を何段階で表示するか）")]
     public int characterCount = 8;
-    [Tooltip("すべて表示された後、消え始めるまでの待機時間（秒）")]
     public float displayTime = 1.0f;
-
-    [Header("フェード・待機共通設定（【1】【2】両方で使用）")]
-    [Tooltip("最後の字幕がうっすら消えていくフェードアウトの時間（秒）")]
     public float fadeDuration = 1.0f;
-    [Tooltip("前の字幕が消えてから、次の字幕が表示されるまでの間隔（秒）")]
     public float delayBetweenSubtitles = 0.5f;
 
-    [Header("インタラクト設定")]
-    [Tooltip("エリア内に入った時に表示する「Eキー」などの案内UIオブジェクト")]
     public GameObject interactPromptUI;
-
-    [Header("参照設定")]
-    [Tooltip("プレイヤーの操作を止めるために使用します")]
     public PlayerController playerController;
 
-    // 内部変数
     private NormalInteractData currentNormalData = null;
     private SpecialInteractData currentSpecialData = null;
     private bool isAnimating = false;
+
+    // ★追加：元の音量を記憶するリスト
+    private Dictionary<AudioSource, float> originalVolumes = new Dictionary<AudioSource, float>();
 
     void Start()
     {
         if (playerController == null) playerController = FindAnyObjectByType<PlayerController>();
 
-        // 【1】汎用ポイントの初期化
         if (normalInteractPoints != null)
         {
             foreach (var data in normalInteractPoints)
             {
                 if (data == null || data.triggerArea == null) continue;
-
                 if (!string.IsNullOrEmpty(data.eventID) && clearedInteractEvents.Contains(data.eventID))
                 {
                     data.triggerArea.enabled = false;
                     data.hasPlayed = true;
                     continue;
                 }
-
                 data.triggerArea.isTrigger = true;
                 SubtitleTriggerHandler handler = data.triggerArea.gameObject.AddComponent<SubtitleTriggerHandler>();
                 handler.manager = this;
                 handler.normalData = data;
-
                 InitImages(data.subtitleImages);
             }
         }
 
-        // 【2】イベント発生地の初期化
         if (specialInteractPoint != null && specialInteractPoint.triggerArea != null)
         {
             if (!string.IsNullOrEmpty(specialInteractPoint.eventID) && clearedInteractEvents.Contains(specialInteractPoint.eventID))
             {
-                // すでにクリア済みなら棚を動かした状態にしておく
-                if (specialInteractPoint.objectToMove != null && specialInteractPoint.moveOffset != Vector3.zero)
-                {
-                    specialInteractPoint.objectToMove.position = specialInteractPoint.objectToMove.position + specialInteractPoint.moveOffset;
-                }
-
-                // 邪魔なコライダーをしっかり無効化しておく
+                if (specialInteractPoint.objectToMove != null && specialInteractPoint.moveOffset != Vector3.zero) specialInteractPoint.objectToMove.position = specialInteractPoint.objectToMove.position + specialInteractPoint.moveOffset;
                 if (specialInteractPoint.collidersToDisable != null)
                 {
-                    foreach (Collider col in specialInteractPoint.collidersToDisable)
-                    {
-                        if (col != null) col.enabled = false;
-                    }
+                    foreach (Collider col in specialInteractPoint.collidersToDisable) if (col != null) col.enabled = false;
                 }
-
                 specialInteractPoint.triggerArea.enabled = false;
                 specialInteractPoint.hasPlayed = true;
-
                 gameObject.SetActive(false);
                 return;
             }
@@ -187,7 +108,6 @@ public class InteractSubtitleManager : MonoBehaviour
                 handler.manager = this;
                 handler.specialData = specialInteractPoint;
 
-                // ★個別データ用の初期化
                 if (specialInteractPoint.subtitles != null)
                 {
                     foreach (var sub in specialInteractPoint.subtitles)
@@ -205,8 +125,6 @@ public class InteractSubtitleManager : MonoBehaviour
                 }
             }
         }
-
-        // 最初はEキー案内を隠しておく
         if (interactPromptUI != null) interactPromptUI.SetActive(false);
     }
 
@@ -229,7 +147,6 @@ public class InteractSubtitleManager : MonoBehaviour
 
     void Update()
     {
-        // 他の字幕が再生中なら、UIを隠して入力を受け付けない
         if (GlobalSubtitleState.IsAnySubtitlePlaying && !isAnimating)
         {
             if (interactPromptUI != null) interactPromptUI.SetActive(false);
@@ -240,7 +157,6 @@ public class InteractSubtitleManager : MonoBehaviour
         {
             bool promptShouldBeActive = false;
 
-            // --- Normal の判定 ---
             if (currentNormalData != null)
             {
                 if (!currentNormalData.playOnlyOnce || !currentNormalData.hasPlayed)
@@ -250,12 +166,11 @@ public class InteractSubtitleManager : MonoBehaviour
                     {
                         if (interactPromptUI != null) interactPromptUI.SetActive(false);
                         StartCoroutine(PlayNormalSequence(currentNormalData));
-                        return; // 実行したらUpdateを抜ける
+                        return;
                     }
                 }
             }
 
-            // --- Special の判定 ---
             if (currentSpecialData != null)
             {
                 if (!currentSpecialData.playOnlyOnce || !currentSpecialData.hasPlayed)
@@ -265,31 +180,24 @@ public class InteractSubtitleManager : MonoBehaviour
                     {
                         if (interactPromptUI != null) interactPromptUI.SetActive(false);
                         StartCoroutine(PlaySpecialSequence(currentSpecialData));
-                        return; // 実行したらUpdateを抜ける
+                        return;
                     }
                 }
             }
 
-            // 案内UIの表示切替
             if (interactPromptUI != null)
             {
-                if (promptShouldBeActive && !interactPromptUI.activeSelf)
-                    interactPromptUI.SetActive(true);
-                else if (!promptShouldBeActive && interactPromptUI.activeSelf)
-                    interactPromptUI.SetActive(false);
+                if (promptShouldBeActive && !interactPromptUI.activeSelf) interactPromptUI.SetActive(true);
+                else if (!promptShouldBeActive && interactPromptUI.activeSelf) interactPromptUI.SetActive(false);
             }
         }
     }
 
     public void OnPlayerEnterNormal(NormalInteractData data) { if (data.playOnlyOnce && data.hasPlayed) return; currentNormalData = data; }
     public void OnPlayerExitNormal(NormalInteractData data) { if (currentNormalData == data) { currentNormalData = null; if (interactPromptUI != null && currentSpecialData == null) interactPromptUI.SetActive(false); } }
-
     public void OnPlayerEnterSpecial(SpecialInteractData data) { if (data.playOnlyOnce && data.hasPlayed) return; currentSpecialData = data; }
     public void OnPlayerExitSpecial(SpecialInteractData data) { if (currentSpecialData == data) { currentSpecialData = null; if (interactPromptUI != null && currentNormalData == null) interactPromptUI.SetActive(false); } }
 
-    // ==========================================
-    // 字幕シーケンス（Normal用：共通設定を使用）
-    // ==========================================
     IEnumerator PlayNormalSequence(NormalInteractData data)
     {
         isAnimating = true;
@@ -302,6 +210,8 @@ public class InteractSubtitleManager : MonoBehaviour
             if (rb != null) rb.velocity = Vector3.zero;
         }
 
+        SetPlayerAudioMute(true); // ★音を消す
+
         yield return StartCoroutine(ShowImagesRoutine(data.subtitleImages));
 
         data.hasPlayed = true;
@@ -311,17 +221,15 @@ public class InteractSubtitleManager : MonoBehaviour
             if (data.triggerArea != null) data.triggerArea.enabled = false;
         }
 
+        SetPlayerAudioMute(false); // ★音を戻す
+
         if (playerController != null) playerController.canControl = true;
 
         isAnimating = false;
         GlobalSubtitleState.IsAnySubtitlePlaying = false;
-
         if (currentNormalData == data && data.playOnlyOnce) currentNormalData = null;
     }
 
-    // ==========================================
-    // 字幕シーケンス（Special用：個別設定を使用）
-    // ==========================================
     IEnumerator PlaySpecialSequence(SpecialInteractData data)
     {
         isAnimating = true;
@@ -334,16 +242,15 @@ public class InteractSubtitleManager : MonoBehaviour
             if (rb != null) rb.velocity = Vector3.zero;
         }
 
-        // ★変更：個別設定を読み込む専用のコルーチンを呼ぶ
+        SetPlayerAudioMute(true); // ★音を消す
+
         yield return StartCoroutine(ShowSpecialImagesRoutine(data.subtitles));
 
-        // --- オプションのオブジェクト移動 ---
         if (data.objectToMove != null && data.moveOffset != Vector3.zero)
         {
             Vector3 startPos = data.objectToMove.position;
             Vector3 endPos = startPos + data.moveOffset;
             float elapsed = 0f;
-
             while (elapsed < data.moveDuration)
             {
                 elapsed += Time.deltaTime;
@@ -354,13 +261,9 @@ public class InteractSubtitleManager : MonoBehaviour
             data.objectToMove.position = endPos;
         }
 
-        // --- 邪魔な壁（Collider）の無効化 ---
         if (data.collidersToDisable != null)
         {
-            foreach (Collider col in data.collidersToDisable)
-            {
-                if (col != null) col.enabled = false;
-            }
+            foreach (Collider col in data.collidersToDisable) if (col != null) col.enabled = false;
         }
 
         data.hasPlayed = true;
@@ -370,17 +273,17 @@ public class InteractSubtitleManager : MonoBehaviour
             if (data.triggerArea != null) data.triggerArea.enabled = false;
         }
 
+        SetPlayerAudioMute(false); // ★音を戻す
+
         if (playerController != null) playerController.canControl = true;
 
         isAnimating = false;
         GlobalSubtitleState.IsAnySubtitlePlaying = false;
-
         if (currentSpecialData == data && data.playOnlyOnce) currentSpecialData = null;
 
         gameObject.SetActive(false);
     }
 
-    // Normal用の共通設定コルーチン
     IEnumerator ShowImagesRoutine(Image[] images)
     {
         if (images != null && images.Length > 0)
@@ -395,18 +298,14 @@ public class InteractSubtitleManager : MonoBehaviour
                 SetAlpha(currentImage, 1f);
 
                 float timer = 0f;
-
                 while (timer < duration)
                 {
                     timer += Time.deltaTime;
                     float progress = timer / duration;
-
                     if (characterCount > 0) currentImage.fillAmount = Mathf.Floor(progress * characterCount) / characterCount;
                     else currentImage.fillAmount = progress;
-
                     yield return null;
                 }
-
                 currentImage.fillAmount = 1.0f;
                 yield return new WaitForSeconds(displayTime);
 
@@ -421,19 +320,13 @@ public class InteractSubtitleManager : MonoBehaviour
                         yield return null;
                     }
                 }
-
                 SetAlpha(currentImage, 0f);
                 currentImage.gameObject.SetActive(false);
-
-                if (i < images.Length - 1)
-                {
-                    yield return new WaitForSeconds(delayBetweenSubtitles);
-                }
+                if (i < images.Length - 1) yield return new WaitForSeconds(delayBetweenSubtitles);
             }
         }
     }
 
-    // ★追加：Special用の個別設定コルーチン
     IEnumerator ShowSpecialImagesRoutine(SpecialSubtitleData[] subs)
     {
         if (subs != null && subs.Length > 0)
@@ -449,18 +342,14 @@ public class InteractSubtitleManager : MonoBehaviour
                 SetAlpha(currentImage, 1f);
 
                 float timer = 0f;
-
                 while (timer < currentData.duration)
                 {
                     timer += Time.deltaTime;
                     float progress = timer / currentData.duration;
-
                     if (currentData.characterCount > 0) currentImage.fillAmount = Mathf.Floor(progress * currentData.characterCount) / currentData.characterCount;
                     else currentImage.fillAmount = progress;
-
                     yield return null;
                 }
-
                 currentImage.fillAmount = 1.0f;
                 yield return new WaitForSeconds(currentData.displayTime);
 
@@ -475,25 +364,38 @@ public class InteractSubtitleManager : MonoBehaviour
                         yield return null;
                     }
                 }
-
                 SetAlpha(currentImage, 0f);
                 currentImage.gameObject.SetActive(false);
-
-                if (i < subs.Length - 1)
-                {
-                    yield return new WaitForSeconds(delayBetweenSubtitles);
-                }
+                if (i < subs.Length - 1) yield return new WaitForSeconds(delayBetweenSubtitles);
             }
         }
     }
 
     private void SetAlpha(Image img, float alpha)
     {
-        if (img != null)
+        if (img != null) { Color c = img.color; c.a = alpha; img.color = c; }
+    }
+
+    // ★超強力版ミュート関数
+    private void SetPlayerAudioMute(bool isMuted)
+    {
+        if (playerController != null)
         {
-            Color c = img.color;
-            c.a = alpha;
-            img.color = c;
+            AudioSource[] audios = playerController.GetComponentsInChildren<AudioSource>(true);
+            foreach (AudioSource audio in audios)
+            {
+                if (isMuted)
+                {
+                    if (!originalVolumes.ContainsKey(audio)) originalVolumes[audio] = audio.volume;
+                    audio.Pause();
+                    audio.volume = 0f;
+                }
+                else
+                {
+                    if (originalVolumes.ContainsKey(audio)) audio.volume = originalVolumes[audio];
+                    audio.UnPause();
+                }
+            }
         }
     }
 }
@@ -512,7 +414,6 @@ public class SubtitleTriggerHandler : MonoBehaviour
             if (specialData != null) manager.OnPlayerEnterSpecial(specialData);
         }
     }
-
     private void OnTriggerExit(Collider other)
     {
         if (other.CompareTag("Player"))

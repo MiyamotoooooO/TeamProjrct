@@ -2,6 +2,7 @@ using UnityEngine;
 using TMPro;
 using System.Threading.Tasks;
 using System.Collections;
+using System.Collections.Generic; // ★追加：Dictionary用
 using UnityEngine.UI;
 using UnityEngine.Rendering.PostProcessing;
 
@@ -16,16 +17,11 @@ public class ItemUse : MonoBehaviour
     [Header("鍵アイテム（Door 用）")]
     public GameObject keyObject;
 
-    [Header("Bloodlump 除去に必要なアイテム名")]
+    [Header("Bloodlump 除去設定")]
     public string detergentName = "Detergent";
 
-    [Header("Bloodlump 除去後に出す Sphere")]
-    public GameObject spawnSpherePrefab;
-
-    [Tooltip("出現位置のズレ（当たった場所からのズレ。例: Yを0.5にすると少し浮いて出ます）")]
-    public Vector3 spawnOffset = Vector3.zero;
-    [Tooltip("出現するアイテムの大きさ (1, 1, 1が標準)")]
-    public Vector3 spawnScale = Vector3.one;
+    [Tooltip("【重要】シーン内にもともと隠してある鍵オブジェクトをアタッチしてください")]
+    public GameObject sceneKeyObject; // ★生成ではなく、既存のものを表示させる
 
     public TMP_Text UseText;
 
@@ -36,27 +32,17 @@ public class ItemUse : MonoBehaviour
     // 演出・字幕・暗転設定
     // ==========================================
     [Header("【演出】暗転設定")]
-    [Tooltip("画面を真っ暗にするためのPostProcessVolume")]
     public PostProcessVolume blackFadeVolume;
-    [Tooltip("暗転にかかる時間（秒）")]
     public float blackFadeDuration = 1.5f;
 
-    // ==========================================
-    // ★追加：音声演出の設定
-    // ==========================================
     [Header("【演出】音声設定")]
-    [Tooltip("音を鳴らすためのAudioSource（プレイヤーやカメラに付けたものを登録）")]
-    public AudioSource audioSource;
-    [Tooltip("暗転直後に鳴らす1つ目の音")]
+    public AudioSource eventAudioSource; // スクリプト内のAudioSourceと被らないよう名前変更
     public AudioClip firstSound;
-    [Tooltip("1つ目の後に鳴らす2つ目の音")]
     public AudioClip secondSound;
-    [Tooltip("2つ目の音をそのまま鳴らす時間（秒）")]
     public float secondSoundDuration = 3.0f;
-    [Tooltip("2つ目の音がフェードアウトして消えるまでの時間（秒）")]
     public float audioFadeDuration = 2.0f;
 
-    [Header("字幕：時間・フェード共通設定")]
+    [Header("字幕設定")]
     public float duration = 0.8f;
     public int characterCount = 8;
     public float displayTime = 1.0f;
@@ -64,36 +50,29 @@ public class ItemUse : MonoBehaviour
     public float delayBetweenSubtitles = 0.5f;
 
     [Header("字幕：画像データ")]
-    [Tooltip("洗剤を使用した直後（選択肢が出る前）に出る字幕")]
     public Image[] startSubtitleImages;
-    [Tooltip("画面が明るくなった後に出る字幕")]
     public Image[] endSubtitleImages;
 
-    // ==========================================
-    // 選択肢UI設定
-    // ==========================================
     [Header("【Bloodlump】選択肢UI設定")]
-    [Tooltip("クイズの問題文とボタンが含まれる親パネル")]
     public GameObject choicePanel;
-    [Tooltip("「はい」のボタン")]
     public Button yesButton;
-    [Tooltip("「いいえ」のボタン")]
     public Button noButton;
 
-    // 内部変数（選択結果を待つため）
+    // 内部変数
     private bool isChoiceMade = false;
     private bool isYesChosen = false;
+    private Dictionary<AudioSource, float> originalVolumes = new Dictionary<AudioSource, float>();
 
     private void Start()
     {
-        // 画像の初期化
         InitImages(startSubtitleImages);
         InitImages(endSubtitleImages);
 
-        // 暗転ボリュームの初期化
         if (blackFadeVolume != null) blackFadeVolume.weight = 0f;
 
-        // 選択肢UIの初期化とボタン機能の登録
+        // ★追加：アタッチされた鍵を最初は確実に非表示にしておく
+        if (sceneKeyObject != null) sceneKeyObject.SetActive(false);
+
         if (choicePanel != null) choicePanel.SetActive(false);
         if (yesButton != null) yesButton.onClick.AddListener(() => { isChoiceMade = true; isYesChosen = true; });
         if (noButton != null) noButton.onClick.AddListener(() => { isChoiceMade = true; isYesChosen = false; });
@@ -144,103 +123,64 @@ public class ItemUse : MonoBehaviour
         Ray ray = new Ray(cam.transform.position, cam.transform.forward);
         RaycastHit hit;
 
-        if (!Physics.Raycast(ray, out hit, useDistance, Physics.AllLayers, QueryTriggerInteraction.Ignore))
-        {
-            return;
-        }
+        if (!Physics.Raycast(ray, out hit, useDistance, Physics.AllLayers, QueryTriggerInteraction.Ignore)) return;
 
-        // Bloodlump 処理
         if (hit.collider.CompareTag("Bloodlump"))
         {
             if (player.inventoryManager.HasItem(detergentName))
             {
-                StartCoroutine(BloodlumpSequence(hit.collider.gameObject, hit.point));
+                StartCoroutine(BloodlumpSequence(hit.collider.gameObject));
             }
             return;
         }
 
-        // PuzzleButton
-        if (hit.collider.CompareTag("PuzzleButton"))
-        {
-            PuzzleButton btn = hit.collider.GetComponent<PuzzleButton>();
-            if (btn != null) btn.PressButton();
-            return;
-        }
+        // --- 他のインタラクト処理はそのまま ---
+        if (hit.collider.CompareTag("PuzzleButton")) { hit.collider.GetComponent<PuzzleButton>()?.PressButton(); return; }
+        if (hit.collider.CompareTag("RotateObject")) { hit.collider.GetComponent<RotateObject>()?.RotateLeft(); return; }
 
-        // 回転パズル
-        if (hit.collider.CompareTag("RotateObject"))
-        {
-            RotateObject rot = hit.collider.GetComponent<RotateObject>();
-            if (rot != null) rot.RotateLeft();
-            return;
-        }
-
-        // Sink
         if (hit.collider.CompareTag("Sink"))
         {
-            string dirtykeyName = "Dirtykey";
-            string cleankeyName = "Key";
-
-            if (player.inventoryManager.HasItem(dirtykeyName))
+            if (player.inventoryManager.HasItem("Dirtykey"))
             {
                 player.PlayItemSwing();
                 await Task.Delay(800);
-
-                player.inventoryManager.RemoveItem(dirtykeyName);
-                player.inventoryManager.AddItem(cleankeyName);
-
+                player.inventoryManager.RemoveItem("Dirtykey");
+                player.inventoryManager.AddItem("Key");
                 player.UpdateItemModel();
-                Debug.Log("Dirtykeyを洗ってKeyに変化させました");
-
                 return;
             }
-            return;
         }
 
-        // Door
         var door = hit.collider.GetComponentInParent<DoubleDoorController>();
-        if (door == null) return;
+        if (door != null)
+        {
+            string requiredKeyName = keyObject.name.Replace("(Clone)", "").Trim();
+            if (!player.inventoryManager.HasItem(requiredKeyName)) return;
+            if (player.inventoryManager.GetItemTag(requiredKeyName) != "Key") return;
 
-        string requiredKeyName = keyObject.name.Replace("(Clone)", "").Trim();
-
-        if (!player.inventoryManager.HasItem(requiredKeyName)) return;
-
-        string tag = player.inventoryManager.GetItemTag(requiredKeyName);
-        if (tag != "Key") return;
-
-        player.canControl = false;
-        player.canLock = false;
-
-        player.PlayKeySwing();
-        await Task.Delay(1000);
-
-        player.inventoryManager.RemoveItem(requiredKeyName);
-
-        await Task.Delay(3000);
-        player.canControl = true;
-        player.canLock = true;
+            player.canControl = false;
+            player.canLock = false;
+            player.PlayKeySwing();
+            await Task.Delay(1000);
+            player.inventoryManager.RemoveItem(requiredKeyName);
+            await Task.Delay(3000);
+            player.canControl = true;
+            player.canLock = true;
+        }
     }
 
     void ShowClickUI()
     {
         UseText.enabled = false;
-
         Ray ray = new Ray(cam.transform.position, cam.transform.forward);
         RaycastHit hit;
 
         if (!Physics.Raycast(ray, out hit, useDistance)) return;
 
-        if (hit.collider.CompareTag("PuzzleButton"))
+        if (hit.collider.CompareTag("PuzzleButton") || hit.collider.CompareTag("RotateObject"))
         {
-            PuzzleButton btn = hit.collider.GetComponent<PuzzleButton>();
-            if (btn != null) btn.OnHover();
-            return;
-        }
-
-        if (hit.collider.CompareTag("RotateObject"))
-        {
-            RotateObject rot = hit.collider.GetComponent<RotateObject>();
-            if (rot != null) rot.OnHover();
+            hit.collider.GetComponent<PuzzleButton>()?.OnHover();
+            hit.collider.GetComponent<RotateObject>()?.OnHover();
             return;
         }
 
@@ -250,24 +190,21 @@ public class ItemUse : MonoBehaviour
             return;
         }
 
-        var door = hit.collider.GetComponentInParent<DoubleDoorController>();
-        if (door != null)
-        {
-            string requiredKeyName = keyObject.name.Replace("(Clone)", "").Trim();
-            if (player.inventoryManager.HasItem(requiredKeyName)) UseText.enabled = true;
-        }
-
         if (hit.collider.CompareTag("Sink"))
         {
             if (player.inventoryManager.HasItem("Dirtykey")) UseText.enabled = true;
             return;
         }
+
+        var door = hit.collider.GetComponentInParent<DoubleDoorController>();
+        if (door != null)
+        {
+            string reqKey = keyObject.name.Replace("(Clone)", "").Trim();
+            if (player.inventoryManager.HasItem(reqKey)) UseText.enabled = true;
+        }
     }
 
-    // ==========================================
-    // 血の塊の演出シーケンス
-    // ==========================================
-    private IEnumerator BloodlumpSequence(GameObject bloodlumpObj, Vector3 hitPoint)
+    private IEnumerator BloodlumpSequence(GameObject bloodlumpObj)
     {
         GlobalSubtitleState.IsAnySubtitlePlaying = true;
 
@@ -278,25 +215,25 @@ public class ItemUse : MonoBehaviour
             if (rb != null) rb.velocity = Vector3.zero;
         }
 
-        // 1. 開始時の字幕を表示
+        // ★追加：プレイヤーの音を消す
+        SetPlayerAudioMute(true);
+
         yield return StartCoroutine(ShowImagesRoutine(startSubtitleImages));
 
-        // 2. 選択肢UIを表示してマウスクリックを待つ
         isChoiceMade = false;
-        isYesChosen = false;
-
         if (choicePanel != null) choicePanel.SetActive(true);
-        UnityEngine.Cursor.lockState = CursorLockMode.None;
-        UnityEngine.Cursor.visible = true;
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
 
         yield return new WaitUntil(() => isChoiceMade);
 
         if (choicePanel != null) choicePanel.SetActive(false);
-        UnityEngine.Cursor.lockState = CursorLockMode.Locked;
-        UnityEngine.Cursor.visible = false;
+        Cursor.lockState = CursorLockMode.Locked;
+        Cursor.visible = false;
 
         if (!isYesChosen)
         {
+            SetPlayerAudioMute(false); // 音を戻す
             if (player != null) player.canControl = true;
             GlobalSubtitleState.IsAnySubtitlePlaying = false;
             yield break;
@@ -306,7 +243,7 @@ public class ItemUse : MonoBehaviour
         StartCoroutine(PlayForSeconds());
         yield return new WaitForSeconds(0.9f);
 
-        // 3. 画面を徐々に暗転させる
+        // 暗転
         if (blackFadeVolume != null)
         {
             float elapsed = 0f;
@@ -319,62 +256,42 @@ public class ItemUse : MonoBehaviour
             blackFadeVolume.weight = 1f;
         }
 
-        // 4. 真っ暗な間に血の塊を消して、鍵を出す
+        // ★修正：生成ではなく、シーン上の鍵を表示させる
         if (bloodlumpObj != null) Destroy(bloodlumpObj);
-        GameObject spawnedObj = Instantiate(spawnSpherePrefab, hitPoint + spawnOffset, Quaternion.identity);
-        spawnedObj.transform.localScale = spawnScale;
+        if (sceneKeyObject != null) sceneKeyObject.SetActive(true);
 
         player.inventoryManager.RemoveItem(detergentName);
         player.UpdateItemModel();
 
-        // ==========================================
-        // ★追加：音声シーケンス（暗転中に実行）
-        // ==========================================
-        if (audioSource != null)
+        // 音声シーケンス
+        if (eventAudioSource != null)
         {
-            audioSource.volume = 1f; // 音量を最大にしておく
-
-            // ① 1つ目の音を鳴らす
+            eventAudioSource.volume = 1f;
             if (firstSound != null)
             {
-                audioSource.PlayOneShot(firstSound);
-                // 鳴り終わるまで待機
+                eventAudioSource.PlayOneShot(firstSound);
                 yield return new WaitForSeconds(firstSound.length);
             }
 
-            // ② 2つ目の音を鳴らす
             if (secondSound != null)
             {
-                audioSource.clip = secondSound;
-                audioSource.Play();
-
-                // 3秒間そのまま鳴らし続ける
+                eventAudioSource.clip = secondSound;
+                eventAudioSource.Play();
                 yield return new WaitForSeconds(secondSoundDuration);
 
-                // ③ 音量を徐々に小さくする（フェードアウト）
                 float fadeElapsed = 0f;
-                float startVolume = audioSource.volume;
-
                 while (fadeElapsed < audioFadeDuration)
                 {
                     fadeElapsed += Time.deltaTime;
-                    audioSource.volume = Mathf.Lerp(startVolume, 0f, fadeElapsed / audioFadeDuration);
+                    eventAudioSource.volume = Mathf.Lerp(1f, 0f, fadeElapsed / audioFadeDuration);
                     yield return null;
                 }
-
-                // 完全に音が消えたら停止する
-                audioSource.volume = 0f;
-                audioSource.Stop();
-                audioSource.clip = null; // クリップを外しておく
+                eventAudioSource.Stop();
             }
         }
-        else
-        {
-            // もしAudioSourceが設定されていない場合は、とりあえず1秒待つ
-            yield return new WaitForSeconds(1.0f);
-        }
+        else yield return new WaitForSeconds(1.0f);
 
-        // 5. 画面を徐々に明転させる（音が完全に消えた後）
+        // 明転
         if (blackFadeVolume != null)
         {
             float elapsed = 0f;
@@ -387,80 +304,73 @@ public class ItemUse : MonoBehaviour
             blackFadeVolume.weight = 0f;
         }
 
-        // 6. 終了時の字幕を表示
         yield return StartCoroutine(ShowImagesRoutine(endSubtitleImages));
 
-        // 7. 完了処理
+        // 音を戻す
+        SetPlayerAudioMute(false);
+
         if (player != null) player.canControl = true;
         GlobalSubtitleState.IsAnySubtitlePlaying = false;
     }
 
-    IEnumerator ShowImagesRoutine(Image[] images)
+    private void SetPlayerAudioMute(bool isMuted)
     {
-        if (images != null && images.Length > 0)
+        if (player != null)
         {
-            for (int i = 0; i < images.Length; i++)
+            AudioSource[] audios = player.GetComponentsInChildren<AudioSource>(true);
+            foreach (AudioSource audio in audios)
             {
-                Image currentImage = images[i];
-                if (currentImage == null) continue;
-
-                currentImage.gameObject.SetActive(true);
-                currentImage.fillAmount = 0f;
-                SetAlpha(currentImage, 1f);
-
-                float timer = 0f;
-
-                while (timer < duration)
+                if (isMuted)
                 {
-                    timer += Time.deltaTime;
-                    float progress = timer / duration;
-
-                    if (characterCount > 0) currentImage.fillAmount = Mathf.Floor(progress * characterCount) / characterCount;
-                    else currentImage.fillAmount = progress;
-
-                    yield return null;
+                    if (!originalVolumes.ContainsKey(audio)) originalVolumes[audio] = audio.volume;
+                    audio.Pause();
+                    audio.volume = 0f;
                 }
-
-                currentImage.fillAmount = 1.0f;
-                yield return new WaitForSeconds(displayTime);
-
-                if (i == images.Length - 1)
+                else
                 {
-                    timer = 0f;
-                    while (timer < fadeDuration)
-                    {
-                        timer += Time.deltaTime;
-                        float alpha = Mathf.Lerp(1f, 0f, timer / fadeDuration);
-                        SetAlpha(currentImage, alpha);
-                        yield return null;
-                    }
-                }
-
-                SetAlpha(currentImage, 0f);
-                currentImage.gameObject.SetActive(false);
-
-                if (i < images.Length - 1)
-                {
-                    yield return new WaitForSeconds(delayBetweenSubtitles);
+                    if (originalVolumes.ContainsKey(audio)) audio.volume = originalVolumes[audio];
+                    audio.UnPause();
                 }
             }
         }
     }
 
-    private void SetAlpha(Image img, float alpha)
+    IEnumerator ShowImagesRoutine(Image[] images)
     {
-        if (img != null)
+        if (images == null) yield break;
+        for (int i = 0; i < images.Length; i++)
         {
-            Color c = img.color;
-            c.a = alpha;
-            img.color = c;
+            Image currentImage = images[i];
+            if (currentImage == null) continue;
+            currentImage.gameObject.SetActive(true);
+            currentImage.fillAmount = 0f;
+            SetAlpha(currentImage, 1f);
+            float timer = 0f;
+            while (timer < duration)
+            {
+                timer += Time.deltaTime;
+                float progress = timer / duration;
+                currentImage.fillAmount = (characterCount > 0) ? Mathf.Floor(progress * characterCount) / characterCount : progress;
+                yield return null;
+            }
+            currentImage.fillAmount = 1.0f;
+            yield return new WaitForSeconds(displayTime);
+            if (i == images.Length - 1)
+            {
+                timer = 0f;
+                while (timer < fadeDuration)
+                {
+                    timer += Time.deltaTime;
+                    SetAlpha(currentImage, Mathf.Lerp(1f, 0f, timer / fadeDuration));
+                    yield return null;
+                }
+            }
+            SetAlpha(currentImage, 0f);
+            currentImage.gameObject.SetActive(false);
+            if (i < images.Length - 1) yield return new WaitForSeconds(delayBetweenSubtitles);
         }
     }
 
-    IEnumerator PlayForSeconds()
-    {
-        ps.Play();
-        yield return new WaitForSeconds(bubble_duration);
-        ps.Stop(false);
-    }
+    private void SetAlpha(Image img, float alpha) { if (img != null) { Color c = img.color; c.a = alpha; img.color = c; } }
+    IEnumerator PlayForSeconds() { ps.Play(); yield return new WaitForSeconds(bubble_duration); ps.Stop(false); }
 }

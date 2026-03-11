@@ -1,11 +1,12 @@
-﻿using System.Collections;
+﻿using NUnit.Framework;
+using System.Collections;
 using System.Collections.Generic;
-using UnityEngine;
+using System.Threading.Tasks;
 using TMPro;
+using UnityEngine;
+using UnityEngine.Rendering.PostProcessing;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
-using System.Threading.Tasks;
-using UnityEngine.Rendering.PostProcessing;
 
 [RequireComponent(typeof(Rigidbody))]
 [RequireComponent(typeof(AudioSource))]
@@ -140,11 +141,11 @@ public class PlayerController : MonoBehaviour
     [Header("吐息設定")]
     public AudioSource breathingAudioSource;
     public AudioClip breathingSoundLoop;
-    [Range(0f, 1f)] public float breathingWalkVolume = 0.3f;
-    [Range(0f, 1f)] public float breathingRunVolume = 0.5f;
+    [UnityEngine.Range(0f, 1f)] public float breathingWalkVolume = 0.3f;
+    [UnityEngine.Range(0f, 1f)] public float breathingRunVolume = 0.5f;
 
     [Tooltip("走り終わった直後、最大まで疲労していた場合の音量")]
-    [Range(0f, 1f)] public float breathingMaxVolume = 1.0f;
+    [UnityEngine.Range(0f, 1f)] public float breathingMaxVolume = 1.0f;
 
     [Tooltip("走り終わった後、元の音量に戻るまでにかかる時間（秒）")]
     public float breathingRecoveryTime = 3.0f;
@@ -461,7 +462,14 @@ public class PlayerController : MonoBehaviour
         if (decoy != null)
         {
             Vector3 spawnPos = transform.position + transform.forward * decoySpawnDistance;
-            Instantiate(decoy, spawnPos, Quaternion.identity);
+            // デコイを生成
+            GameObject spawnedDecoy = Instantiate(decoy, spawnPos, Quaternion.identity);
+
+            // ★追加：生成されたデコイのタグを "Player" に書き換える
+            spawnedDecoy.tag = "Player";
+
+            // もしデコイが子オブジェクトを持っている場合、それらもPlayerタグにする必要があるなら以下を有効化
+            // foreach (Transform child in spawnedDecoy.transform) child.gameObject.tag = "Player";
         }
 
         inventoryManager.UseDecoy();
@@ -649,7 +657,7 @@ public class PlayerController : MonoBehaviour
         RaycastHit hit;
 
         pickUpText.enabled = false;
-        string[] pickableTags = { "Item", "Key", "Key1", "Key2", "Key3", "Key4", "Key5", "Flashlight", "Lighter", "Crowbar", "Spider", "Detergent", "rust_key", "Frog" };
+        string[] pickableTags = { "Player","Item", "Key", "Key1", "Key2", "Key3", "Key4", "Key5", "Flashlight", "Lighter", "Crowbar", "Spider", "Detergent", "rust_key", "Frog" };
 
         if (Physics.Raycast(ray, out hit, pickUpDistance))
         {
@@ -756,47 +764,62 @@ public class PlayerController : MonoBehaviour
         string itemName = inventoryManager.currentItems[targetIndex];
         if (string.IsNullOrEmpty(itemName)) return;
 
-        // モデルの非表示対応
-        if (Key1Model) Key1Model.SetActive(false);
-        if (Key2Model) Key2Model.SetActive(false);
-        if (Key3Model) Key3Model.SetActive(false);
-        if (Key4Model) Key4Model.SetActive(false);
-        if (Key5Model) Key5Model.SetActive(false);
-        if (ItemModel) ItemModel.SetActive(false);
-        if (CrowbarModel) CrowbarModel.SetActive(false);
-        if (FlashlightModel) FlashlightModel.SetActive(false);
-        if (LighterModel) LighterModel.SetActive(false);
-        if (SpiderModel) SpiderModel.SetActive(false);
-        if (DetergentModel) DetergentModel.SetActive(false);
-        if (rust_keyModel) rust_keyModel.SetActive(false);
-        if (FrogModel) FrogModel.SetActive(false);
-
-        // ★ 修正：壁の中にドロップして消滅しないように、安全な座標を計算する
+        // ドロップ位置を計算
         Vector3 rayOrigin = transform.position + (transform.up * 1.3f);
         Vector3 dropDirection = transform.forward;
-        float dropDist = 2.0f;
+        float dropDist = 1.5f;
         Vector3 dropPos = rayOrigin + (dropDirection * dropDist);
 
-        // もし目の前に壁があったら、壁の手前に落とす
         if (Physics.Raycast(rayOrigin, dropDirection, out RaycastHit hit, dropDist))
         {
             dropPos = hit.point - (dropDirection * 0.2f);
         }
 
-        // InventoryManagerにドロップを依頼する
+        HideAllItemModels();
+
+        // アイテムを生成
         GameObject droppedItem = inventoryManager.DropItem(itemName, dropPos);
 
-        if (droppedItem)
+        if (droppedItem != null)
         {
+            // ==========================================
+            // ★ 強制セットアップ（クモ専用）
+            // ==========================================
+            if (itemName.Contains("Spider"))
+            {
+                // 1. 角度を強制修正
+                droppedItem.transform.rotation = Quaternion.Euler(-90f, 0f, 0f);
+
+                // 2. タグを強制的に "Spider" にする（拾えるようにするため）
+                droppedItem.name = "Spider";
+
+                // 3. 当たり判定（BoxCollider）を強制的に追加・設定
+                BoxCollider bc = droppedItem.GetComponent<BoxCollider>();
+                if (bc == null) bc = droppedItem.AddComponent<BoxCollider>();
+
+                // クモの大きさに合わせて当たり判定のサイズを調整
+                // ※ もし大きすぎたり小さすぎたりしたら、ここの数値を書き換えてください
+                bc.center = new Vector3(0, 0, 0);
+                bc.size = new Vector3(0.6f, 0.6f, 0.6f);
+
+                // 4. 物理挙動（Rigidbody）を強制的に追加・設定
+                Rigidbody rb = droppedItem.GetComponent<Rigidbody>();
+                if (rb == null) rb = droppedItem.AddComponent<Rigidbody>();
+                rb.mass = 1f;
+                rb.collisionDetectionMode = CollisionDetectionMode.Continuous; // すり抜け防止
+            }
+            // ==========================================
+
+            // 投げ飛ばす処理
             Rigidbody itemRb = droppedItem.GetComponent<Rigidbody>();
             if (itemRb != null)
             {
                 itemRb.velocity = Vector3.zero;
-                Vector3 throwForce = (transform.forward * 2f) + (Vector3.down * 5f);
+                Vector3 throwForce = (transform.forward * 2f) + (Vector3.up * 2f);
                 itemRb.AddForce(throwForce, ForceMode.Impulse);
-                itemRb.AddTorque(Random.insideUnitSphere * 5f, ForceMode.Impulse);
             }
 
+            // プレイヤーとの衝突を一時無視
             Collider playerCollider = GetComponent<Collider>();
             Collider itemCollider = droppedItem.GetComponent<Collider>();
             if (playerCollider != null && itemCollider != null)
@@ -805,13 +828,16 @@ public class PlayerController : MonoBehaviour
                 StartCoroutine(ReenableCollision(playerCollider, itemCollider));
             }
         }
-        else
-        {
-            // ★ 原因特定用：もしドロップできなかったら赤いエラーを出す！
-            Debug.LogError($"【ドロップ失敗】アイテム「{itemName}」がドロップできません！\nInventoryManager の Item Prefabs に登録されているか確認してください！");
-        }
 
         UpdateItemModel();
+    }
+
+    private void HideAllItemModels()
+    {
+        GameObject[] models = { Key1Model, Key2Model, Key3Model, Key4Model, Key5Model,
+                                ItemModel, CrowbarModel, FlashlightModel, LighterModel,
+                                SpiderModel, DetergentModel, rust_keyModel, FrogModel };
+        foreach (var m in models) if (m != null) m.SetActive(false);
     }
 
     private IEnumerator ReenableCollision(Collider pCol, Collider iCol)

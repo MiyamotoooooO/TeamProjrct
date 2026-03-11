@@ -6,68 +6,62 @@ using UnityEngine.AI;
 public class PoisonSpiderAI : MonoBehaviour
 {
     [Header("エリア設定")]
-    [Tooltip("毒蜘蛛が徘徊する＆プレイヤーを検知するエリアのBoxCollider")]
     public BoxCollider roamArea;
 
     [Header("移動スピード設定")]
-    [Tooltip("徘徊中のスピード")]
     public float patrolSpeed = 2.0f;
-    [Tooltip("プレイヤー追跡中のスピード")]
     public float chaseSpeed = 5.0f;
-    [Tooltip("徘徊時、次の目的地に着いてから動き出すまでの待機時間（秒）")]
     public float patrolWaitTime = 1.0f;
 
-    // 内部変数
     private NavMeshAgent agent;
-    private Transform player;
+    private Transform currentTarget; // ★ 追加
     private PlayerHealth playerHealth;
     private bool isChasing = false;
     private bool isWaiting = false;
 
+    private UnityEngine.Animation legacyAnim;
+
     void Start()
     {
         agent = GetComponent<NavMeshAgent>();
-
-        // プレイヤーとPlayerHealthスクリプトを自動取得
-        GameObject playerObj = GameObject.FindGameObjectWithTag("Player");
-        if (playerObj != null)
-        {
-            player = playerObj.transform;
-            playerHealth = playerObj.GetComponent<PlayerHealth>();
-        }
-
-        // 初期スピード設定と最初の徘徊ポイント設定
+        legacyAnim = GetComponentInChildren<UnityEngine.Animation>();
         agent.speed = patrolSpeed;
         SetRandomPatrolPoint();
     }
 
     void Update()
     {
-        if (player == null || roamArea == null) return;
-
-        // プレイヤーが指定エリア(roamArea)の中にいるかどうかを判定
-        bool isPlayerInArea = roamArea.bounds.Contains(player.position);
-
-        if (isPlayerInArea)
+        // ★ アニメーション再生
+        if (legacyAnim != null)
         {
-            // プレイヤーがエリア内にいる -> 追跡モード
+            if (agent.velocity.magnitude > 0.1f) legacyAnim.CrossFade("walk");
+            else legacyAnim.CrossFade("idle");
+        }
+
+        // ★ 一番近い「Player」を探す
+        FindClosestTarget();
+
+        if (currentTarget == null || roamArea == null) return;
+
+        // ターゲットが指定エリアの中にいるかどうかを判定
+        bool isTargetInArea = roamArea.bounds.Contains(currentTarget.position);
+
+        if (isTargetInArea)
+        {
             isChasing = true;
-            isWaiting = false; // 待機中ならキャンセル
+            isWaiting = false;
             agent.speed = chaseSpeed;
-            agent.SetDestination(player.position); // 常にプレイヤーの位置を目的地にする
+            agent.SetDestination(currentTarget.position);
         }
         else
         {
-            // プレイヤーがエリア外にいる -> 徘徊モード
             if (isChasing)
             {
-                // 追跡から徘徊に切り替わった瞬間
                 isChasing = false;
                 agent.speed = patrolSpeed;
-                SetRandomPatrolPoint(); // 追跡をやめて新しい徘徊ポイントへ
+                SetRandomPatrolPoint();
             }
 
-            // 徘徊中の目的地到着判定
             if (!agent.pathPending && agent.remainingDistance <= agent.stoppingDistance && !isWaiting)
             {
                 StartCoroutine(WaitAndPatrol());
@@ -75,61 +69,68 @@ public class PoisonSpiderAI : MonoBehaviour
         }
     }
 
-    // 目的地に着いたら少し待ってから次の場所へ行くコルーチン
+    // ★ 一番近い「Player」を探す（デコイ対応）
+    void FindClosestTarget()
+    {
+        GameObject[] targets = GameObject.FindGameObjectsWithTag("Player");
+        float minDistance = Mathf.Infinity;
+        Transform closest = null;
+
+        foreach (GameObject t in targets)
+        {
+            float dist = Vector3.Distance(transform.position, t.transform.position);
+            if (dist < minDistance)
+            {
+                minDistance = dist;
+                closest = t.transform;
+            }
+        }
+        currentTarget = closest;
+    }
+
     private IEnumerator WaitAndPatrol()
     {
         isWaiting = true;
         yield return new WaitForSeconds(patrolWaitTime);
-
-        // 待機中にプレイヤーが入ってきていなければ、次の目的地へ
-        if (!isChasing)
-        {
-            SetRandomPatrolPoint();
-        }
+        if (!isChasing) SetRandomPatrolPoint();
         isWaiting = false;
     }
 
-    // エリア内でランダムな目的地を設定する関数
     private void SetRandomPatrolPoint()
     {
         if (roamArea == null) return;
-
-        // BoxColliderの範囲内でランダムな座標(X, Z)を生成
         Bounds bounds = roamArea.bounds;
-        Vector3 randomPos = new Vector3(
-            Random.Range(bounds.min.x, bounds.max.x),
-            transform.position.y,
-            Random.Range(bounds.min.z, bounds.max.z)
-        );
-
-        // 生成した座標の近くにあるNavMesh上の歩ける場所を探す
-        NavMeshHit hit;
-        if (NavMesh.SamplePosition(randomPos, out hit, 3.0f, NavMesh.AllAreas))
+        for (int i = 0; i < 30; i++)
         {
-            agent.SetDestination(hit.position);
+            Vector3 randomPos = new Vector3(
+                Random.Range(bounds.min.x, bounds.max.x),
+                transform.position.y,
+                Random.Range(bounds.min.z, bounds.max.z)
+            );
+            NavMeshHit hit;
+            if (NavMesh.SamplePosition(randomPos, out hit, 1.0f, NavMesh.AllAreas))
+            {
+                Vector3 checkPos = new Vector3(hit.position.x, bounds.center.y, hit.position.z);
+                if (bounds.Contains(checkPos))
+                {
+                    agent.SetDestination(hit.position);
+                    return;
+                }
+            }
         }
-        else
-        {
-            // 見つからなかったらもう一度やり直す
-            SetRandomPatrolPoint();
-        }
+        NavMeshHit centerHit;
+        if (NavMesh.SamplePosition(bounds.center, out centerHit, 5.0f, NavMesh.AllAreas)) agent.SetDestination(centerHit.position);
     }
 
-    // プレイヤーに触れた時の処理 (Triggerにしている場合)
+    // プレイヤー（またはデコイ）に触れた時の処理
     private void OnTriggerEnter(Collider other)
     {
-        if (other.CompareTag("Player") && playerHealth != null)
+        if (other.CompareTag("Player"))
         {
-            playerHealth.Die();
-        }
-    }
-
-    // プレイヤーに触れた時の処理 (物理Colliderにしている場合)
-    private void OnCollisionEnter(Collision collision)
-    {
-        if (collision.gameObject.CompareTag("Player") && playerHealth != null)
-        {
-            playerHealth.Die();
+            // デコイの場合はDie()を持っていない可能性があるのでチェック
+            PlayerHealth health = other.GetComponent<PlayerHealth>();
+            if (health != null) health.Die();
+            else if (other.name.Contains("Decoy")) Destroy(other.gameObject); // デコイなら破壊するなどの処理
         }
     }
 }

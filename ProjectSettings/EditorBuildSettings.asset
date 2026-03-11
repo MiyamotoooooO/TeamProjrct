@@ -9,7 +9,7 @@ EditorBuildSettings:
     path: Assets/Scenes/TitleScene.unity
     guid: 56aef32c8cd6ed04bb2da89f983e110b
   - enabled: 1
-    path: Assets/Scenes/Kodoku.unity
-    guid: 4ba6d88ff3e5c4240a0ccec51f27498c
+    path: Assets/Scenes/Kodoku2.unity
+    guid: b5dcb57936a8d66468a627bc05819a28
   m_configObjects: {}
   m_UseUCBPForAssetBundles: 0
